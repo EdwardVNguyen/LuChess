@@ -15,3 +15,4 @@ CREATE TABLE users (
 -- +goose Down
 DROP TABLE IF EXISTS users;
 DROP TYPE user_role;
+
