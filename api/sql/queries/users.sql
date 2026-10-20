@@ -8,3 +8,8 @@ VALUES (
   $5,
   $6
 );
+
+-- name: GetUserByEmail :one
+SELECT * 
+FROM users
+WHERE email = $1;
