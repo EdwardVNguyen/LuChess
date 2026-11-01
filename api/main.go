@@ -18,7 +18,8 @@ import (
 func main() {
 	// Local development variables (for now)
 	const (
-		port = "8080"
+		defaultPort = "8080"
+		envPort = "PORT"
 		envDatabaseURL = "DB_URL" 
 		envDatabaseType = "postgres"
 		envFrontendOrigin = "FRONTEND_ORIGIN"
@@ -28,6 +29,11 @@ func main() {
 	if err := godotenv.Load(); err != nil {
 		log.Fatal(err)
 	}	
+
+	port := os.Getenv(envPort)
+	if port == "" {
+		port = defaultPort
+	}
 
 	// Connect to the database
 	db, err := sql.Open(envDatabaseType, os.Getenv(envDatabaseURL))
