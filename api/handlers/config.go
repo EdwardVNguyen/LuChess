@@ -6,4 +6,6 @@ import (
 
 type ApiConfig struct {
 	Db *database.Queries
+	// FrontendOrigin is the only origin allowed to call the API from a browser
+	FrontendOrigin string
 }

@@ -19,6 +19,7 @@ func main() {
 		port = "8080"
 		envDatabaseURL = "DB_URL" 
 		envDatabaseType = "postgres"
+		envFrontendOrigin = "FRONTEND_ORIGIN"
 	)
 
 	// Get environment variables
@@ -32,21 +33,22 @@ func main() {
 		log.Fatal(err)
 	}
 
+	// The only browser origin allowed to call the API; refuse to start without it
+	frontendOrigin := os.Getenv(envFrontendOrigin)
+	if frontendOrigin == "" {
+		log.Fatalf("%s must be set", envFrontendOrigin)
+	}
+
 	// Holds shared dependencies for handlers
 	apiCfg := handler.ApiConfig {
 		Db: database.New(db),
+		FrontendOrigin: frontendOrigin,
 	}
-
-	// Mux is responsbile for matching HTTP request URLs with endpoints and executing handlers
-	mux := http.NewServeMux()
-
-	// Endpoints
-	mux.HandleFunc("POST /api/users", apiCfg.HandleCreateUser)
 
 	// Run the server
 	server := &http.Server{
 		Addr: ":" + port,
-		Handler: mux,
+		Handler: handler.NewRouter(&apiCfg),
 	}
 
 	fmt.Printf("Server running on port %s\n", port)
