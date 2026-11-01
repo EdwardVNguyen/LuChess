@@ -51,6 +51,15 @@ type publicUser struct {
 	Name  string `json:"name"`
 }
 
+// decodeJSON reads a small JSON request body into dst, answering 400 itself on failure.
+func decodeJSON(w http.ResponseWriter, r *http.Request, dst any) bool {
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxBodyBytes)).Decode(dst); err != nil {
+		utils.RespondError(w, http.StatusBadRequest, "Could not read JSON from HTTP request body", err)
+		return false
+	}
+	return true
+}
+
 // clientIP is the address of the connection. Behind a reverse proxy this is the
 // proxy's address, so deployment must add trusted forwarded-header handling.
 func clientIP(r *http.Request) string {

@@ -105,6 +105,16 @@ type EmailToken struct {
 	CreatedAt time.Time
 }
 
+type RefreshToken struct {
+	ID        int64
+	UserID    int32
+	TokenHash []byte
+	ExpiresAt time.Time
+	RotatedAt sql.NullTime
+	RevokedAt sql.NullTime
+	CreatedAt time.Time
+}
+
 type User struct {
 	ID              int32
 	Email           string

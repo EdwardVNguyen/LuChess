@@ -1,6 +1,6 @@
 # Self-managed auth: short-lived JWT access tokens and opaque refresh tokens
 
-The planning document chose Clerk; we decided to run authentication ourselves (argon2id passwords, email verification and password reset through a mailer, login blocked until the email is verified). Access tokens are 15-minute HS256 JWTs held in memory. Refresh tokens are random opaque strings in an `HttpOnly` cookie, stored only as hashes, rotated on every use, with reuse of a revoked token revoking the whole family. We rejected JWT refresh tokens because they would need the same database table for rotation and revocation, so signing them adds nothing.
+The planning document chose Clerk; we decided to run authentication ourselves (argon2id passwords, email verification and password reset through a mailer, login blocked until the email is verified). Access tokens are 15-minute HS256 JWTs held in memory. Refresh tokens are random opaque strings in an `HttpOnly` cookie, stored only as hashes, rotated on every use. Presenting a token that was already rotated means it leaked, so every session of that user is revoked; tokens ended by logout, a password reset or plain expiry do not count as theft, or a stale device could end a new session. We rejected JWT refresh tokens because they would need the same database table for rotation and revocation, so signing them adds nothing.
 
 ## Consequences
 

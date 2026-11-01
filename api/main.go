@@ -23,6 +23,9 @@ func main() {
 		envDatabaseURL = "DB_URL" 
 		envDatabaseType = "postgres"
 		envFrontendOrigin = "FRONTEND_ORIGIN"
+		envJWTSecret = "JWT_SECRET"
+		envCookieSecure = "COOKIE_SECURE"
+		minJWTSecretLen = 32
 	)
 
 	// Get environment variables
@@ -47,6 +50,12 @@ func main() {
 		log.Fatalf("%s must be set", envFrontendOrigin)
 	}
 
+	// Signs access tokens; anyone who has it can forge a login, so refuse a weak or missing one
+	jwtSecret := os.Getenv(envJWTSecret)
+	if len(jwtSecret) < minJWTSecretLen {
+		log.Fatalf("%s must be set to at least %d characters (generate one with: openssl rand -base64 48)", envJWTSecret, minJWTSecretLen)
+	}
+
 	// Holds shared dependencies for handlers
 	apiCfg := handler.ApiConfig {
 		Db: database.New(db),
@@ -55,6 +64,9 @@ func main() {
 		// Development mailer: prints emails to this log. Production uses a real provider.
 		Mailer: mailer.Console{Out: os.Stdout},
 		Hasher: password.DefaultHasher,
+		JWTSecret: []byte(jwtSecret),
+		// On unless explicitly turned off, for a browser that refuses Secure cookies over plain HTTP
+		CookieSecure: os.Getenv(envCookieSecure) != "false",
 	}
 
 	// Run the server
