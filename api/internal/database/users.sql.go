@@ -8,6 +8,7 @@ package database
 import (
 	"context"
 	"database/sql"
+	"time"
 )
 
 const createUser = `-- name: CreateUser :one
@@ -19,7 +20,7 @@ VALUES (
   $4,
   $5
 )
-RETURNING id, email, password_hash, name, biography, avatar_url, role, created_at
+RETURNING id, email, password_hash, name, biography, avatar_url, role, created_at, updated_at, email_verified_at
 `
 
 type CreateUserParams struct {
@@ -48,12 +49,14 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.AvatarUrl,
 		&i.Role,
 		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.EmailVerifiedAt,
 	)
 	return i, err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, password_hash, name, biography, avatar_url, role, created_at 
+SELECT id, email, password_hash, name, biography, avatar_url, role, created_at, updated_at, email_verified_at 
 FROM users
 WHERE email = $1
 `
@@ -70,6 +73,25 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.AvatarUrl,
 		&i.Role,
 		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.EmailVerifiedAt,
 	)
 	return i, err
+}
+
+const markEmailVerified = `-- name: MarkEmailVerified :exec
+UPDATE users
+SET email_verified_at = COALESCE(email_verified_at, $1),
+    updated_at = $1
+WHERE id = $2
+`
+
+type MarkEmailVerifiedParams struct {
+	Now time.Time
+	ID  int32
+}
+
+func (q *Queries) MarkEmailVerified(ctx context.Context, arg MarkEmailVerifiedParams) error {
+	_, err := q.db.ExecContext(ctx, markEmailVerified, arg.Now, arg.ID)
+	return err
 }

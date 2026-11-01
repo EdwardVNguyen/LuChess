@@ -8,7 +8,50 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"fmt"
+	"time"
 )
+
+type EmailTokenPurpose string
+
+const (
+	EmailTokenPurposeVerify EmailTokenPurpose = "verify"
+	EmailTokenPurposeReset  EmailTokenPurpose = "reset"
+)
+
+func (e *EmailTokenPurpose) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = EmailTokenPurpose(s)
+	case string:
+		*e = EmailTokenPurpose(s)
+	default:
+		return fmt.Errorf("unsupported scan type for EmailTokenPurpose: %T", src)
+	}
+	return nil
+}
+
+type NullEmailTokenPurpose struct {
+	EmailTokenPurpose EmailTokenPurpose
+	Valid             bool // Valid is true if EmailTokenPurpose is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullEmailTokenPurpose) Scan(value interface{}) error {
+	if value == nil {
+		ns.EmailTokenPurpose, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.EmailTokenPurpose.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullEmailTokenPurpose) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.EmailTokenPurpose), nil
+}
 
 type UserRole string
 
@@ -52,13 +95,25 @@ func (ns NullUserRole) Value() (driver.Value, error) {
 	return string(ns.UserRole), nil
 }
 
+type EmailToken struct {
+	ID        int64
+	UserID    int32
+	Purpose   EmailTokenPurpose
+	TokenHash []byte
+	ExpiresAt time.Time
+	UsedAt    sql.NullTime
+	CreatedAt time.Time
+}
+
 type User struct {
-	ID           int32
-	Email        string
-	PasswordHash string
-	Name         string
-	Biography    sql.NullString
-	AvatarUrl    sql.NullString
-	Role         UserRole
-	CreatedAt    sql.NullTime
+	ID              int32
+	Email           string
+	PasswordHash    string
+	Name            string
+	Biography       sql.NullString
+	AvatarUrl       sql.NullString
+	Role            UserRole
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+	EmailVerifiedAt sql.NullTime
 }

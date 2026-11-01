@@ -10,6 +10,8 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/EdwardVNguyen/ChessNotes/api/internal/database"
 	"github.com/EdwardVNguyen/ChessNotes/api/handlers"
+	"github.com/EdwardVNguyen/ChessNotes/api/internal/mailer"
+	"github.com/EdwardVNguyen/ChessNotes/api/internal/password"
 	_ "github.com/lib/pq"
 )
 
@@ -42,7 +44,11 @@ func main() {
 	// Holds shared dependencies for handlers
 	apiCfg := handler.ApiConfig {
 		Db: database.New(db),
+		SQL: db,
 		FrontendOrigin: frontendOrigin,
+		// Development mailer: prints emails to this log. Production uses a real provider.
+		Mailer: mailer.Console{Out: os.Stdout},
+		Hasher: password.DefaultHasher,
 	}
 
 	// Run the server

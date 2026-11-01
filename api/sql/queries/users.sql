@@ -13,3 +13,9 @@ RETURNING *;
 SELECT * 
 FROM users
 WHERE email = $1;
+
+-- name: MarkEmailVerified :exec
+UPDATE users
+SET email_verified_at = COALESCE(email_verified_at, sqlc.arg(now)),
+    updated_at = sqlc.arg(now)
+WHERE id = sqlc.arg(id);
