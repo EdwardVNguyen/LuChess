@@ -10,20 +10,19 @@ import (
 	"database/sql"
 )
 
-const createUser = `-- name: CreateUser :exec
-INSERT INTO users(id, email, password_hash, name, biography, avatar_url)
+const createUser = `-- name: CreateUser :one
+INSERT INTO users(email, password_hash, name, biography, avatar_url)
 VALUES (
   $1,
   $2,
   $3,
   $4,
-  $5,
-  $6
+  $5
 )
+RETURNING id, email, password_hash, name, biography, avatar_url, role, created_at
 `
 
 type CreateUserParams struct {
-	ID           int32
 	Email        string
 	PasswordHash string
 	Name         string
@@ -31,16 +30,26 @@ type CreateUserParams struct {
 	AvatarUrl    sql.NullString
 }
 
-func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) error {
-	_, err := q.db.ExecContext(ctx, createUser,
-		arg.ID,
+func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, createUser,
 		arg.Email,
 		arg.PasswordHash,
 		arg.Name,
 		arg.Biography,
 		arg.AvatarUrl,
 	)
-	return err
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.PasswordHash,
+		&i.Name,
+		&i.Biography,
+		&i.AvatarUrl,
+		&i.Role,
+		&i.CreatedAt,
+	)
+	return i, err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one

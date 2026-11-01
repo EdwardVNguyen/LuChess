@@ -6,17 +6,18 @@ import (
 
 	"github.com/EdwardVNguyen/ChessNotes/api/utils"
 	"github.com/EdwardVNguyen/ChessNotes/api/internal/database"
-	"github.com/google/uuid"
 )
 
 type User struct {
-	ID uuid.UUID `json:"id"`
+	ID int32 `json:"id"`
 	Email string `json:"email"`
+	Name string `json:"name"`
 }
 
 func (cfg *ApiConfig) HandleCreateUser(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
 		Email string `json:"email"`
+		Name string `json:"name"`
 		Password string `json:"password"`
 	}
 
@@ -31,22 +32,24 @@ func (cfg *ApiConfig) HandleCreateUser(w http.ResponseWriter, r *http.Request) {
 	//
 
 
-	if err := cfg.Db.CreateUser(r.Context(), database.CreateUserParams{
+	if p.Email == "" || p.Name == "" || p.Password == "" {
+		utils.RespondError(w, http.StatusBadRequest, "email, name and password are required", nil)
+		return
+	}
+
+	user, err := cfg.Db.CreateUser(r.Context(), database.CreateUserParams{
 		Email: p.Email,
+		Name: p.Name,
 		PasswordHash: p.Password, // todo, currently set as unhashed password for now
-	},
-	); err != nil {
+	})
+	if err != nil {
 		utils.RespondError(w, http.StatusInternalServerError, "Could not create user", err)
 		return
 	}
 
-	user, err := cfg.Db.GetUserByEmail(r.Context(), p.Email)
-	if err != nil {
-		utils.RespondError(w, http.StatusInternalServerError, "User email could not be found", err)
-		return
-	}
-
 	utils.RespondJSON(w, http.StatusCreated, User{
+		ID: user.ID,
 		Email: user.Email,
+		Name: user.Name,
 	})
 }
