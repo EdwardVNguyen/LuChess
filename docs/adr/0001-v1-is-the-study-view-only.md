@@ -1,0 +1,3 @@
+# v1 is the study view only
+
+The planning document describes three products: the study view (Notes, Annotations, Links), a public library of articles with social features, and a playing view with opening challenges, ratings, bots and timers. v1 is the study view alone, because it is the only part that tests the premise that connected notes help people learn chess, and the playing view needs real-time infrastructure that is the largest risk. Notes are private in v1. The library, follows, blocking, ratings, collaborators, clone/export permissions and per-game metadata tables are deliberately left out of the schema until those views begin.
