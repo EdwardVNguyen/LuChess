@@ -1,16 +1,8 @@
 import { Alert, Button, Group, Stack, TextInput } from '@mantine/core'
 import { useMutation } from '@tanstack/react-query'
 import { useState } from 'react'
-import { ApiError } from './api'
 import { api } from './apiClient'
-
-function waitMessage(error: unknown): string {
-  if (error instanceof ApiError && error.status === 429 && error.retryAfterSeconds) {
-    const minutes = Math.ceil(error.retryAfterSeconds / 60)
-    return `Too many requests. Try again in about ${minutes} minute${minutes === 1 ? '' : 's'}.`
-  }
-  return error instanceof Error ? error.message : 'Something went wrong. Please try again.'
-}
+import { errorMessage } from './errors'
 
 // Asks for another verification email. When the address is already known (just
 // after sign-up) it is a single button; otherwise it asks for the address.
@@ -36,7 +28,7 @@ export function ResendVerification({ email }: { email?: string }) {
         </Button>
       </Group>
       {resend.isSuccess && <Alert color="green">{resend.data.message}</Alert>}
-      {resend.isError && <Alert color="red">{waitMessage(resend.error)}</Alert>}
+      {resend.isError && <Alert color="red">{errorMessage(resend.error)}</Alert>}
     </Stack>
   )
 }

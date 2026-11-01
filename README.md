@@ -10,6 +10,7 @@ The API (`api/`) and the frontend (`web/`) are separate servers.
 cd api
 docker compose up -d --wait   # Postgres 18 on localhost:5433 (5432 is left free for a local install)
 cp .env.example .env
+echo "JWT_SECRET=$(openssl rand -base64 48)" >> .env   # signs access tokens; the API refuses to start without one
 goose -dir sql/schema postgres "$(grep ^DB_URL .env | cut -d= -f2-)" up   # apply migrations
 go run .                      # http://localhost:8080
 
@@ -21,6 +22,10 @@ npm run dev                   # http://localhost:5173
 ```
 
 The API only allows browser requests from `FRONTEND_ORIGIN`, so keep the frontend on port 5173 (Vite is pinned to it). The API listens on 8080, or on `PORT` if set.
+
+### Logging in
+
+Login gives the page a 15 minute access token, kept in memory only, and sets a 30 day refresh token in an `HttpOnly` cookie. Reloading the page restores the session from that cookie. The cookie is marked `Secure`; Chromium browsers (Brave, Chrome) accept that on `http://localhost`, but Safari does not, so set `COOKIE_SECURE=false` in `api/.env` if yours refuses it. Because the frontend and API share the host `localhost`, the cookie works across ports.
 
 ### Email in development
 
