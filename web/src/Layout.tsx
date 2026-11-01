@@ -1,4 +1,4 @@
-import { AppShell, Container, Group, Title } from '@mantine/core'
+import { AppShell, Button, Container, Group, Title } from '@mantine/core'
 import { Link, Outlet } from '@tanstack/react-router'
 
 export function Layout() {
@@ -11,6 +11,9 @@ export function Layout() {
               ChessNotes
             </Link>
           </Title>
+          <Button component={Link} to="/signup" variant="light" ml="auto">
+            Sign up
+          </Button>
         </Group>
       </AppShell.Header>
       <AppShell.Main>

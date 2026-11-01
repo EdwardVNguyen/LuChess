@@ -20,7 +20,11 @@ npm install
 npm run dev                   # http://localhost:5173
 ```
 
-The API only allows browser requests from `FRONTEND_ORIGIN`, so keep the frontend on port 5173 (Vite is pinned to it).
+The API only allows browser requests from `FRONTEND_ORIGIN`, so keep the frontend on port 5173 (Vite is pinned to it). The API listens on 8080, or on `PORT` if set.
+
+### Email in development
+
+The API never sends real email locally. Verification emails are printed to the API's log, so after signing up at http://localhost:5173/signup, copy the link from the terminal running `go run .`. Production will use a real provider behind the same `Mailer` interface.
 
 ## Tests
 
