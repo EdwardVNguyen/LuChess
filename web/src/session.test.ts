@@ -10,6 +10,9 @@ function json(body: unknown, status = 200) {
 
 const sessionBody = (accessToken: string) => json({ accessToken, user: ada })
 const unauthorized = () => json({ error: 'Unauthorized' }, 401)
+const networkError = () => {
+  throw new TypeError('Failed to fetch')
+}
 
 type Call = { path: string; init: RequestInit & { headers?: Record<string, string> } }
 
@@ -146,6 +149,115 @@ describe('refresh', () => {
 
     expect(calls).toHaveLength(1)
     expect(results.every((r) => r?.user.id === ada.id)).toBe(true)
+  })
+
+  it('retries once after a network error and restores the session', async () => {
+    const { fetchFn, calls } = fakeServer(networkError, () => sessionBody('token-2'))
+    const api = createApiClient(baseUrl, fetchFn)
+
+    const session = await api.refresh()
+
+    expect(session).toEqual({ user: ada })
+    expect(api.getSession()).toEqual({ user: ada })
+    expect(calls.map((c) => c.path)).toEqual(['/api/auth/refresh', '/api/auth/refresh'])
+  })
+
+  it('gives up after one retry and keeps the current session', async () => {
+    const { fetchFn, calls } = fakeServer(
+      () => sessionBody('token-1'), // login
+      networkError,
+      networkError,
+    )
+    const api = createApiClient(baseUrl, fetchFn)
+    await api.login({ email: 'ada@example.com', password: 'x' })
+
+    const failure = await api.refresh().catch((e) => e)
+
+    expect(failure).toBeInstanceOf(ApiError)
+    expect(failure.status).toBe(0)
+    expect(api.getSession()).toEqual({ user: ada })
+    expect(calls.filter((c) => c.path === '/api/auth/refresh')).toHaveLength(2)
+  })
+
+  it('does not retry a 401, and ends the session', async () => {
+    const { fetchFn, calls } = fakeServer(() => sessionBody('token-1'), unauthorized)
+    const api = createApiClient(baseUrl, fetchFn)
+    await api.login({ email: 'ada@example.com', password: 'x' })
+
+    await expect(api.refresh()).resolves.toBeNull()
+
+    expect(api.getSession()).toBeNull()
+    expect(calls.filter((c) => c.path === '/api/auth/refresh')).toHaveLength(1)
+  })
+
+  it('ends the session when the retry after a network error is answered with a 401', async () => {
+    const { fetchFn, calls } = fakeServer(
+      () => sessionBody('token-1'), // login
+      networkError,
+      unauthorized,
+    )
+    const api = createApiClient(baseUrl, fetchFn)
+    await api.login({ email: 'ada@example.com', password: 'x' })
+
+    await expect(api.refresh()).resolves.toBeNull()
+
+    expect(api.getSession()).toBeNull()
+    expect(calls.filter((c) => c.path === '/api/auth/refresh')).toHaveLength(2)
+  })
+
+  it.each([429, 500])('does not retry a %i', async (status) => {
+    const { fetchFn, calls } = fakeServer(() => json({ error: 'nope' }, status))
+    const api = createApiClient(baseUrl, fetchFn)
+
+    await expect(api.refresh()).rejects.toMatchObject({ status })
+
+    expect(calls).toHaveLength(1)
+  })
+
+  it('still sends one logical refresh to concurrent callers while it retries', async () => {
+    const { fetchFn, calls } = fakeServer(networkError, () => sessionBody('token-2'))
+    const api = createApiClient(baseUrl, fetchFn)
+
+    const results = await Promise.all([api.refresh(), api.refresh(), api.refresh()])
+
+    expect(calls).toHaveLength(2)
+    expect(results.every((r) => r?.user.id === ada.id)).toBe(true)
+  })
+
+  it('takes the lock once for the first attempt and the retry together', async () => {
+    const order: string[] = []
+    const lock = async <T,>(fn: () => Promise<T>) => {
+      order.push('lock acquired')
+      try {
+        return await fn()
+      } finally {
+        order.push('lock released')
+      }
+    }
+    const { fetchFn } = fakeServer(
+      () => {
+        order.push('request 1')
+        throw new TypeError('Failed to fetch')
+      },
+      () => {
+        order.push('request 2')
+        return sessionBody('token-2')
+      },
+    )
+    const api = createApiClient(baseUrl, fetchFn, { lock })
+
+    await api.refresh()
+
+    expect(order).toEqual(['lock acquired', 'request 1', 'request 2', 'lock released'])
+  })
+
+  it('does not retry other requests after a network error', async () => {
+    const { fetchFn, calls } = fakeServer(networkError)
+    const api = createApiClient(baseUrl, fetchFn)
+
+    await expect(api.login({ email: 'ada@example.com', password: 'x' })).rejects.toMatchObject({ status: 0 })
+
+    expect(calls).toHaveLength(1)
   })
 })
 

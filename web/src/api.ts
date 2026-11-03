@@ -86,10 +86,21 @@ export function createApiClient(baseUrl: string, fetchFn: typeof fetch = fetch, 
   // refresh token is spent once.
   let refreshing: Promise<Session | null> | null = null
 
+  // The server may have rotated the token while the response was lost, so one
+  // retry lets the leeway window (ADR 0004) hand back a fresh one.
+  async function requestRefresh(): Promise<Response> {
+    try {
+      return await request('/api/auth/refresh', { method: 'POST' })
+    } catch (error) {
+      if (!(error instanceof ApiError) || error.status !== 0) throw error
+      return request('/api/auth/refresh', { method: 'POST' })
+    }
+  }
+
   function refresh(): Promise<Session | null> {
     refreshing ??= lock(async () => {
       try {
-        const res = await request('/api/auth/refresh', { method: 'POST' })
+        const res = await requestRefresh()
         const next = sessionSchema.parse(await res.json())
         setSession(next)
         return { user: next.user }
