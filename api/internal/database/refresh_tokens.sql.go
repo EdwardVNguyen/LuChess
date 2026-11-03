@@ -82,8 +82,9 @@ func (q *Queries) RevokeUserRefreshTokens(ctx context.Context, arg RevokeUserRef
 
 const rotateRefreshToken = `-- name: RotateRefreshToken :one
 UPDATE refresh_tokens
-SET rotated_at = $1, revoked_at = $1
+SET rotated_at = $1
 WHERE token_hash = $2
+  AND rotated_at IS NULL
   AND revoked_at IS NULL
   AND expires_at > $1
 RETURNING user_id
@@ -95,7 +96,10 @@ type RotateRefreshTokenParams struct {
 }
 
 // Exchanges a token: marks it used and returns its user, but only if it is
-// unrevoked and unexpired. One statement, so a token cannot be used twice.
+// unused, unrevoked and unexpired. One statement, so concurrent exchanges of the
+// same token have exactly one winner; the others find no row.
+// A rotated token is not revoked: revoking it later (logout, theft response)
+// is what stops it being accepted again inside the leeway window.
 func (q *Queries) RotateRefreshToken(ctx context.Context, arg RotateRefreshTokenParams) (int32, error) {
 	row := q.db.QueryRowContext(ctx, rotateRefreshToken, arg.Now, arg.TokenHash)
 	var user_id int32
