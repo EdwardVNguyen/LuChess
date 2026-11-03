@@ -37,7 +37,7 @@ func (a *app) meStatus(accessToken string) int {
 	return a.send(http.MethodGet, "/api/me", "", withBearer(accessToken)).Code
 }
 
-func TestRefreshExchangesTheTokenForANewSession(t *testing.T) {
+func TestRefreshAnswersWithANewSessionAndRefreshCookie(t *testing.T) {
 	a := newApp(t)
 	a.verifiedUser("ada@example.com", "Ada", goodPassword)
 	first, firstRefresh := loginSession(t, a, "ada@example.com", goodPassword)
@@ -65,13 +65,9 @@ func TestRefreshExchangesTheTokenForANewSession(t *testing.T) {
 	if got := rec.Header().Get("Cache-Control"); got != "no-store" {
 		t.Fatalf("Cache-Control = %q, want no-store", got)
 	}
-	// The new refresh token keeps the session going
-	if rec := a.refresh(c.Value); rec.Code != http.StatusOK {
-		t.Fatalf("refreshing again with the new token: status = %d, want %d", rec.Code, http.StatusOK)
-	}
 }
 
-func TestRefreshRejectsMissingOrUnknownTokens(t *testing.T) {
+func TestRefreshAnswers401AndClearsTheCookieWhenTheSessionHasEnded(t *testing.T) {
 	for name, token := range map[string]string{"no cookie": "", "unknown token": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"} {
 		t.Run(name, func(t *testing.T) {
 			a := newApp(t)
@@ -85,50 +81,6 @@ func TestRefreshRejectsMissingOrUnknownTokens(t *testing.T) {
 				t.Fatalf("cookie = %+v, want the cookie cleared", c)
 			}
 		})
-	}
-}
-
-func TestRefreshRejectsAnExpiredTokenWithoutTreatingItAsTheft(t *testing.T) {
-	a := newApp(t)
-	a.verifiedUser("ada@example.com", "Ada", goodPassword)
-	_, oldRefresh := loginSession(t, a, "ada@example.com", goodPassword)
-	a.clock.Advance(29 * 24 * time.Hour)
-	_, laterRefresh := loginSession(t, a, "ada@example.com", goodPassword) // a second device, logged in later
-	a.clock.Advance(24 * time.Hour)                                        // the first token's 30 days are now up
-
-	expired := a.refresh(oldRefresh)
-
-	if expired.Code != http.StatusUnauthorized {
-		t.Fatalf("expired token: status = %d, want %d", expired.Code, http.StatusUnauthorized)
-	}
-	if rec := a.refresh(laterRefresh); rec.Code != http.StatusOK {
-		t.Fatalf("the other device's session: status = %d, want it untouched (%d)", rec.Code, http.StatusOK)
-	}
-}
-
-func TestReusingAnAlreadyUsedRefreshTokenRevokesEverySessionOfThatUser(t *testing.T) {
-	a := newApp(t)
-	a.verifiedUser("ada@example.com", "Ada", goodPassword)
-	a.verifiedUser("bob@example.com", "Bob", goodPassword)
-	_, adaPhone := loginSession(t, a, "ada@example.com", goodPassword)
-	_, adaLaptop := loginSession(t, a, "ada@example.com", goodPassword)
-	_, bob := loginSession(t, a, "bob@example.com", goodPassword)
-
-	// The phone refreshes normally, then someone replays the token it just used
-	rotated := a.refresh(adaPhone)
-	phoneNow := refreshCookie(rotated).Value
-	replay := a.refresh(adaPhone)
-
-	if replay.Code != http.StatusUnauthorized {
-		t.Fatalf("replayed token: status = %d, want %d", replay.Code, http.StatusUnauthorized)
-	}
-	for name, token := range map[string]string{"the phone's current token": phoneNow, "the laptop": adaLaptop} {
-		if rec := a.refresh(token); rec.Code != http.StatusUnauthorized {
-			t.Errorf("%s: status = %d, want %d after the theft response", name, rec.Code, http.StatusUnauthorized)
-		}
-	}
-	if rec := a.refresh(bob); rec.Code != http.StatusOK {
-		t.Fatalf("another user's session: status = %d, want it untouched (%d)", rec.Code, http.StatusOK)
 	}
 }
 
@@ -173,27 +125,5 @@ func TestRefreshIsRateLimitedPerIP(t *testing.T) {
 	// A request refused for rate limiting must not have used up the token
 	if rec := a.refresh(refreshCookie(second).Value, a.fromIP("198.51.100.9")); rec.Code != http.StatusOK {
 		t.Fatalf("the same token from another IP: status = %d, want %d", rec.Code, http.StatusOK)
-	}
-}
-
-func TestTwoRefreshesAtTheSameTimeLeaveExactlyOneWinner(t *testing.T) {
-	a := newApp(t)
-	a.verifiedUser("ada@example.com", "Ada", goodPassword)
-	_, refresh := loginSession(t, a, "ada@example.com", goodPassword)
-
-	const attempts = 6
-	codes := make(chan int, attempts)
-	for range attempts {
-		go func() { codes <- a.refresh(refresh).Code }()
-	}
-	won := 0
-	for range attempts {
-		if <-codes == http.StatusOK {
-			won++
-		}
-	}
-
-	if won != 1 {
-		t.Fatalf("%d of %d simultaneous refreshes succeeded, want exactly 1", won, attempts)
 	}
 }

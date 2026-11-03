@@ -14,7 +14,7 @@ func (a *app) logout(refreshToken string, tweak ...func(*http.Request)) int {
 	return a.send(http.MethodPost, "/api/auth/logout", "", opts...).Code
 }
 
-func TestLogoutEndsThatSessionAndClearsTheCookie(t *testing.T) {
+func TestLogoutAnswers204AndClearsTheCookie(t *testing.T) {
 	a := newApp(t)
 	a.verifiedUser("ada@example.com", "Ada", goodPassword)
 	_, refresh := loginSession(t, a, "ada@example.com", goodPassword)
@@ -32,7 +32,7 @@ func TestLogoutEndsThatSessionAndClearsTheCookie(t *testing.T) {
 	}
 }
 
-func TestLogoutIsSafeToRepeatAndNeedsNoCookie(t *testing.T) {
+func TestLogoutAnswers204EvenWithoutAUsableCookie(t *testing.T) {
 	a := newApp(t)
 	a.verifiedUser("ada@example.com", "Ada", goodPassword)
 	_, refresh := loginSession(t, a, "ada@example.com", goodPassword)
@@ -41,23 +41,6 @@ func TestLogoutIsSafeToRepeatAndNeedsNoCookie(t *testing.T) {
 		if got := a.logout(token); got != http.StatusNoContent {
 			t.Fatalf("logout #%d: status = %d, want %d", i+1, got, http.StatusNoContent)
 		}
-	}
-}
-
-func TestLogoutLeavesTheUsersOtherSessionsAlone(t *testing.T) {
-	a := newApp(t)
-	a.verifiedUser("ada@example.com", "Ada", goodPassword)
-	_, phone := loginSession(t, a, "ada@example.com", goodPassword)
-	_, laptop := loginSession(t, a, "ada@example.com", goodPassword)
-
-	a.logout(phone)
-	// The old phone token being tried again later is not theft: it was ended
-	// on purpose, never exchanged, so the laptop must stay logged in.
-	if got := a.refresh(phone).Code; got != http.StatusUnauthorized {
-		t.Fatalf("the phone after logout: status = %d, want %d", got, http.StatusUnauthorized)
-	}
-	if got := a.refresh(laptop).Code; got != http.StatusOK {
-		t.Fatalf("the laptop: status = %d, want %d", got, http.StatusOK)
 	}
 }
 

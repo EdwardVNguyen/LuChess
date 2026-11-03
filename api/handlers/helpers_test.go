@@ -12,6 +12,7 @@ import (
 	"github.com/EdwardVNguyen/ChessNotes/api/internal/database"
 	"github.com/EdwardVNguyen/ChessNotes/api/internal/mailer/mailertest"
 	"github.com/EdwardVNguyen/ChessNotes/api/internal/password"
+	sessions "github.com/EdwardVNguyen/ChessNotes/api/internal/session"
 	"github.com/EdwardVNguyen/ChessNotes/api/internal/testdb"
 )
 
@@ -64,7 +65,7 @@ func newApp(t *testing.T, tweak ...func(*handler.ApiConfig)) *app {
 			SignupPerIP: 1000, ResendPerEmail: 1000, ResendPerIP: 1000,
 			LoginPerEmail: 1000, LoginPerIP: 1000, RefreshPerIP: 1000,
 		},
-		JWTSecret:    []byte(testJWTSecret),
+		Session:      sessions.New(sessions.Config{DB: db, Secret: []byte(testJWTSecret), Now: a.clock.Now}),
 		CookieSecure: true,
 	}
 	for _, f := range tweak {

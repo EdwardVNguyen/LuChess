@@ -12,6 +12,7 @@ import (
 	"github.com/EdwardVNguyen/ChessNotes/api/handlers"
 	"github.com/EdwardVNguyen/ChessNotes/api/internal/mailer"
 	"github.com/EdwardVNguyen/ChessNotes/api/internal/password"
+	"github.com/EdwardVNguyen/ChessNotes/api/internal/session"
 	_ "github.com/lib/pq"
 )
 
@@ -64,7 +65,7 @@ func main() {
 		// Development mailer: prints emails to this log. Production uses a real provider.
 		Mailer: mailer.Console{Out: os.Stdout},
 		Hasher: password.DefaultHasher,
-		JWTSecret: []byte(jwtSecret),
+		Session: session.New(session.Config{DB: db, Secret: []byte(jwtSecret)}),
 		// On unless explicitly turned off, for a browser that refuses Secure cookies over plain HTTP
 		CookieSecure: os.Getenv(envCookieSecure) != "false",
 	}

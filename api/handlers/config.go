@@ -8,6 +8,7 @@ import (
 	"github.com/EdwardVNguyen/ChessNotes/api/internal/mailer"
 	"github.com/EdwardVNguyen/ChessNotes/api/internal/password"
 	"github.com/EdwardVNguyen/ChessNotes/api/internal/ratelimit"
+	"github.com/EdwardVNguyen/ChessNotes/api/internal/session"
 )
 
 // RateLimits are requests allowed per hour; zero means use the default.
@@ -30,8 +31,8 @@ type ApiConfig struct {
 	Mailer         mailer.Mailer
 	Hasher         password.Hasher
 	Limits         RateLimits
-	// JWTSecret signs access tokens (HS256); it must be at least 32 bytes
-	JWTSecret []byte
+	// Session owns Sessions: starting, refreshing, ending and authenticating them
+	Session *session.Service
 	// CookieSecure marks the refresh cookie Secure. Keep it on everywhere except
 	// where a browser refuses Secure cookies over plain HTTP.
 	CookieSecure bool
@@ -41,6 +42,8 @@ type ApiConfig struct {
 	// Built by NewRouter from Limits
 	signupByIP, resendByEmail, resendByIP *ratelimit.Limiter
 	loginByEmail, loginByIP, refreshByIP  *ratelimit.Limiter
+	sessionHTTP                           *sessionHTTP
+
 	// A valid hash of a throwaway password, checked when a login names no account
 	dummyHash string
 }
