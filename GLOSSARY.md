@@ -47,3 +47,7 @@ _Avoid_: Collection, category, tag
 **Guest**:
 A visitor without an account. Can use the board and annotate in the browser, but nothing is saved.
 _Avoid_: Anonymous user, visitor
+
+**Session**:
+One login of a user on one browser or device, lasting until it is logged out, expires, or is revoked. A user can have several at once.
+_Avoid_: Login, Token
