@@ -1,0 +1,610 @@
+{
+  "v": 3,
+  "attachments": {},
+  "boards": {
+    "AllStudies.dc.html": {
+      "h": 900,
+      "title": "All studies",
+      "w": 1440,
+      "x": 880,
+      "y": 2420
+    },
+    "AllStudiesNewFolder.dc.html": {
+      "h": 900,
+      "title": "New folder",
+      "w": 1440,
+      "x": 5440,
+      "y": 2220
+    },
+    "AllStudiesSave.dc.html": {
+      "h": 900,
+      "title": "Save to folder",
+      "w": 1440,
+      "x": 3920,
+      "y": 2220
+    },
+    "Artboard-8e6x.dc.html": {
+      "h": 2451,
+      "title": "Artboard 1",
+      "w": 800,
+      "x": 0,
+      "y": 7780
+    },
+    "Artboard-95g7.dc.html": {
+      "h": 600,
+      "title": "Artboard 1",
+      "w": 800,
+      "x": 0,
+      "y": 5440
+    },
+    "Artboard-mwm8.dc.html": {
+      "h": 600,
+      "title": "Artboard 1",
+      "w": 800,
+      "x": 0,
+      "y": 0
+    },
+    "Artboard-x3yy.dc.html": {
+      "h": 600,
+      "title": "Artboard 1",
+      "w": 800,
+      "x": 0,
+      "y": 1400
+    },
+    "Article.dc.html": {
+      "expand": "fill",
+      "h": 2900,
+      "title": "Article (Read view)",
+      "w": 1440,
+      "x": 2400,
+      "y": 1400
+    },
+    "ArticleNewFolder.dc.html": {
+      "expand": "fill",
+      "h": 700,
+      "title": "Article: new folder",
+      "w": 1440,
+      "x": 3920,
+      "y": 4420
+    },
+    "ArticleSave.dc.html": {
+      "expand": "fill",
+      "h": 700,
+      "title": "Article: save to folder",
+      "w": 1440,
+      "x": 2400,
+      "y": 4420
+    },
+    "Library.dc.html": {
+      "h": 900,
+      "title": "Library",
+      "w": 1440,
+      "x": 880,
+      "y": 1400
+    },
+    "NewChallenge.dc.html": {
+      "h": 900,
+      "title": "New challenge",
+      "w": 1440,
+      "x": 2400,
+      "y": 5440
+    },
+    "NewFolder.dc.html": {
+      "h": 900,
+      "title": "Library: new folder",
+      "w": 1440,
+      "x": 880,
+      "y": 3440
+    },
+    "Note.dc.html": {
+      "h": 1080,
+      "title": "Note",
+      "w": 1440,
+      "x": 880,
+      "y": 0
+    },
+    "PlayCustomTime.dc.html": {
+      "h": 1000,
+      "title": "Play lobby: custom time",
+      "w": 1440,
+      "x": 2400,
+      "y": 6460
+    },
+    "PlayGameChallenger.dc.html": {
+      "h": 900,
+      "title": "Game: your opening",
+      "w": 1440,
+      "x": 3920,
+      "y": 5440
+    },
+    "PlayGameOffBook.dc.html": {
+      "h": 900,
+      "title": "Game: off the book",
+      "w": 1440,
+      "x": 3920,
+      "y": 6460
+    },
+    "PlayGameOpponent.dc.html": {
+      "h": 900,
+      "title": "Game: cheat sheet",
+      "w": 1440,
+      "x": 5440,
+      "y": 5440
+    },
+    "PlayLobby.dc.html": {
+      "h": 1000,
+      "title": "Play lobby",
+      "w": 1440,
+      "x": 880,
+      "y": 5440
+    },
+    "PlayResult.dc.html": {
+      "h": 900,
+      "title": "Game result",
+      "w": 1440,
+      "x": 6960,
+      "y": 5440
+    },
+    "PlaySettings.dc.html": {
+      "h": 900,
+      "title": "Play settings",
+      "w": 1440,
+      "x": 880,
+      "y": 6460
+    },
+    "PlayWaiting.dc.html": {
+      "h": 900,
+      "title": "Waiting for an opponent",
+      "w": 1440,
+      "x": 5440,
+      "y": 6460
+    },
+    "QuickFind.dc.html": {
+      "h": 1080,
+      "title": "Find a note",
+      "w": 1440,
+      "x": 2400,
+      "y": 0
+    },
+    "Settings.dc.html": {
+      "h": 700,
+      "title": "Settings",
+      "w": 1440,
+      "x": 3920,
+      "y": 1400
+    },
+    "HomeLoggedOut.dc.html": {
+      "x": 880,
+      "y": 7780,
+      "w": 1440,
+      "h": 4948,
+      "title": "Homepage (logged out)"
+    },
+    "ArticleGuest.dc.html": {
+      "x": 3920,
+      "y": 7780,
+      "w": 1440,
+      "h": 2900,
+      "expand": "fill",
+      "title": "Article (guest, no account)"
+    },
+    "ArticleList.dc.html": {
+      "x": 2400,
+      "y": 7780,
+      "w": 1440,
+      "h": 900,
+      "title": "Articles (guest, no account)"
+    },
+    "Note-tablet.dc.html": {
+      "x": 0,
+      "y": 13100,
+      "w": 834,
+      "h": 1507,
+      "title": "Note (tablet)"
+    },
+    "QuickFind-tablet.dc.html": {
+      "x": 914,
+      "y": 13100,
+      "w": 834,
+      "h": 1112,
+      "title": "Find a note (tablet)"
+    },
+    "Library-tablet.dc.html": {
+      "x": 0,
+      "y": 14907,
+      "w": 834,
+      "h": 1112,
+      "title": "Library (tablet)"
+    },
+    "AllStudies-tablet.dc.html": {
+      "x": 914,
+      "y": 14907,
+      "w": 834,
+      "h": 1112,
+      "title": "All studies (tablet)"
+    },
+    "AllStudiesSave-tablet.dc.html": {
+      "x": 1828,
+      "y": 14907,
+      "w": 834,
+      "h": 1112,
+      "title": "Save to folder (tablet)"
+    },
+    "AllStudiesNewFolder-tablet.dc.html": {
+      "x": 2742,
+      "y": 14907,
+      "w": 834,
+      "h": 1112,
+      "title": "New folder (tablet)"
+    },
+    "NewFolder-tablet.dc.html": {
+      "x": 3656,
+      "y": 14907,
+      "w": 834,
+      "h": 1112,
+      "title": "Library: new folder (tablet)"
+    },
+    "Article-tablet.dc.html": {
+      "x": 0,
+      "y": 16139,
+      "w": 834,
+      "h": 2841,
+      "title": "Article (Read view) (tablet)"
+    },
+    "ArticleSave-tablet.dc.html": {
+      "x": 914,
+      "y": 16139,
+      "w": 834,
+      "h": 1112,
+      "title": "Article: save to folder (tablet)"
+    },
+    "ArticleNewFolder-tablet.dc.html": {
+      "x": 1828,
+      "y": 16139,
+      "w": 834,
+      "h": 1112,
+      "title": "Article: new folder (tablet)"
+    },
+    "Settings-tablet.dc.html": {
+      "x": 2742,
+      "y": 16139,
+      "w": 834,
+      "h": 1112,
+      "title": "Settings (tablet)"
+    },
+    "PlayLobby-tablet.dc.html": {
+      "x": 0,
+      "y": 19280,
+      "w": 834,
+      "h": 1588,
+      "title": "Play lobby (tablet)"
+    },
+    "PlayCustomTime-tablet.dc.html": {
+      "x": 914,
+      "y": 19280,
+      "w": 834,
+      "h": 1112,
+      "title": "Play lobby: custom time (tablet)"
+    },
+    "NewChallenge-tablet.dc.html": {
+      "x": 1828,
+      "y": 19280,
+      "w": 834,
+      "h": 1112,
+      "title": "New challenge (tablet)"
+    },
+    "PlayWaiting-tablet.dc.html": {
+      "x": 2742,
+      "y": 19280,
+      "w": 834,
+      "h": 1112,
+      "title": "Waiting for an opponent (tablet)"
+    },
+    "PlayGameChallenger-tablet.dc.html": {
+      "x": 3656,
+      "y": 19280,
+      "w": 834,
+      "h": 1112,
+      "title": "Game: your opening (tablet)"
+    },
+    "PlayGameOpponent-tablet.dc.html": {
+      "x": 0,
+      "y": 20988,
+      "w": 834,
+      "h": 1112,
+      "title": "Game: cheat sheet (tablet)"
+    },
+    "PlayGameOffBook-tablet.dc.html": {
+      "x": 914,
+      "y": 20988,
+      "w": 834,
+      "h": 1112,
+      "title": "Game: off the book (tablet)"
+    },
+    "PlayResult-tablet.dc.html": {
+      "x": 1828,
+      "y": 20988,
+      "w": 834,
+      "h": 1112,
+      "title": "Game result (tablet)"
+    },
+    "PlaySettings-tablet.dc.html": {
+      "x": 2742,
+      "y": 20988,
+      "w": 834,
+      "h": 1112,
+      "title": "Play settings (tablet)"
+    },
+    "HomeLoggedOut-tablet.dc.html": {
+      "x": 0,
+      "y": 22400,
+      "w": 834,
+      "h": 6355,
+      "title": "Homepage (logged out) (tablet)"
+    },
+    "ArticleList-tablet.dc.html": {
+      "x": 914,
+      "y": 22400,
+      "w": 834,
+      "h": 1112,
+      "title": "Articles (guest, no account) (tablet)"
+    },
+    "ArticleGuest-tablet.dc.html": {
+      "x": 1828,
+      "y": 22400,
+      "w": 834,
+      "h": 2896,
+      "title": "Article (guest, no account) (tablet)"
+    },
+    "Note-mobile.dc.html": {
+      "x": 0,
+      "y": 29055,
+      "w": 390,
+      "h": 2385,
+      "title": "Note (mobile)"
+    },
+    "QuickFind-mobile.dc.html": {
+      "x": 470,
+      "y": 29055,
+      "w": 390,
+      "h": 844,
+      "title": "Find a note (mobile)"
+    },
+    "Library-mobile.dc.html": {
+      "x": 0,
+      "y": 31740,
+      "w": 390,
+      "h": 1756,
+      "title": "Library (mobile)"
+    },
+    "AllStudies-mobile.dc.html": {
+      "x": 470,
+      "y": 31740,
+      "w": 390,
+      "h": 1420,
+      "title": "All studies (mobile)"
+    },
+    "AllStudiesSave-mobile.dc.html": {
+      "x": 940,
+      "y": 31740,
+      "w": 390,
+      "h": 844,
+      "title": "Save to folder (mobile)"
+    },
+    "AllStudiesNewFolder-mobile.dc.html": {
+      "x": 1410,
+      "y": 31740,
+      "w": 390,
+      "h": 844,
+      "title": "New folder (mobile)"
+    },
+    "NewFolder-mobile.dc.html": {
+      "x": 1880,
+      "y": 31740,
+      "w": 390,
+      "h": 844,
+      "title": "Library: new folder (mobile)"
+    },
+    "Article-mobile.dc.html": {
+      "x": 2350,
+      "y": 31740,
+      "w": 390,
+      "h": 3128,
+      "title": "Article (Read view) (mobile)"
+    },
+    "ArticleSave-mobile.dc.html": {
+      "x": 2820,
+      "y": 31740,
+      "w": 390,
+      "h": 844,
+      "title": "Article: save to folder (mobile)"
+    },
+    "ArticleNewFolder-mobile.dc.html": {
+      "x": 3290,
+      "y": 31740,
+      "w": 390,
+      "h": 844,
+      "title": "Article: new folder (mobile)"
+    },
+    "Settings-mobile.dc.html": {
+      "x": 3760,
+      "y": 31740,
+      "w": 390,
+      "h": 844,
+      "title": "Settings (mobile)"
+    },
+    "PlayLobby-mobile.dc.html": {
+      "x": 0,
+      "y": 35168,
+      "w": 390,
+      "h": 1707,
+      "title": "Play lobby (mobile)"
+    },
+    "PlayCustomTime-mobile.dc.html": {
+      "x": 470,
+      "y": 35168,
+      "w": 390,
+      "h": 844,
+      "title": "Play lobby: custom time (mobile)"
+    },
+    "NewChallenge-mobile.dc.html": {
+      "x": 940,
+      "y": 35168,
+      "w": 390,
+      "h": 1576,
+      "title": "New challenge (mobile)"
+    },
+    "PlayWaiting-mobile.dc.html": {
+      "x": 1410,
+      "y": 35168,
+      "w": 390,
+      "h": 993,
+      "title": "Waiting for an opponent (mobile)"
+    },
+    "PlayGameChallenger-mobile.dc.html": {
+      "x": 1880,
+      "y": 35168,
+      "w": 390,
+      "h": 1318,
+      "title": "Game: your opening (mobile)"
+    },
+    "PlayGameOpponent-mobile.dc.html": {
+      "x": 2350,
+      "y": 35168,
+      "w": 390,
+      "h": 1457,
+      "title": "Game: cheat sheet (mobile)"
+    },
+    "PlayGameOffBook-mobile.dc.html": {
+      "x": 2820,
+      "y": 35168,
+      "w": 390,
+      "h": 844,
+      "title": "Game: off the book (mobile)"
+    },
+    "PlayResult-mobile.dc.html": {
+      "x": 3290,
+      "y": 35168,
+      "w": 390,
+      "h": 844,
+      "title": "Game result (mobile)"
+    },
+    "PlaySettings-mobile.dc.html": {
+      "x": 3760,
+      "y": 35168,
+      "w": 390,
+      "h": 852,
+      "title": "Play settings (mobile)"
+    },
+    "HomeLoggedOut-mobile.dc.html": {
+      "x": 0,
+      "y": 37175,
+      "w": 390,
+      "h": 6164,
+      "title": "Homepage (logged out) (mobile)"
+    },
+    "ArticleList-mobile.dc.html": {
+      "x": 470,
+      "y": 37175,
+      "w": 390,
+      "h": 1393,
+      "title": "Articles (guest, no account) (mobile)"
+    },
+    "ArticleGuest-mobile.dc.html": {
+      "x": 940,
+      "y": 37175,
+      "w": 390,
+      "h": 3113,
+      "title": "Article (guest, no account) (mobile)"
+    }
+  },
+  "createdOnFiles": {
+    "at": "2026-11-02T03:46:11.173Z",
+    "v": 1
+  },
+  "designSystems": [],
+  "launch": {},
+  "notes": {},
+  "order": [
+    "Artboard-mwm8.dc.html",
+    "Note.dc.html",
+    "QuickFind.dc.html",
+    "Artboard-x3yy.dc.html",
+    "Library.dc.html",
+    "Article.dc.html",
+    "Settings.dc.html",
+    "AllStudies.dc.html",
+    "AllStudiesSave.dc.html",
+    "AllStudiesNewFolder.dc.html",
+    "ArticleSave.dc.html",
+    "ArticleNewFolder.dc.html",
+    "NewFolder.dc.html",
+    "Artboard-95g7.dc.html",
+    "PlayLobby.dc.html",
+    "NewChallenge.dc.html",
+    "PlayGameChallenger.dc.html",
+    "PlayGameOpponent.dc.html",
+    "PlayGameOffBook.dc.html",
+    "PlaySettings.dc.html",
+    "PlayCustomTime.dc.html",
+    "PlayWaiting.dc.html",
+    "PlayResult.dc.html",
+    "Artboard-8e6x.dc.html",
+    "HomeLoggedOut.dc.html",
+    "ArticleGuest.dc.html",
+    "ArticleList.dc.html",
+    "Note-tablet.dc.html",
+    "QuickFind-tablet.dc.html",
+    "Library-tablet.dc.html",
+    "AllStudies-tablet.dc.html",
+    "AllStudiesSave-tablet.dc.html",
+    "AllStudiesNewFolder-tablet.dc.html",
+    "NewFolder-tablet.dc.html",
+    "Article-tablet.dc.html",
+    "ArticleSave-tablet.dc.html",
+    "ArticleNewFolder-tablet.dc.html",
+    "Settings-tablet.dc.html",
+    "PlayLobby-tablet.dc.html",
+    "PlayCustomTime-tablet.dc.html",
+    "NewChallenge-tablet.dc.html",
+    "PlayWaiting-tablet.dc.html",
+    "PlayGameChallenger-tablet.dc.html",
+    "PlayGameOpponent-tablet.dc.html",
+    "PlayGameOffBook-tablet.dc.html",
+    "PlayResult-tablet.dc.html",
+    "PlaySettings-tablet.dc.html",
+    "HomeLoggedOut-tablet.dc.html",
+    "ArticleList-tablet.dc.html",
+    "ArticleGuest-tablet.dc.html",
+    "Note-mobile.dc.html",
+    "QuickFind-mobile.dc.html",
+    "Library-mobile.dc.html",
+    "AllStudies-mobile.dc.html",
+    "AllStudiesSave-mobile.dc.html",
+    "AllStudiesNewFolder-mobile.dc.html",
+    "NewFolder-mobile.dc.html",
+    "Article-mobile.dc.html",
+    "ArticleSave-mobile.dc.html",
+    "ArticleNewFolder-mobile.dc.html",
+    "Settings-mobile.dc.html",
+    "PlayLobby-mobile.dc.html",
+    "PlayCustomTime-mobile.dc.html",
+    "NewChallenge-mobile.dc.html",
+    "PlayWaiting-mobile.dc.html",
+    "PlayGameChallenger-mobile.dc.html",
+    "PlayGameOpponent-mobile.dc.html",
+    "PlayGameOffBook-mobile.dc.html",
+    "PlayResult-mobile.dc.html",
+    "PlaySettings-mobile.dc.html",
+    "HomeLoggedOut-mobile.dc.html",
+    "ArticleList-mobile.dc.html",
+    "ArticleGuest-mobile.dc.html"
+  ],
+  "pages": [
+    {
+      "id": "page-1",
+      "name": "All designs"
+    }
+  ],
+  "title": "Design"
+}
