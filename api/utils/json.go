@@ -6,6 +6,18 @@ import (
 	"encoding/json"
 )
 
+// Auth requests are tiny; the cap stops a huge body being read into memory
+const maxBodyBytes = 16 * 1024
+
+// DecodeJSON reads a small JSON request body into dst, answering 400 itself on failure.
+func DecodeJSON(w http.ResponseWriter, r *http.Request, dst any) bool {
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxBodyBytes)).Decode(dst); err != nil {
+		RespondError(w, http.StatusBadRequest, "Could not read JSON from HTTP request body", err)
+		return false
+	}
+	return true
+}
+
 // Shared interface for errors so that code is more maintainable
 func RespondError(w http.ResponseWriter, code int, msg string, err error) {
 	type ErrorResponse struct {

@@ -17,7 +17,7 @@ func (cfg *ApiConfig) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		Email    string `json:"email"`
 		Password string `json:"password"`
 	}
-	if !decodeJSON(w, r, &p) {
+	if !utils.DecodeJSON(w, r, &p) {
 		return
 	}
 	email := normalizeEmail(p.Email)

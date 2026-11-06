@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -23,11 +22,7 @@ import (
 	"github.com/lib/pq"
 )
 
-const (
-	verifyTokenTTL = 24 * time.Hour
-	// Auth requests are tiny; the cap stops a huge body being read into memory
-	maxBodyBytes = 16 * 1024
-)
+const verifyTokenTTL = 24 * time.Hour
 
 // newToken returns a random token for an email link, plus the hash that is
 // stored. The token itself is never stored.
@@ -49,15 +44,6 @@ type publicUser struct {
 	ID    int32  `json:"id"`
 	Email string `json:"email"`
 	Name  string `json:"name"`
-}
-
-// decodeJSON reads a small JSON request body into dst, answering 400 itself on failure.
-func decodeJSON(w http.ResponseWriter, r *http.Request, dst any) bool {
-	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxBodyBytes)).Decode(dst); err != nil {
-		utils.RespondError(w, http.StatusBadRequest, "Could not read JSON from HTTP request body", err)
-		return false
-	}
-	return true
 }
 
 // clientIP is the address of the connection. Behind a reverse proxy this is the
@@ -91,8 +77,7 @@ func (cfg *ApiConfig) HandleSignUp(w http.ResponseWriter, r *http.Request) {
 		Name     string `json:"name"`
 		Password string `json:"password"`
 	}
-	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxBodyBytes)).Decode(&p); err != nil {
-		utils.RespondError(w, http.StatusBadRequest, "Could not read JSON from HTTP request body", err)
+	if !utils.DecodeJSON(w, r, &p) {
 		return
 	}
 	email := normalizeEmail(p.Email)
@@ -162,8 +147,7 @@ func (cfg *ApiConfig) HandleVerifyEmail(w http.ResponseWriter, r *http.Request) 
 	var p struct {
 		Token string `json:"token"`
 	}
-	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxBodyBytes)).Decode(&p); err != nil {
-		utils.RespondError(w, http.StatusBadRequest, "Could not read JSON from HTTP request body", err)
+	if !utils.DecodeJSON(w, r, &p) {
 		return
 	}
 
@@ -208,8 +192,7 @@ func (cfg *ApiConfig) HandleResendVerification(w http.ResponseWriter, r *http.Re
 	var p struct {
 		Email string `json:"email"`
 	}
-	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxBodyBytes)).Decode(&p); err != nil {
-		utils.RespondError(w, http.StatusBadRequest, "Could not read JSON from HTTP request body", err)
+	if !utils.DecodeJSON(w, r, &p) {
 		return
 	}
 	email := normalizeEmail(p.Email)
