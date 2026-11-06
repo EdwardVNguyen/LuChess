@@ -11,3 +11,7 @@ Default vocabulary: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-
 ### Domain docs
 
 Single-context: one `GLOSSARY.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+
+## Frontend
+
+Before any work in `web/`, read `web/AGENTS.md`. It covers the design handoff in `design/`, how the designs map onto the glossary, what is out of scope for v1, and the definition of done.
