@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Settings</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600&amp;family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&amp;family=Noto+Sans+Symbols+2&amp;display=swap">
+<style>
+body{margin:0}
+a:hover{opacity:.8}
+</style>
+</helmet>
+<div style="height:100vh;display:flex;flex-direction:column;background:#FAF6EC;font-family:'Newsreader',Georgia,serif;color:#2A2620;overflow:hidden">
+<header style="height:56px;flex:none;display:flex;align-items:center;gap:16px;padding:0 20px;border-bottom:1px solid #D9CFB8;box-sizing:border-box;background:#EFE8D8">
+<div style="width:208px;font-size:24px;font-style:italic;font-weight:500">Chess Notes</div>
+<nav aria-label="Main" style="display:flex;gap:20px;height:56px;margin-left:16px"><a href="Library.dc.html" style="display:flex;align-items:center;height:56px;padding:0 4px;box-sizing:border-box;font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:15px;font-weight:400;color:#5F5748;text-decoration:none;border-bottom:2px solid transparent">Library</a><a href="Note.dc.html" style="display:flex;align-items:center;height:56px;padding:0 4px;box-sizing:border-box;font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:15px;font-weight:400;color:#5F5748;text-decoration:none;border-bottom:2px solid transparent">Study</a><a href="PlayLobby.dc.html" style="display:flex;align-items:center;height:56px;padding:0 4px;box-sizing:border-box;font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:15px;font-weight:400;color:#5F5748;text-decoration:none;border-bottom:2px solid transparent">Play</a></nav>
+<div style="flex:1"></div>
+
+<button style="height:40px;padding:0 16px;background:#2A2620;color:#FAF6EC;border:0;border-radius:8px;font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:14px;font-weight:500;cursor:pointer">New note</button>
+<a href="Settings.dc.html" aria-label="Account and settings" style="width:40px;height:40px;border-radius:50%;border:1px solid #CFC3A6;background:#D6C8A6;display:inline-flex;align-items:center;justify-content:center;font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:15px;font-weight:600;color:#2A2620;text-decoration:none;box-sizing:border-box">E</a>
+</header>
+<main style="flex:1;display:flex;justify-content:center;overflow:hidden"><div style="width:100%;max-width:720px;padding:48px 24px;box-sizing:border-box;display:flex;flex-direction:column;gap:32px">
+<h1 style="margin:0;font-size:40px;font-weight:500;letter-spacing:-.01em">Settings</h1>
+<fieldset style="margin:0;padding:0;border:0;display:flex;flex-direction:column;gap:16px">
+<legend style="padding:0;margin-bottom:6px;font-size:24px;font-weight:500">How do you like to read articles?</legend>
+<div style="display:flex;gap:16px;flex-wrap:wrap">
+<label style="flex:1;min-width:0;display:flex;flex-direction:column;gap:14px;padding:18px;background:#FFFCF5;border:2px solid #2A2620;border-radius:12px;cursor:pointer;box-sizing:border-box">
+<div aria-hidden="true" style="display:flex;gap:6px;height:84px;padding:10px;background:#FAF6EC;border:1px solid #CFC3A6;border-radius:6px;box-sizing:border-box"><div style="flex:1;background:#CDBF9F;border-radius:3px"></div><div style="flex:1.2;display:flex;flex-direction:column;gap:5px"><div style="height:6px;background:#CDBF9F;border-radius:3px"></div><div style="height:6px;background:#CDBF9F;border-radius:3px;width:70%"></div><div style="height:6px;background:#CDBF9F;border-radius:3px;width:85%"></div></div><div style="flex:.6;background:#E7DEC9;border-radius:3px"></div></div>
+<div style="display:flex;align-items:flex-start;gap:10px">
+<input type="radio" name="view" value="study" checked style="margin:4px 0 0;width:18px;height:18px;accent-color:#2A2620;flex:none">
+<div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:20px;font-weight:500">Study view</span><span style="font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:14px;line-height:1.5;color:#5F5748">The board, the line of thought and margin notes side by side. Good for working through a game move by move.</span></div>
+</div></label>
+<label style="flex:1;min-width:0;display:flex;flex-direction:column;gap:14px;padding:18px;background:#FFFCF5;border:1px solid #CFC3A6;border-radius:12px;cursor:pointer;box-sizing:border-box">
+<div aria-hidden="true" style="display:flex;justify-content:center;height:84px;padding:10px;background:#FAF6EC;border:1px solid #CFC3A6;border-radius:6px;box-sizing:border-box"><div style="width:55%;display:flex;flex-direction:column;gap:5px"><div style="height:8px;background:#2A2620;border-radius:3px;width:80%"></div><div style="height:6px;background:#CDBF9F;border-radius:3px"></div><div style="height:22px;background:#CDBF9F;border-radius:3px;width:40%;align-self:center"></div><div style="height:6px;background:#CDBF9F;border-radius:3px;width:90%"></div></div></div>
+<div style="display:flex;align-items:flex-start;gap:10px">
+<input type="radio" name="view" value="read"  style="margin:4px 0 0;width:18px;height:18px;accent-color:#2A2620;flex:none">
+<div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:20px;font-weight:500">Read view</span><span style="font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:14px;line-height:1.5;color:#5F5748">One column of prose with diagrams inline, like a magazine article. Good for games with a story.</span></div>
+</div></label>
+</div>
+<p style="margin:0;font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:14px;color:#5F5748">You can switch at any time from the toolbar on an article.</p>
+</fieldset>
+</div></main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":700}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>
