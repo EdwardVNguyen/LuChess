@@ -2,6 +2,33 @@
 
 This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
 
+## Screenshot harness
+
+`npm run shots` screenshots the frontend so it can be compared with `design/screenshots/`, with no API or
+database running. Each entry in `scripts/shots/entries.ts` maps a design screen name to a route, a fixture set
+(a logged-out visitor or a logged-in session) and optional setup steps; the API is mocked in the browser so the
+output is the same every time.
+
+The first time, install the browser Playwright drives:
+
+```sh
+npx playwright install chromium
+```
+
+```sh
+npm run shots            # every entry
+npm run shots -- Login   # a single entry, matched by name
+```
+
+For each entry this writes three PNGs to `web/shots/` (gitignored), named like the design files:
+
+- `<Screen>.png` — desktop, 1440px wide
+- `<Screen>-tablet.png` — tablet, 834px wide, full page
+- `<Screen>-mobile.png` — mobile, 390px wide, full page
+
+When `design/screenshots/<Screen>.png` exists, it also writes `web/shots/compare/<Screen>.png` with the design
+on the left and the build on the right, for a quick side-by-side diff.
+
 Currently, two official plugins are available:
 
 - [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)

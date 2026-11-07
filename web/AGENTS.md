@@ -50,7 +50,13 @@ Fischer v. Spassky, the Najdorf and the people's names belong only in fixtures f
 
 Hover, focus, empty, loading and error states aren't designed. Build them in the same style and include them in the PR screenshots.
 
+## Screenshot harness
+
+`npm run shots` (optionally `-- <Screen>` for one entry) screenshots the frontend with the API mocked, so it
+can be compared with `design/screenshots/`, with no backend running. Add an entry to `scripts/shots/entries.ts`
+for every screen you touch. See `web/README.md` for details.
+
 ## Definition of done
 
 - `npm run build`, `npm run lint` and `npm test` pass.
-- Once the screenshot harness exists, the PR includes the comparison images at 1440, 834 and 390px for every screen it touches.
+- The PR includes `npm run shots` output: the comparison images at 1440, 834 and 390px for every screen it touches (`web/shots/compare/`), or the plain screenshots when no matching design exists yet.
