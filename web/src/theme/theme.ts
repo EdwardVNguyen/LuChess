@@ -102,10 +102,15 @@ export const theme = createTheme({
     }),
     Drawer: Drawer.extend({
       defaultProps: { radius: 'lg', overlayProps: { color: colorTokens.ink, backgroundOpacity: 0.45 } },
-      styles: {
-        content: { backgroundColor: colorTokens.paper },
+      styles: (_theme, props) => ({
+        content: {
+          backgroundColor: colorTokens.paper,
+          // A bottom sheet sits flush with the screen edge, so only its top
+          // corners are rounded (NewFolder-mobile, ArticleSave-mobile).
+          ...(props.position === 'bottom' ? { borderRadius: `${radiusTokens.lg} ${radiusTokens.lg} 0 0` } : {}),
+        },
         title: { fontFamily: fontTokens.serif, fontSize: '28px', fontWeight: 500 },
-      },
+      }),
     }),
     Popover: Popover.extend({
       defaultProps: { radius: 'md', shadow: 'md' },

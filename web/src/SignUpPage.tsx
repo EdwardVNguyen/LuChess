@@ -1,6 +1,7 @@
 import { Alert, Button, PasswordInput, Stack, Text, TextInput, Title } from '@mantine/core'
 import { useForm } from '@tanstack/react-form'
 import { useMutation } from '@tanstack/react-query'
+import { AuthCard } from './AuthCard'
 import { ResendVerification } from './ResendVerification'
 import { api } from './apiClient'
 import { signUpSchema } from './signUpSchema'
@@ -20,7 +21,7 @@ export function SignUpPage() {
 
   if (signUp.isSuccess) {
     return (
-      <Stack>
+      <AuthCard>
         <Title order={2}>Check your email</Title>
         <Text>
           We sent a verification link to <strong>{signUp.data.email}</strong>. Open it within 24 hours to verify your account.
@@ -29,12 +30,12 @@ export function SignUpPage() {
           Didn't get it? Check your spam folder, or ask for a new link.
         </Text>
         <ResendVerification email={signUp.data.email} />
-      </Stack>
+      </AuthCard>
     )
   }
 
   return (
-    <Stack maw={420}>
+    <AuthCard>
       <Title order={2}>Create your account</Title>
       <form
         onSubmit={(e) => {
@@ -90,6 +91,6 @@ export function SignUpPage() {
           </Button>
         </Stack>
       </form>
-    </Stack>
+    </AuthCard>
   )
 }

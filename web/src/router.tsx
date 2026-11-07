@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { HomePage } from './HomePage'
 import { Layout } from './Layout'
 import { LoginPage } from './LoginPage'
+import { DevOverlaysRoute } from './overlay/DevOverlaysRoute'
 import { SignUpPage } from './SignUpPage'
 import { DevThemeRoute } from './theme/DevThemeRoute'
 import { VerifyEmailPage } from './VerifyEmailPage'
@@ -18,10 +19,14 @@ const verifyEmailRoute = createRoute({
   component: VerifyEmailPage,
 })
 
-// Dev-only: a page showing the theme's components, so a token change is easy
-// to screenshot. Not reachable, or bundled, in production (web/AGENTS.md).
+// Dev-only: pages showing the theme's components and the shared overlays, so
+// a change is easy to screenshot. Not reachable, or bundled, in production
+// (web/AGENTS.md).
 const devRoutes = import.meta.env.DEV
-  ? [createRoute({ getParentRoute: () => rootRoute, path: '/dev/theme', component: DevThemeRoute })]
+  ? [
+      createRoute({ getParentRoute: () => rootRoute, path: '/dev/theme', component: DevThemeRoute }),
+      createRoute({ getParentRoute: () => rootRoute, path: '/dev/overlays', component: DevOverlaysRoute }),
+    ]
   : []
 
 export const router = createRouter({
