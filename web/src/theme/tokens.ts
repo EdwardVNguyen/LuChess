@@ -13,6 +13,7 @@ export const colorTokens = {
   edge: '#CFC3A6',
   highlight: '#EBDDB8',
   accent: '#8A2E24',
+  avatar: '#D6C8A6',
   boardLight: '#EDE2C8',
   boardDark: '#B9A47C',
   overlay: 'rgba(42, 38, 32, .45)',

@@ -1,0 +1,133 @@
+/* The app shell's header: design/screens/Note.dc.html (desktop/tablet, 56px)
+ * and Note-mobile.dc.html (the mobile top bar, also 56px). */
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 100%;
+  padding-inline: 16px;
+}
+
+/* Matches the theme's `sm` breakpoint (768px): below it is the mobile top
+ * bar, at or above it is the desktop/tablet header. */
+@media (min-width: 48em) {
+  .header {
+    gap: 16px;
+    padding-inline: 20px;
+  }
+}
+
+.logo {
+  flex: none;
+  font-family: var(--cn-font-serif);
+  font-style: italic;
+  font-weight: 500;
+  font-size: 23px;
+  color: var(--cn-ink);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+@media (min-width: 48em) {
+  .logo {
+    font-size: 24px;
+  }
+}
+
+.spacer {
+  flex: 1;
+}
+
+.slots {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+@media (min-width: 48em) {
+  .slots {
+    gap: 12px;
+  }
+}
+
+/* A disabled-looking stand-in for the find box (#7) and the New note button
+ * (#6), so the header already has the right shape. Not interactive yet. */
+.findPlaceholder {
+  display: none;
+}
+
+@media (min-width: 48em) {
+  .findPlaceholder {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 220px;
+    height: 40px;
+    padding-inline: 12px;
+    box-sizing: border-box;
+    background: var(--cn-card);
+    border: 1px solid var(--cn-edge);
+    border-radius: var(--cn-radius-button);
+    color: var(--cn-muted);
+    font-family: var(--cn-font-sans);
+    font-size: 14px;
+  }
+}
+
+.newNotePlaceholder {
+  display: none;
+}
+
+@media (min-width: 48em) {
+  .newNotePlaceholder {
+    display: inline-flex;
+    align-items: center;
+    height: 40px;
+    padding-inline: 16px;
+    box-sizing: border-box;
+    background: var(--cn-ink);
+    color: var(--cn-paper);
+    border-radius: var(--cn-radius-button);
+    font-family: var(--cn-font-sans);
+    font-size: 14px;
+    font-weight: 500;
+    opacity: 0.6;
+  }
+}
+
+.iconSlot {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  border-radius: var(--cn-radius-button);
+  border: 1px solid var(--cn-edge);
+  background: transparent;
+  color: var(--cn-ink);
+}
+
+@media (min-width: 48em) {
+  .iconSlot {
+    display: none;
+  }
+}
+
+.avatar {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  border-radius: 50%;
+  border: 1px solid var(--cn-edge);
+  background: var(--cn-avatar);
+  color: var(--cn-ink);
+  font-family: var(--cn-font-sans);
+  font-size: 15px;
+  font-weight: 600;
+}

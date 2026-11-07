@@ -2,6 +2,7 @@ import { Alert, Loader, Stack, Text, Title } from '@mantine/core'
 import { useMutation } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
 import { useEffect, useRef } from 'react'
+import { AuthCard } from './AuthCard'
 import { ResendVerification } from './ResendVerification'
 import { api } from './apiClient'
 
@@ -23,38 +24,40 @@ export function VerifyEmailPage() {
 
   if (!token) {
     return (
-      <Stack>
+      <AuthCard>
         <Title order={2}>Verify your email</Title>
         <Alert color="red">This link is incomplete. Open the link from your email, or request a new one.</Alert>
         <ResendVerification />
-      </Stack>
+      </AuthCard>
     )
   }
 
   if (verify.isSuccess) {
     return (
-      <Stack>
+      <AuthCard>
         <Title order={2}>Email verified</Title>
         <Text>Thanks, your email address is confirmed.</Text>
-      </Stack>
+      </AuthCard>
     )
   }
 
   if (verify.isError) {
     return (
-      <Stack>
+      <AuthCard>
         <Title order={2}>We could not verify your email</Title>
         <Alert color="red">{verify.error.message}</Alert>
         <Text size="sm">Links work once and expire after 24 hours. Request a new one:</Text>
         <ResendVerification />
-      </Stack>
+      </AuthCard>
     )
   }
 
   return (
-    <Stack align="center">
-      <Loader />
-      <Text>Verifying your email…</Text>
-    </Stack>
+    <AuthCard>
+      <Stack align="center">
+        <Loader />
+        <Text>Verifying your email…</Text>
+      </Stack>
+    </AuthCard>
   )
 }

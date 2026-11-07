@@ -18,6 +18,7 @@ export const cssVariablesResolver: CSSVariablesResolver = () => ({
     '--cn-edge': colorTokens.edge,
     '--cn-highlight': colorTokens.highlight,
     '--cn-accent': colorTokens.accent,
+    '--cn-avatar': colorTokens.avatar,
     '--cn-board-light': colorTokens.boardLight,
     '--cn-board-dark': colorTokens.boardDark,
     '--cn-overlay': colorTokens.overlay,
