@@ -4,6 +4,7 @@ import { HomePage } from './HomePage'
 import { Layout } from './Layout'
 import { LoginPage } from './LoginPage'
 import { SignUpPage } from './SignUpPage'
+import { DevThemeRoute } from './theme/DevThemeRoute'
 import { VerifyEmailPage } from './VerifyEmailPage'
 
 const rootRoute = createRootRoute({ component: Layout })
@@ -17,8 +18,14 @@ const verifyEmailRoute = createRoute({
   component: VerifyEmailPage,
 })
 
+// Dev-only: a page showing the theme's components, so a token change is easy
+// to screenshot. Not reachable, or bundled, in production (web/AGENTS.md).
+const devRoutes = import.meta.env.DEV
+  ? [createRoute({ getParentRoute: () => rootRoute, path: '/dev/theme', component: DevThemeRoute })]
+  : []
+
 export const router = createRouter({
-  routeTree: rootRoute.addChildren([homeRoute, signUpRoute, loginRoute, verifyEmailRoute]),
+  routeTree: rootRoute.addChildren([homeRoute, signUpRoute, loginRoute, verifyEmailRoute, ...devRoutes]),
 })
 
 declare module '@tanstack/react-router' {
