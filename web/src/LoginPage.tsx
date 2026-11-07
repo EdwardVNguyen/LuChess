@@ -4,6 +4,7 @@ import { useMutation } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { z } from 'zod'
 import { ApiError } from './api'
+import { AuthCard } from './AuthCard'
 import { ResendVerification } from './ResendVerification'
 import { api } from './apiClient'
 import { errorMessage } from './errors'
@@ -35,7 +36,7 @@ export function LoginPage() {
   const needsVerification = login.error instanceof ApiError && login.error.status === 403
 
   return (
-    <Stack maw={420}>
+    <AuthCard>
       <Title order={2}>Log in</Title>
       <form
         onSubmit={(e) => {
@@ -87,6 +88,6 @@ export function LoginPage() {
       <Text size="sm">
         New here? <Link to="/signup">Create an account</Link>
       </Text>
-    </Stack>
+    </AuthCard>
   )
 }
