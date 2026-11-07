@@ -33,4 +33,32 @@ export const entries: ShotEntry[] = [
       await page.getByRole('button', { name: 'Open modal' }).click()
     },
   },
+  // No matching design screen: ResponsivePopover, ResponsiveDialog and the
+  // destructive ConfirmDialog (web/src/overlay) each open at all three sizes,
+  // so a single setup per entry shows the popover/dialog/bottom-sheet switch
+  // (#23's acceptance criteria).
+  {
+    name: 'DevOverlayPopover',
+    route: '/dev/overlays',
+    fixtures: 'guest',
+    setup: async (page) => {
+      await page.getByRole('button', { name: 'Save to folder' }).click()
+    },
+  },
+  {
+    name: 'DevOverlayDialog',
+    route: '/dev/overlays',
+    fixtures: 'guest',
+    setup: async (page) => {
+      await page.getByRole('button', { name: 'New folder' }).click()
+    },
+  },
+  {
+    name: 'DevOverlayConfirm',
+    route: '/dev/overlays',
+    fixtures: 'guest',
+    setup: async (page) => {
+      await page.getByRole('button', { name: 'Delete account' }).click()
+    },
+  },
 ]
