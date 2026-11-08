@@ -1,6 +1,7 @@
 package handler_test
 
 import (
+	"database/sql"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -38,6 +39,7 @@ func (c *fakeClock) Advance(d time.Duration) {
 type app struct {
 	t       *testing.T
 	router  http.Handler
+	db      *sql.DB
 	queries *database.Queries
 	mail    *mailertest.Recorder
 	clock   *fakeClock
@@ -48,6 +50,7 @@ func newApp(t *testing.T, tweak ...func(*handler.ApiConfig)) *app {
 	db := testdb.New(t)
 	a := &app{
 		t:       t,
+		db:      db,
 		queries: database.New(db),
 		mail:    &mailertest.Recorder{},
 		clock:   &fakeClock{now: time.Date(2026, 11, 1, 12, 0, 0, 0, time.UTC)},

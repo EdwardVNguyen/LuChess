@@ -5,6 +5,9 @@ export type FixtureSet = 'guest' | 'session'
 /** The signed-in user's Notes: the samples, none, failing, or never answering (to show loading). */
 export type NotesFixture = 'sample' | 'empty' | 'error' | 'pending'
 
+/** Answers to Quick Find's search, separately from the Notes themselves. */
+export type SearchFixture = 'sample' | 'error' | 'pending'
+
 export type ShotEntry = {
   /** Matches a design screen name, e.g. `design/screenshots/<name>.png`. */
   name: string
@@ -12,6 +15,8 @@ export type ShotEntry = {
   fixtures: FixtureSet
   /** @default 'sample' */
   notes?: NotesFixture
+  /** @default 'sample' */
+  search?: SearchFixture
   /** What to wait for before setup; a never-answered request means networkidle never comes. @default 'networkidle' */
   waitUntil?: 'load' | 'networkidle'
   /** Extra steps after the page loads, e.g. opening a dialog. */
@@ -228,4 +233,68 @@ export const entries: ShotEntry[] = [
       await page.getByText('Set up a position').click()
     },
   },
+  // Quick Find (#7), matching design/screenshots/QuickFind*.png. The
+  // undesigned states follow: before typing, searching, nothing found, failed.
+  {
+    name: 'QuickFind',
+    route: '/notes/1',
+    fixtures: 'session',
+    setup: async (page) => {
+      await openQuickFind(page, 'spsky')
+      await page.getByRole('option').first().waitFor()
+    },
+  },
+  {
+    name: 'QuickFindPlayer',
+    route: '/notes/1',
+    fixtures: 'session',
+    setup: async (page) => {
+      await openQuickFind(page, 'Boris')
+      await page.getByRole('option').first().waitFor()
+    },
+  },
+  {
+    name: 'QuickFindStart',
+    route: '/notes/1',
+    fixtures: 'session',
+    setup: async (page) => {
+      await openQuickFind(page, '')
+    },
+  },
+  {
+    name: 'QuickFindLoading',
+    route: '/notes/1',
+    fixtures: 'session',
+    search: 'pending',
+    setup: async (page) => {
+      await openQuickFind(page, 'spsky')
+      await page.getByLabel('Finding notes').waitFor()
+    },
+  },
+  {
+    name: 'QuickFindNoResults',
+    route: '/notes/1',
+    fixtures: 'session',
+    setup: async (page) => {
+      await openQuickFind(page, 'Najdorf')
+      await page.getByRole('status').waitFor()
+    },
+  },
+  {
+    name: 'QuickFindError',
+    route: '/notes/1',
+    fixtures: 'session',
+    search: 'error',
+    setup: async (page) => {
+      await openQuickFind(page, 'spsky')
+      await page.getByRole('alert').waitFor()
+    },
+  },
 ]
+
+async function openQuickFind(page: Page, query: string) {
+  await page.keyboard.press('Control+K')
+  const input = page.getByRole('combobox', { name: 'Find a note' })
+  await input.waitFor()
+  if (query) await input.fill(query)
+}

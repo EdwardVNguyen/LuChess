@@ -15,7 +15,7 @@ const createNote = `-- name: CreateNote :one
 
 INSERT INTO notes(user_id, name, pgn, start_fen, created_at, updated_at)
 VALUES ($1, $2, $3, $4, $5, $5)
-RETURNING id, user_id, name, pgn, start_fen, created_at, updated_at
+RETURNING id, user_id, name, pgn, start_fen, created_at, updated_at, white, black, game_date
 `
 
 type CreateNoteParams struct {
@@ -44,6 +44,9 @@ func (q *Queries) CreateNote(ctx context.Context, arg CreateNoteParams) (Note, e
 		&i.StartFen,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.White,
+		&i.Black,
+		&i.GameDate,
 	)
 	return i, err
 }
@@ -67,7 +70,7 @@ func (q *Queries) DeleteNote(ctx context.Context, arg DeleteNoteParams) (int64, 
 }
 
 const getNote = `-- name: GetNote :one
-SELECT id, user_id, name, pgn, start_fen, created_at, updated_at
+SELECT id, user_id, name, pgn, start_fen, created_at, updated_at, white, black, game_date
 FROM notes
 WHERE id = $1 AND user_id = $2
 `
@@ -88,6 +91,9 @@ func (q *Queries) GetNote(ctx context.Context, arg GetNoteParams) (Note, error) 
 		&i.StartFen,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.White,
+		&i.Black,
+		&i.GameDate,
 	)
 	return i, err
 }
@@ -139,7 +145,7 @@ UPDATE notes
 SET name = $1,
     updated_at = $2
 WHERE id = $3 AND user_id = $4
-RETURNING id, user_id, name, pgn, start_fen, created_at, updated_at
+RETURNING id, user_id, name, pgn, start_fen, created_at, updated_at, white, black, game_date
 `
 
 type RenameNoteParams struct {
@@ -165,6 +171,87 @@ func (q *Queries) RenameNote(ctx context.Context, arg RenameNoteParams) (Note, e
 		&i.StartFen,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.White,
+		&i.Black,
+		&i.GameDate,
 	)
 	return i, err
+}
+
+const searchNotes = `-- name: SearchNotes :many
+SELECT id, name, white, black, game_date, updated_at
+FROM (
+  SELECT n.id, n.user_id, n.name, n.pgn, n.start_fen, n.created_at, n.updated_at, n.white, n.black, n.game_date,
+    CASE WHEN n.name ILIKE $1::text THEN 1 + word_similarity($2::text, n.name)
+         WHEN $2::text <% n.name THEN word_similarity($2::text, n.name)
+         ELSE 0 END AS name_score,
+    CASE WHEN (coalesce(n.white, '') || ' ' || coalesce(n.black, '')) ILIKE $1::text
+           THEN 1 + word_similarity($2::text, coalesce(n.white, '') || ' ' || coalesce(n.black, ''))
+         WHEN $2::text <% (coalesce(n.white, '') || ' ' || coalesce(n.black, ''))
+           THEN word_similarity($2::text, coalesce(n.white, '') || ' ' || coalesce(n.black, ''))
+         ELSE 0 END AS players_score
+  FROM notes n
+  WHERE n.user_id = $3
+    AND (n.name ILIKE $1::text
+      OR $2::text <% n.name
+      OR (coalesce(n.white, '') || ' ' || coalesce(n.black, '')) ILIKE $1::text
+      OR $2::text <% (coalesce(n.white, '') || ' ' || coalesce(n.black, '')))
+) ranked
+ORDER BY name_score DESC, players_score DESC, updated_at DESC, id DESC
+LIMIT $4
+`
+
+type SearchNotesParams struct {
+	Pattern    string
+	Query      string
+	UserID     int32
+	MaxResults int32
+}
+
+type SearchNotesRow struct {
+	ID        int64
+	Name      string
+	White     sql.NullString
+	Black     sql.NullString
+	GameDate  sql.NullString
+	UpdatedAt time.Time
+}
+
+// Fuzzy-finds Notes by name, then by players: a Note matches when the query
+// is a substring of, or trigram-similar to a word in, its name or players.
+// Name matches rank above player-only matches; the pattern is a LIKE pattern
+// with its wildcards already escaped.
+func (q *Queries) SearchNotes(ctx context.Context, arg SearchNotesParams) ([]SearchNotesRow, error) {
+	rows, err := q.db.QueryContext(ctx, searchNotes,
+		arg.Pattern,
+		arg.Query,
+		arg.UserID,
+		arg.MaxResults,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SearchNotesRow
+	for rows.Next() {
+		var i SearchNotesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.White,
+			&i.Black,
+			&i.GameDate,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }

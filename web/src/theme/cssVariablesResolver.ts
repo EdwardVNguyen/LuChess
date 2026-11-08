@@ -25,6 +25,7 @@ export const cssVariablesResolver: CSSVariablesResolver = () => ({
     '--cn-piece-light': colorTokens.pieceLight,
     '--cn-piece-dark': colorTokens.pieceDark,
     '--cn-overlay': colorTokens.overlay,
+    '--cn-dialog-shadow': colorTokens.dialogShadow,
     '--cn-font-serif': fontTokens.serif,
     '--cn-font-sans': fontTokens.sans,
     '--cn-font-symbols': fontTokens.symbols,

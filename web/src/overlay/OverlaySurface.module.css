@@ -1,0 +1,42 @@
+/* The panel shape (QuickFind.dc.html, QuickFind-tablet.dc.html,
+ * QuickFind-mobile.dc.html): the caller lays out everything inside it. */
+.panel {
+  border: 1px solid var(--cn-edge);
+  box-shadow: var(--cn-dialog-shadow);
+  overflow: hidden;
+}
+
+.panelBody {
+  padding: 0;
+}
+
+.fullScreen {
+  border-radius: 0 !important;
+  background: var(--cn-paper);
+}
+
+.fullScreenHeader {
+  height: 64px;
+  min-height: 64px;
+  padding: 0 16px;
+  box-sizing: border-box;
+  background: var(--cn-ground);
+  border-bottom: 1px solid var(--cn-rule);
+}
+
+.fullScreenTitle {
+  font-family: var(--cn-font-serif);
+  font-size: 19px !important;
+  font-weight: 400 !important;
+}
+
+.cancel {
+  font-family: var(--cn-font-sans);
+  font-size: 15px;
+  color: var(--cn-accent);
+}
+
+.cancel:focus-visible {
+  outline: 2px solid var(--cn-ink);
+  outline-offset: 2px;
+}

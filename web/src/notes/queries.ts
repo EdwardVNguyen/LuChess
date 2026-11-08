@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ApiError, type NewNoteInput, type Note, type NoteSummary } from '../api'
 import { api } from '../apiClient'
 import { useSession } from '../session'
@@ -8,6 +8,8 @@ import { useSession } from '../session'
 // Session ends (main.tsx).
 const keys = {
   list: ['notes'] as const,
+  searches: ['notes', 'search'] as const,
+  search: (query: string) => ['notes', 'search', query] as const,
   note: (id: number) => ['notes', id] as const,
 }
 
@@ -17,6 +19,18 @@ export function useNoteList() {
     queryKey: keys.list,
     queryFn: () => authorized((token) => api.listNotes(token)),
     enabled: state.status === 'authenticated',
+  })
+}
+
+/** Pass the query already trimmed and debounced; a blank query asks nothing. */
+export function useNoteSearch(query: string) {
+  const { state, authorized } = useSession()
+  return useQuery({
+    queryKey: keys.search(query),
+    queryFn: () => authorized((token) => api.searchNotes(token, query)),
+    enabled: state.status === 'authenticated' && query !== '',
+    // Keep the last results on screen while the next keystroke's arrive.
+    placeholderData: keepPreviousData,
   })
 }
 
@@ -47,6 +61,7 @@ export function useCreateNote() {
     onSuccess: (note) => {
       queryClient.setQueryData(keys.note(note.id), note)
       queryClient.setQueryData<NoteSummary[]>(keys.list, (list) => putFirst(list, note))
+      void queryClient.invalidateQueries({ queryKey: keys.searches })
     },
   })
 }
@@ -59,6 +74,7 @@ export function useRenameNote(id: number) {
     onSuccess: (note) => {
       queryClient.setQueryData(keys.note(note.id), note)
       queryClient.setQueryData<NoteSummary[]>(keys.list, (list) => putFirst(list, note))
+      void queryClient.invalidateQueries({ queryKey: keys.searches })
     },
   })
 }
@@ -71,6 +87,7 @@ export function useDeleteNote(id: number) {
     onSuccess: () => {
       queryClient.setQueryData<NoteSummary[]>(keys.list, (list) => list?.filter((note) => note.id !== id))
       queryClient.removeQueries({ queryKey: keys.note(id), exact: true })
+      void queryClient.invalidateQueries({ queryKey: keys.searches })
     },
   })
 }

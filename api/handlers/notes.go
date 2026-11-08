@@ -20,6 +20,8 @@ const (
 	maxPGNBytes      = 64 * 1024
 	maxFENBytes      = 100
 	maxNoteBodyBytes = maxPGNBytes + 16*1024
+	maxSearchLen     = 100
+	maxSearchResults = 20
 )
 
 type noteSummary struct {
@@ -59,6 +61,56 @@ func (cfg *ApiConfig) HandleListNotes(w http.ResponseWriter, r *http.Request) {
 		notes = append(notes, noteSummary{ID: n.ID, Name: n.Name, CreatedAt: n.CreatedAt, UpdatedAt: n.UpdatedAt})
 	}
 	utils.RespondJSON(w, http.StatusOK, notes)
+}
+
+// A search result: enough to tell same-named Notes apart. White, Black and
+// Date come from the PGN headers and are nil when the PGN lacks them.
+type noteSearchResult struct {
+	ID    int64   `json:"id"`
+	Name  string  `json:"name"`
+	White *string `json:"white"`
+	Black *string `json:"black"`
+	Date  *string `json:"date"`
+}
+
+func (cfg *ApiConfig) HandleSearchNotes(w http.ResponseWriter, r *http.Request) {
+	user := userFrom(r.Context())
+	q := strings.TrimSpace(r.URL.Query().Get("q"))
+	if utf8.RuneCountInString(q) > maxSearchLen {
+		utils.RespondError(w, http.StatusBadRequest, "Search must be at most 100 characters", nil)
+		return
+	}
+	results := []noteSearchResult{}
+	if q == "" {
+		utils.RespondJSON(w, http.StatusOK, results)
+		return
+	}
+	rows, err := cfg.Db.SearchNotes(r.Context(), database.SearchNotesParams{
+		Pattern:    "%" + likeEscaper.Replace(q) + "%",
+		Query:      q,
+		UserID:     user.ID,
+		MaxResults: maxSearchResults,
+	})
+	if err != nil {
+		utils.RespondError(w, http.StatusInternalServerError, "Could not search notes", err)
+		return
+	}
+	for _, n := range rows {
+		results = append(results, noteSearchResult{
+			ID: n.ID, Name: n.Name, White: nullable(n.White), Black: nullable(n.Black), Date: nullable(n.GameDate),
+		})
+	}
+	utils.RespondJSON(w, http.StatusOK, results)
+}
+
+// Escapes LIKE wildcards so a search for "100%" means the text itself.
+var likeEscaper = strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
+
+func nullable(s sql.NullString) *string {
+	if !s.Valid {
+		return nil
+	}
+	return &s.String
 }
 
 func (cfg *ApiConfig) HandleCreateNote(w http.ResponseWriter, r *http.Request) {

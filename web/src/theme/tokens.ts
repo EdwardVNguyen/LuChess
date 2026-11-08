@@ -22,6 +22,8 @@ export const colorTokens = {
   pieceLight: '#FFFDF6',
   pieceDark: '#1F1B16',
   overlay: 'rgba(42, 38, 32, .45)',
+  // The lift under a dialog that floats over the page (QuickFind.dc.html).
+  dialogShadow: '0 24px 60px rgba(42, 38, 32, .28)',
 } as const
 
 export const fontTokens = {

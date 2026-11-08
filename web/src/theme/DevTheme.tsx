@@ -18,7 +18,7 @@ import { useDisclosure } from '@mantine/hooks'
 import styles from './DevTheme.module.css'
 import { colorTokens } from './tokens'
 
-const swatches = Object.entries(colorTokens).filter(([name]) => name !== 'overlay') as [string, string][]
+const swatches = Object.entries(colorTokens).filter(([name]) => name !== 'overlay' && name !== 'dialogShadow') as [string, string][]
 
 // Dev-only page that shows the theme's components in one place, so a change
 // to a token or a component override is easy to screenshot and compare with
