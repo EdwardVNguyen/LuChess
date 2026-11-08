@@ -15,7 +15,7 @@ export type DevBoardMode = 'view' | 'play' | 'setup'
 // screenshot harness can show each at 1440, 834 and 390px. The board sits in
 // a column about as wide as the Note screen's: 360px, or full width on mobile.
 export function DevBoard() {
-  const { mode } = useSearch({ from: '/dev/board' })
+  const { mode, fen } = useSearch({ from: '/dev/board' })
   const navigate = useNavigate({ from: '/dev/board' })
 
   return (
@@ -33,7 +33,7 @@ export function DevBoard() {
       />
       <Box w={{ base: '100%', sm: 382 }}>
         {mode === 'view' && <ViewDemo />}
-        {mode === 'play' && <PlayDemo />}
+        {mode === 'play' && <PlayDemo startFen={fen ?? START_FEN} />}
         {mode === 'setup' && <SetupDemo />}
       </Box>
     </Stack>
@@ -45,14 +45,15 @@ function ViewDemo() {
   return <Board mode="view" game={game} ply={ply} onPlyChange={setPly} />
 }
 
-function PlayDemo() {
+// `?fen=` starts play from another position, e.g. one with a pawn about to promote.
+function PlayDemo({ startFen }: { startFen: string }) {
   const [moves, setMoves] = useState<LegalMove[]>([])
   const played = gameFromMoves(
-    START_FEN,
+    startFen,
     moves.map((move) => move.san),
   )
   const plies = played.ok ? played.value.plies : []
-  const fen = moves.at(-1)?.fen ?? START_FEN
+  const fen = moves.at(-1)?.fen ?? startFen
 
   return (
     <Stack gap="md">

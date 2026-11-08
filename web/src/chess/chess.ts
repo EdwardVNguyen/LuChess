@@ -146,15 +146,26 @@ export function plyLabel(ply: Ply): string | null {
 
 export type LegalMove = { san: string; from: string; to: string; fen: string }
 
-/** Plays from → to if it is legal (promoting to a queen), or returns null. */
-export function tryMove(fen: string, from: string, to: string): LegalMove | null {
+/** The pieces a pawn can promote to. */
+export type Promotion = 'q' | 'r' | 'b' | 'n'
+
+export const PROMOTIONS: readonly Promotion[] = ['q', 'r', 'b', 'n']
+
+/** Plays from → to if it is legal, promoting a pawn to `promotion` (a queen by default), or returns null. */
+export function tryMove(fen: string, from: string, to: string, promotion: Promotion = 'q'): LegalMove | null {
   const chess = new Chess(fen)
   try {
-    const move = chess.move({ from, to, promotion: 'q' })
+    const move = chess.move({ from, to, promotion })
     return { san: move.san, from: move.from, to: move.to, fen: move.after }
   } catch {
     return null
   }
+}
+
+/** Whether from → to is a legal pawn move to the last rank, which needs a piece to promote to. */
+export function isPromotion(fen: string, from: string, to: string): boolean {
+  const chess = new Chess(fen)
+  return chess.moves({ square: from as never, verbose: true }).some((move) => move.to === to && move.isPromotion())
 }
 
 /** The squares the piece on `from` can legally move to. */

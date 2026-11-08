@@ -3,6 +3,7 @@ import {
   fenAt,
   fenFromPlacement,
   gameFromMoves,
+  isPromotion,
   legalTargets,
   parsePgn,
   pgnFromMoves,
@@ -83,6 +84,23 @@ describe('play', () => {
 
   it('promotes to a queen', () => {
     expect(tryMove('7k/P7/8/8/8/8/8/K7 w - - 0 1', 'a7', 'a8')).toMatchObject({ san: 'a8=Q+' })
+  })
+
+  it('underpromotes', () => {
+    const fen = '7k/P7/8/8/8/8/8/K7 w - - 0 1'
+    expect(tryMove(fen, 'a7', 'a8', 'n')).toMatchObject({ san: 'a8=N', to: 'a8' })
+    expect(tryMove(fen, 'a7', 'a8', 'r')).toMatchObject({ san: 'a8=R+' })
+    expect(tryMove(fen, 'a7', 'a8', 'b')).toMatchObject({ san: 'a8=B' })
+    expect(tryMove('k7/8/8/8/8/8/p7/7K b - - 0 1', 'a2', 'a1', 'n')?.fen).toMatch(/^k7\/8\/8\/8\/8\/8\/8\/n6K w/)
+  })
+
+  it('knows which moves are promotions', () => {
+    const fen = '1n5k/P7/8/8/8/8/4P3/K7 w - - 0 1'
+    expect(isPromotion(fen, 'a7', 'a8')).toBe(true)
+    expect(isPromotion(fen, 'a7', 'b8')).toBe(true)
+    expect(isPromotion(fen, 'a7', 'a6')).toBe(false)
+    expect(isPromotion(fen, 'e2', 'e4')).toBe(false)
+    expect(isPromotion('n6k/P7/8/8/8/8/8/K7 w - - 0 1', 'a7', 'a8')).toBe(false)
   })
 })
 

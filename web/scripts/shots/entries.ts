@@ -146,6 +146,17 @@ export const entries: ShotEntry[] = [
       await page.locator('[id$="-square-g8"]').click()
     },
   },
+  // Play mode's promotion picker (#30), open over a8 after a7–a8.
+  {
+    name: 'DevBoardPromotion',
+    route: `/dev/board?mode=play&fen=${encodeURIComponent('7k/P7/8/8/8/8/8/K7 w - - 0 1')}`,
+    fixtures: 'guest',
+    setup: async (page) => {
+      await page.locator('[id$="-square-a7"]').click()
+      await page.locator('[id$="-square-a8"]').click()
+      await page.getByRole('group', { name: 'Promote to' }).waitFor()
+    },
+  },
   { name: 'DevBoardSetup', route: '/dev/board?mode=setup', fixtures: 'guest' },
   // The Note screen (#6), matching design/screenshots/Note*.png at the same Ply.
   {

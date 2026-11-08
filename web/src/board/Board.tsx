@@ -1,11 +1,13 @@
 import { Button, Group, SegmentedControl, Text, UnstyledButton } from '@mantine/core'
-import { useState, type CSSProperties, type KeyboardEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react'
 import {
   clampPly,
   fenFromPlacement,
+  isPromotion,
   legalTargets,
   placementFromFen,
   plyLabel,
+  PROMOTIONS,
   START_FEN,
   tryMove,
   validateFen,
@@ -13,6 +15,7 @@ import {
   type Game,
   type LegalMove,
   type PieceCode,
+  type Promotion,
 } from '../chess/chess'
 import styles from './Board.module.css'
 import { BoardSurface, type Orientation } from './BoardSurface'
@@ -142,16 +145,32 @@ function ControlButton({
 function PlayBoard({ fen, lastMove, onMove, orientation }: PlayProps & { orientation: Orientation }) {
   // Click a piece, then a square, as well as dragging, so play works on touch.
   const [selected, setSelected] = useState<{ fen: string; square: string } | null>(null)
+  // A pawn move to the last rank waits here for the piece to promote to.
+  const [promoting, setPromoting] = useState<{ fen: string; from: string; to: string } | null>(null)
   const selectedSquare = selected?.fen === fen ? selected.square : null
+  const pending = promoting?.fen === fen ? promoting : null
+  const cancelPromotion = useCallback(() => setPromoting(null), [])
   const targets = selectedSquare ? legalTargets(fen, selectedSquare) : []
-  const turn = fen.split(' ')[1]
+  const turn: Color = fen.split(' ')[1] === 'b' ? 'b' : 'w'
 
   function move(from: string, to: string): boolean {
-    const result = tryMove(fen, from, to)
     setSelected(null)
+    if (isPromotion(fen, from, to)) {
+      setPromoting({ fen, from, to })
+      // The pawn goes back to its square until a piece is chosen.
+      return false
+    }
+    const result = tryMove(fen, from, to)
     if (!result) return false
     onMove(result)
     return true
+  }
+
+  function promote(promotion: Promotion) {
+    if (!pending) return
+    setPromoting(null)
+    const result = tryMove(fen, pending.from, pending.to, promotion)
+    if (result) onMove(result)
   }
 
   function onSquareClick({ square }: { square: string }) {
@@ -172,16 +191,102 @@ function PlayBoard({ fen, lastMove, onMove, orientation }: PlayProps & { orienta
           [lastMove?.from, lastMoveStyle],
           [lastMove?.to, lastMoveStyle],
           [selectedSquare, selectedStyle],
+          [pending?.from, selectedStyle],
           ...targets.map((square): [string, CSSProperties] => [square, targetStyle]),
         )}
         options={{
-          allowDragging: true,
+          allowDragging: !pending,
           allowDragOffBoard: false,
           canDragPiece: ({ piece }) => piece.pieceType[0] === turn,
           onPieceDrop: ({ sourceSquare, targetSquare }) => (targetSquare ? move(sourceSquare, targetSquare) : false),
           onSquareClick,
         }}
-      />
+      >
+        {pending && (
+          <PromotionPicker
+            square={pending.to}
+            color={turn}
+            orientation={orientation}
+            onPick={promote}
+            onCancel={cancelPromotion}
+          />
+        )}
+      </BoardSurface>
+    </div>
+  )
+}
+
+const PROMOTION_PIECES: Record<Promotion, { code: PieceCode[1]; name: string }> = {
+  q: { code: 'Q', name: 'Queen' },
+  r: { code: 'R', name: 'Rook' },
+  b: { code: 'B', name: 'Bishop' },
+  n: { code: 'N', name: 'Knight' },
+}
+
+// The four pieces in a column over the promotion square, running from the
+// edge of the board inwards. Esc, or a click anywhere else, cancels.
+function PromotionPicker({
+  square,
+  color,
+  orientation,
+  onPick,
+  onCancel,
+}: {
+  square: string
+  color: Color
+  orientation: Orientation
+  onPick: (promotion: Promotion) => void
+  onCancel: () => void
+}) {
+  const ref = useRef<HTMLDivElement>(null)
+  const file = 'abcdefgh'.indexOf(square[0])
+  const column = orientation === 'white' ? file : 7 - file
+  const atTop = (square[1] === '8') === (orientation === 'white')
+
+  useEffect(() => {
+    ref.current?.querySelector('button')?.focus()
+    function onPointerDown(event: PointerEvent) {
+      if (!ref.current?.contains(event.target as Node)) onCancel()
+    }
+    function onKeyDown(event: globalThis.KeyboardEvent) {
+      if (event.key === 'Escape') onCancel()
+    }
+    document.addEventListener('pointerdown', onPointerDown, true)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown, true)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [onCancel])
+
+  return (
+    <div className={styles.promotionBackdrop}>
+      <div
+        ref={ref}
+        role="group"
+        aria-label="Promote to"
+        className={styles.promotion}
+        style={{
+          left: `${column * 12.5}%`,
+          [atTop ? 'top' : 'bottom']: 0,
+          flexDirection: atTop ? 'column' : 'column-reverse',
+        }}
+      >
+        {PROMOTIONS.map((promotion) => {
+          const { code, name } = PROMOTION_PIECES[promotion]
+          const piece = `${color}${code}` as PieceCode
+          return (
+            <UnstyledButton
+              key={promotion}
+              className={styles.promotionItem}
+              aria-label={name}
+              onClick={() => onPick(promotion)}
+            >
+              <PieceGlyph piece={piece} />
+            </UnstyledButton>
+          )
+        })}
+      </div>
     </div>
   )
 }
