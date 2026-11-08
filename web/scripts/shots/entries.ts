@@ -61,4 +61,19 @@ export const entries: ShotEntry[] = [
       await page.getByRole('button', { name: 'Delete account' }).click()
     },
   },
+  // No matching design screen: the shared Board (web/src/board) in each of
+  // its three modes at all three sizes (#24). View mode matches the board in
+  // design/screenshots/Note*.png; play shows a move just played.
+  { name: 'DevBoardView', route: '/dev/board?mode=view', fixtures: 'guest' },
+  {
+    name: 'DevBoardPlay',
+    route: '/dev/board?mode=play',
+    fixtures: 'guest',
+    setup: async (page) => {
+      await page.locator('[id$="-square-e2"]').click()
+      await page.locator('[id$="-square-e4"]').click()
+      await page.locator('[id$="-square-g8"]').click()
+    },
+  },
+  { name: 'DevBoardSetup', route: '/dev/board?mode=setup', fixtures: 'guest' },
 ]

@@ -24,3 +24,13 @@ if (!('matchMedia' in window) || typeof window.matchMedia !== 'function') {
     dispatchEvent: () => false,
   })
 }
+
+// jsdom has no ResizeObserver either; Mantine's SegmentedControl measures
+// its indicator with one. Nothing here has a size to observe, so a no-op does.
+if (typeof window.ResizeObserver === 'undefined') {
+  window.ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+}

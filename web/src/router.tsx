@@ -1,5 +1,6 @@
 import { createRootRoute, createRoute, createRouter } from '@tanstack/react-router'
 import { z } from 'zod'
+import { DevBoardRoute } from './board/DevBoardRoute'
 import { HomePage } from './HomePage'
 import { Layout } from './Layout'
 import { LoginPage } from './LoginPage'
@@ -26,6 +27,12 @@ const devRoutes = import.meta.env.DEV
   ? [
       createRoute({ getParentRoute: () => rootRoute, path: '/dev/theme', component: DevThemeRoute }),
       createRoute({ getParentRoute: () => rootRoute, path: '/dev/overlays', component: DevOverlaysRoute }),
+      createRoute({
+        getParentRoute: () => rootRoute,
+        path: '/dev/board',
+        validateSearch: z.object({ mode: z.enum(['view', 'play', 'setup']).catch('view') }),
+        component: DevBoardRoute,
+      }),
     ]
   : []
 
