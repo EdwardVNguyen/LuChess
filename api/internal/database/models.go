@@ -113,6 +113,9 @@ type Note struct {
 	StartFen  sql.NullString
 	CreatedAt time.Time
 	UpdatedAt time.Time
+	White     sql.NullString
+	Black     sql.NullString
+	GameDate  sql.NullString
 }
 
 type RefreshToken struct {

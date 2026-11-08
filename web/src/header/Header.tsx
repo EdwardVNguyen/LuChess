@@ -1,7 +1,8 @@
 import { Button, Group } from '@mantine/core'
 import { Link } from '@tanstack/react-router'
 import styles from './Header.module.css'
-import { PlusIcon, SearchIcon } from './icons'
+import { QuickFind } from '../notes/QuickFind'
+import { PlusIcon } from './icons'
 import { UserMenu } from './UserMenu'
 import type { SessionState } from '../session'
 
@@ -26,14 +27,7 @@ export function Header({ state, onLogOut }: Props) {
         <>
           <div className={styles.spacer} />
           <div className={styles.slots}>
-            {/* #7: the find box replaces this placeholder. */}
-            <div className={styles.findPlaceholder} aria-hidden="true">
-              <SearchIcon />
-              <span>Find a note</span>
-            </div>
-            <div className={styles.iconSlot} aria-hidden="true">
-              <SearchIcon />
-            </div>
+            <QuickFind />
             <Link to="/notes/new" className={styles.newNote}>
               New note
             </Link>

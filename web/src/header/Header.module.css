@@ -50,30 +50,6 @@
   }
 }
 
-/* A disabled-looking stand-in for the find box (#7), so the header already
- * has the right shape. Not interactive yet. */
-.findPlaceholder {
-  display: none;
-}
-
-@media (min-width: 48em) {
-  .findPlaceholder {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    width: 220px;
-    height: 40px;
-    padding-inline: 12px;
-    box-sizing: border-box;
-    background: var(--cn-card);
-    border: 1px solid var(--cn-edge);
-    border-radius: var(--cn-radius-button);
-    color: var(--cn-muted);
-    font-family: var(--cn-font-sans);
-    font-size: 14px;
-  }
-}
-
 .newNote {
   display: none;
 }
@@ -126,26 +102,6 @@
 .newNoteIcon:focus-visible {
   outline: 2px solid var(--cn-ink);
   outline-offset: 2px;
-}
-
-.iconSlot {
-  flex: none;
-  width: 40px;
-  height: 40px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  box-sizing: border-box;
-  border-radius: var(--cn-radius-button);
-  border: 1px solid var(--cn-edge);
-  background: transparent;
-  color: var(--cn-ink);
-}
-
-@media (min-width: 48em) {
-  .iconSlot {
-    display: none;
-  }
 }
 
 .avatar {

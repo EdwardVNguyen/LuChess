@@ -1,5 +1,6 @@
-import { Drawer, Modal, Popover } from '@mantine/core'
+import { Drawer, Modal, Popover, UnstyledButton, VisuallyHidden } from '@mantine/core'
 import type { ReactElement, ReactNode } from 'react'
+import styles from './OverlaySurface.module.css'
 import type { OverlaySize } from './useOverlaySize'
 
 type CommonProps = {
@@ -14,6 +15,9 @@ type CommonProps = {
 type OverlaySurfaceProps = CommonProps &
   (
     | { desktop: 'dialog' }
+    // A dialog with no visible header near the top of the screen on desktop
+    // and tablet, and the whole screen with a title and Cancel on mobile.
+    | { desktop: 'panel' }
     | {
         desktop: 'anchored'
         /** The trigger; kept outside the dialog/sheet so it can receive focus back when closed. */
@@ -25,8 +29,10 @@ type OverlaySurfaceProps = CommonProps &
 
 // The one place an OverlaySize becomes a shape. A bottom sheet on mobile, a
 // centred dialog on tablet, and on desktop either that same dialog or a
-// popover anchored to its trigger. Internal: callers pass size to
-// ResponsiveDialog/ResponsivePopover and never learn these adapters.
+// popover anchored to its trigger. A panel instead takes the whole screen on
+// mobile and floats near the top elsewhere. Internal: callers pass size to
+// ResponsiveDialog/ResponsivePopover/ResponsivePanel and never learn these
+// adapters.
 export function OverlaySurface(props: OverlaySurfaceProps) {
   if (props.size === 'desktop' && props.desktop === 'anchored') {
     const { opened, onClose, label, children, target, width = 320 } = props
@@ -39,6 +45,34 @@ export function OverlaySurface(props: OverlaySurfaceProps) {
   }
 
   const { size, opened, onClose, label, children } = props
+
+  if (props.desktop === 'panel') {
+    return size === 'mobile' ? (
+      <Drawer.Root opened={opened} onClose={onClose} position="bottom" size="100%">
+        <Drawer.Overlay />
+        <Drawer.Content className={styles.fullScreen}>
+          <Drawer.Header className={styles.fullScreenHeader}>
+            <Drawer.Title className={styles.fullScreenTitle}>{label}</Drawer.Title>
+            <UnstyledButton className={styles.cancel} onClick={onClose}>
+              Cancel
+            </UnstyledButton>
+          </Drawer.Header>
+          <Drawer.Body className={styles.panelBody}>{children}</Drawer.Body>
+        </Drawer.Content>
+      </Drawer.Root>
+    ) : (
+      <Modal.Root opened={opened} onClose={onClose} centered={false} yOffset={size === 'desktop' ? 120 : 150} size={size === 'desktop' ? 640 : 600}>
+        <Modal.Overlay />
+        <Modal.Content className={styles.panel}>
+          <VisuallyHidden>
+            <Modal.Title>{label}</Modal.Title>
+          </VisuallyHidden>
+          <Modal.Body className={styles.panelBody}>{children}</Modal.Body>
+        </Modal.Content>
+      </Modal.Root>
+    )
+  }
+
   const panel =
     size === 'mobile' ? (
       <Drawer opened={opened} onClose={onClose} title={label} position="bottom">

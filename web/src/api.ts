@@ -6,6 +6,13 @@ const messageSchema = z.object({ message: z.string() })
 const errorBodySchema = z.object({ error: z.string() })
 const sessionResponseSchema = z.object({ accessToken: z.string(), user: userSchema })
 const noteSummarySchema = z.object({ id: z.number(), name: z.string(), createdAt: z.string(), updatedAt: z.string() })
+const noteSearchResultSchema = z.object({
+  id: z.number(),
+  name: z.string(),
+  white: z.string().nullable(),
+  black: z.string().nullable(),
+  date: z.string().nullable(),
+})
 const noteSchema = noteSummarySchema.extend({ pgn: z.string(), startFen: z.string().nullable() })
 
 export type Health = z.infer<typeof healthSchema>
@@ -13,6 +20,8 @@ export type User = z.infer<typeof userSchema>
 export type SessionResponse = z.infer<typeof sessionResponseSchema>
 export type NoteSummary = z.infer<typeof noteSummarySchema>
 export type Note = z.infer<typeof noteSchema>
+/** white, black and date come from the PGN headers, and are null when it has none. */
+export type NoteSearchResult = z.infer<typeof noteSearchResultSchema>
 
 export type SignUpInput = { email: string; name: string; password: string }
 export type LoginInput = { email: string; password: string }
@@ -116,6 +125,11 @@ export function createApiClient(baseUrl: string, fetchFn: typeof fetch = fetch) 
     async listNotes(accessToken: string): Promise<NoteSummary[]> {
       const res = await request('/api/notes', { accessToken })
       return z.array(noteSummarySchema).parse(await res.json())
+    },
+
+    async searchNotes(accessToken: string, query: string): Promise<NoteSearchResult[]> {
+      const res = await request(`/api/notes/search?q=${encodeURIComponent(query)}`, { accessToken })
+      return z.array(noteSearchResultSchema).parse(await res.json())
     },
 
     async getNote(accessToken: string, id: number): Promise<Note> {

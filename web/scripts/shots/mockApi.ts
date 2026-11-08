@@ -1,6 +1,6 @@
 import type { Page } from 'playwright'
 import type { Note } from '../../src/api.js'
-import type { FixtureSet, NotesFixture } from './entries.js'
+import type { FixtureSet, NotesFixture, SearchFixture } from './entries.js'
 import { loggedInSession, sampleNotes } from './fixtures.js'
 
 // Never reached over the network: every request to it is intercepted below.
@@ -10,7 +10,12 @@ export const API_BASE_URL = 'http://shots.invalid'
 // Mocks the whole API surface the frontend calls, so the harness never needs a
 // real server or database. `fixtures` picks between a logged-out visitor and a
 // signed-in session (mocked refresh and /me).
-export async function installApiMocks(page: Page, fixtures: FixtureSet, notesFixture: NotesFixture = 'sample'): Promise<void> {
+export async function installApiMocks(
+  page: Page,
+  fixtures: FixtureSet,
+  notesFixture: NotesFixture = 'sample',
+  searchFixture: SearchFixture = 'sample',
+): Promise<void> {
   // Kept per page, so creating, renaming or deleting shows up in the list.
   let notes: Note[] = notesFixture === 'sample' ? structuredClone(sampleNotes) : []
   let nextId = 100
@@ -56,6 +61,14 @@ export async function installApiMocks(page: Page, fixtures: FixtureSet, notesFix
     if (pathname === '/api/auth/login' && method === 'POST') return json(200, loggedInSession)
     if (pathname === '/api/auth/logout' && method === 'POST') return json(200, {})
 
+    if (pathname === '/api/notes/search' && method === 'GET') {
+      if (fixtures !== 'session') return json(401, { error: 'Unauthorized' })
+      if (searchFixture === 'pending') return
+      if (searchFixture === 'error') return json(500, { error: 'Could not search notes' })
+      const query = new URL(request.url()).searchParams.get('q') ?? ''
+      return json(200, searchNotes(notes, query))
+    }
+
     const noteMatch = /^\/api\/notes(?:\/(\d+))?$/.exec(pathname)
     if (noteMatch) {
       if (fixtures !== 'session') return json(401, { error: 'Unauthorized' })
@@ -93,4 +106,30 @@ export async function installApiMocks(page: Page, fixtures: FixtureSet, notesFix
 
     return json(404, { error: `Not mocked for the screenshot harness: ${method} ${pathname}` })
   })
+}
+
+// A stand-in for the server's trigram search: a Note matches when the query's
+// letters appear in order in its name, else in its players, name matches first.
+function searchNotes(notes: Note[], query: string) {
+  const q = query.trim().toLowerCase()
+  const fuzzy = (text: string) => {
+    let from = 0
+    for (const char of q) {
+      from = text.toLowerCase().indexOf(char, from) + 1
+      if (from === 0) return false
+    }
+    return true
+  }
+  const tag = (pgn: string, name: string) => new RegExp(`^\\[${name} "([^"]*)"`, 'm').exec(pgn)?.[1] ?? null
+  const rows = notes.map((note) => ({
+    id: note.id,
+    name: note.name,
+    white: tag(note.pgn, 'White'),
+    black: tag(note.pgn, 'Black'),
+    date: tag(note.pgn, 'Date'),
+  }))
+  if (q === '') return []
+  const byName = rows.filter((row) => fuzzy(row.name))
+  const byPlayers = rows.filter((row) => !byName.includes(row) && fuzzy(`${row.white ?? ''} ${row.black ?? ''}`))
+  return [...byName, ...byPlayers]
 }

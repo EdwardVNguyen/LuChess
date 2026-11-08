@@ -24,6 +24,7 @@ func NewRouter(cfg *ApiConfig) http.Handler {
 	mux.HandleFunc("POST /api/auth/logout", cfg.sessionHTTP.HandleLogout)
 	mux.Handle("GET /api/me", cfg.sessionHTTP.RequireAuth(cfg.HandleMe))
 	mux.Handle("GET /api/notes", cfg.sessionHTTP.RequireAuth(cfg.HandleListNotes))
+	mux.Handle("GET /api/notes/search", cfg.sessionHTTP.RequireAuth(cfg.HandleSearchNotes))
 	mux.Handle("POST /api/notes", cfg.sessionHTTP.RequireAuth(cfg.HandleCreateNote))
 	mux.Handle("GET /api/notes/{id}", cfg.sessionHTTP.RequireAuth(cfg.HandleGetNote))
 	mux.Handle("PATCH /api/notes/{id}", cfg.sessionHTTP.RequireAuth(cfg.HandleRenameNote))

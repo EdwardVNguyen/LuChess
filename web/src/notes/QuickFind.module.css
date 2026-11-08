@@ -1,0 +1,280 @@
+/* Quick Find: design/screens/QuickFind.dc.html (desktop),
+ * QuickFind-tablet.dc.html and QuickFind-mobile.dc.html. Below `md` (1024px)
+ * the query sits in a boxed field with "Best matches" over the results; at
+ * `md` and up it is the flat search row of the desktop design. */
+
+/* The header's triggers: the box from `sm` (768px) up, the icon below it. */
+.findBox {
+  display: none;
+}
+
+@media (min-width: 48em) {
+  .findBox {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 220px;
+    height: 40px;
+    padding-inline: 12px;
+    box-sizing: border-box;
+    background: var(--cn-card);
+    border: 1px solid var(--cn-edge);
+    border-radius: var(--cn-radius-button);
+    color: var(--cn-muted);
+    font-family: var(--cn-font-sans);
+    font-size: 14px;
+  }
+}
+
+@media (min-width: 64em) {
+  .findBox {
+    width: 340px;
+  }
+}
+
+.findLabel {
+  flex: 1;
+  text-align: left;
+}
+
+.shortcut {
+  font-family: var(--cn-font-sans);
+  font-size: 12px;
+  border: 1px solid var(--cn-edge);
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+
+.findIcon {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  border-radius: var(--cn-radius-button);
+  border: 1px solid var(--cn-edge);
+  color: var(--cn-ink);
+}
+
+@media (min-width: 48em) {
+  .findIcon {
+    display: none;
+  }
+}
+
+.findBox:hover,
+.findIcon:hover {
+  border-color: var(--cn-muted);
+}
+
+.findBox:focus-visible,
+.findIcon:focus-visible,
+.close:focus-visible {
+  outline: 2px solid var(--cn-ink);
+  outline-offset: 2px;
+}
+
+/* The overlay's contents. */
+.find {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 20px 16px 28px;
+  color: var(--cn-ink);
+}
+
+@media (min-width: 48em) {
+  .find {
+    gap: 16px;
+    padding: 18px;
+  }
+}
+
+@media (min-width: 64em) {
+  .find {
+    gap: 0;
+    padding: 0;
+  }
+}
+
+.inputRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 52px;
+  padding: 0 14px;
+  box-sizing: border-box;
+  background: var(--cn-card);
+  border: 2px solid var(--cn-ink);
+  border-radius: var(--cn-radius-card);
+  color: var(--cn-muted);
+}
+
+@media (min-width: 64em) {
+  .inputRow {
+    gap: 12px;
+    height: 64px;
+    padding: 0 20px;
+    background: transparent;
+    border: 0;
+    border-bottom: 1px solid var(--cn-rule);
+    border-radius: 0;
+  }
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  height: 44px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  font-family: var(--cn-font-serif);
+  font-size: 19px;
+  color: var(--cn-ink);
+  outline: none;
+}
+
+.input::placeholder {
+  color: var(--cn-muted);
+  opacity: 0.7;
+}
+
+@media (min-width: 64em) {
+  .input {
+    font-size: 24px;
+  }
+}
+
+.state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+@media (min-width: 64em) {
+  .state {
+    padding: 20px;
+  }
+}
+
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+@media (min-width: 64em) {
+  .results {
+    padding: 8px;
+  }
+}
+
+.eyebrow {
+  font-family: var(--cn-font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--cn-muted);
+}
+
+@media (min-width: 64em) {
+  .eyebrow {
+    display: none;
+  }
+}
+
+.options {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  max-height: min(60dvh, 480px);
+  overflow-y: auto;
+}
+
+@media (min-width: 64em) {
+  .options {
+    margin: 0;
+  }
+}
+
+.option {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px;
+  border-radius: var(--cn-radius-button);
+  cursor: pointer;
+}
+
+@media (min-width: 64em) {
+  .option {
+    padding: 10px 16px;
+  }
+}
+
+.option[aria-selected='true'] {
+  background: var(--cn-highlight);
+}
+
+.name {
+  font-family: var(--cn-font-serif);
+  font-size: 19px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.details {
+  font-family: var(--cn-font-sans);
+  font-size: 13px;
+  color: var(--cn-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.match {
+  background: none;
+  color: var(--cn-accent);
+  font-weight: 600;
+}
+
+/* Keyboard hints: not shown on mobile, where there's no keyboard to use them. */
+.footer {
+  display: none;
+}
+
+@media (min-width: 48em) {
+  .footer {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    font-family: var(--cn-font-sans);
+    font-size: 13px;
+    color: var(--cn-muted);
+  }
+}
+
+@media (min-width: 64em) {
+  .footer {
+    padding: 12px 20px;
+    border-top: 1px solid var(--cn-rule);
+    background: var(--cn-margin-panel);
+  }
+}
+
+.close {
+  margin-left: auto;
+  font-family: var(--cn-font-sans);
+  font-size: 13px;
+  color: var(--cn-muted);
+  text-decoration: underline;
+}
