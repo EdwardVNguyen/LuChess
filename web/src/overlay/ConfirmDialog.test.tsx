@@ -12,6 +12,7 @@ describe('ConfirmDialog', () => {
 
     renderWithTheme(
       <ConfirmDialog
+        size="mobile"
         opened
         onClose={onClose}
         title="Delete account"
@@ -30,5 +31,22 @@ describe('ConfirmDialog', () => {
 
     await user.click(screen.getByRole('button', { name: 'Cancel' }))
     expect(onClose).toHaveBeenCalledOnce()
+  })
+
+  it('passes the size through to the shared surface', async () => {
+    renderWithTheme(
+      <ConfirmDialog
+        size="tablet"
+        opened
+        onClose={() => {}}
+        title="Delete account"
+        message="This permanently deletes your account."
+        confirmLabel="Delete account"
+        onConfirm={() => {}}
+      />,
+    )
+
+    await screen.findByRole('dialog', { name: 'Delete account' })
+    expect(document.querySelector('[data-modal-content]')).not.toBeNull()
   })
 })

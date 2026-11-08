@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { ConfirmDialog } from './ConfirmDialog'
 import { ResponsiveDialog } from './ResponsiveDialog'
 import { ResponsivePopover } from './ResponsivePopover'
+import { useOverlaySize } from './useOverlaySize'
 
 // Dev-only page exercising the three overlay shapes (ResponsivePopover,
 // ResponsiveDialog, the destructive ConfirmDialog) so the screenshot harness
@@ -13,6 +14,7 @@ export function DevOverlays() {
   const [folder, setFolder] = useState('opening-ideas')
   const [dialogOpened, dialogHandlers] = useDisclosure(false)
   const [confirmOpened, confirmHandlers] = useDisclosure(false)
+  const size = useOverlaySize()
 
   return (
     <Stack gap="xl" p="md">
@@ -25,6 +27,7 @@ export function DevOverlays() {
         </Text>
         <Group>
           <ResponsivePopover
+            size={size}
             opened={popoverOpened}
             onClose={popoverHandlers.close}
             target={
@@ -57,6 +60,7 @@ export function DevOverlays() {
           <Button onClick={dialogHandlers.open}>New folder</Button>
         </Group>
         <ResponsiveDialog
+          size={size}
           opened={dialogOpened}
           onClose={dialogHandlers.close}
           title="New folder"
@@ -78,6 +82,7 @@ export function DevOverlays() {
           </Button>
         </Group>
         <ConfirmDialog
+          size={size}
           opened={confirmOpened}
           onClose={confirmHandlers.close}
           title="Delete account"

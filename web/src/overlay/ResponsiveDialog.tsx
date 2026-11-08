@@ -1,8 +1,11 @@
-import { Button, Drawer, Group, Modal, Stack } from '@mantine/core'
+import { Button, Group, Stack } from '@mantine/core'
 import type { ReactNode } from 'react'
-import { useOverlaySize } from './useOverlaySize'
+import { OverlaySurface } from './OverlaySurface'
+import type { OverlaySize } from './useOverlaySize'
 
 export type ResponsiveDialogProps = {
+  /** Supplied by the composition point, usually from useOverlaySize(). */
+  size: OverlaySize
   opened: boolean
   onClose: () => void
   /** Shown as the dialog's heading, and read by screen readers as its name. */
@@ -23,6 +26,7 @@ export type ResponsiveDialogProps = {
 // trap focus, close on Esc and return focus to the trigger (web/AGENTS.md,
 // theme defaults in web/src/theme/theme.ts).
 export function ResponsiveDialog({
+  size,
   opened,
   onClose,
   title,
@@ -34,8 +38,6 @@ export function ResponsiveDialog({
   confirmDisabled = false,
   confirmLoading = false,
 }: ResponsiveDialogProps) {
-  const size = useOverlaySize()
-
   const body = (
     <Stack gap="lg">
       {children}
@@ -55,17 +57,9 @@ export function ResponsiveDialog({
     </Stack>
   )
 
-  if (size === 'mobile') {
-    return (
-      <Drawer opened={opened} onClose={onClose} title={title} position="bottom">
-        {body}
-      </Drawer>
-    )
-  }
-
   return (
-    <Modal opened={opened} onClose={onClose} title={title}>
+    <OverlaySurface size={size} opened={opened} onClose={onClose} label={title} desktop="dialog">
       {body}
-    </Modal>
+    </OverlaySurface>
   )
 }

@@ -9,9 +9,9 @@ afterEach(cleanup)
 
 // jsdom has no layout engine, so `window.matchMedia` always throws "not
 // implemented". Mantine's `useMatches`/`useMediaQuery` already catch that and
-// fall back to `false`, so every breakpoint reads as unmatched here and
-// responsive components render their mobile variant. Tests that need another
-// size override `window.matchMedia` themselves.
+// fall back to `false`, so any component that reads matchMedia renders its
+// mobile variant here. The overlay components take `size` as a prop instead,
+// so their tests pass 'mobile' | 'tablet' | 'desktop' directly.
 if (!('matchMedia' in window) || typeof window.matchMedia !== 'function') {
   window.matchMedia = () => ({
     matches: false,

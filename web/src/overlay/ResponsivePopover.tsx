@@ -1,8 +1,10 @@
-import { Drawer, Modal, Popover } from '@mantine/core'
 import type { ReactElement, ReactNode } from 'react'
-import { useOverlaySize } from './useOverlaySize'
+import { OverlaySurface } from './OverlaySurface'
+import type { OverlaySize } from './useOverlaySize'
 
 export type ResponsivePopoverProps = {
+  /** Supplied by the composition point, usually from useOverlaySize(). */
+  size: OverlaySize
   opened: boolean
   onClose: () => void
   /** The trigger; kept outside the popover/dialog/sheet so it can receive focus back when closed. */
@@ -19,35 +21,10 @@ export type ResponsivePopoverProps = {
 // ArticleSave-mobile.png; PlayCustomTime-mobile.png). Built on Mantine
 // Popover, Modal and Drawer, which already trap focus, close on Esc and
 // return focus to the trigger (web/src/theme/theme.ts has the shared styles).
-export function ResponsivePopover({ opened, onClose, target, label, children, width = 320 }: ResponsivePopoverProps) {
-  const size = useOverlaySize()
-
-  if (size === 'desktop') {
-    return (
-      <Popover opened={opened} onClose={onClose} width={width} position="bottom-end" withArrow trapFocus returnFocus>
-        <Popover.Target>{target}</Popover.Target>
-        <Popover.Dropdown aria-label={label}>{children}</Popover.Dropdown>
-      </Popover>
-    )
-  }
-
-  if (size === 'tablet') {
-    return (
-      <>
-        {target}
-        <Modal opened={opened} onClose={onClose} title={label}>
-          {children}
-        </Modal>
-      </>
-    )
-  }
-
+export function ResponsivePopover({ size, opened, onClose, target, label, children, width = 320 }: ResponsivePopoverProps) {
   return (
-    <>
-      {target}
-      <Drawer opened={opened} onClose={onClose} title={label} position="bottom">
-        {children}
-      </Drawer>
-    </>
+    <OverlaySurface size={size} opened={opened} onClose={onClose} label={label} target={target} width={width} desktop="anchored">
+      {children}
+    </OverlaySurface>
   )
 }

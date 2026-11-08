@@ -1,8 +1,11 @@
 import { Text } from '@mantine/core'
 import type { ReactNode } from 'react'
 import { ResponsiveDialog } from './ResponsiveDialog'
+import type { OverlaySize } from './useOverlaySize'
 
 export type ConfirmDialogProps = {
+  /** Supplied by the composition point, usually from useOverlaySize(). */
+  size: OverlaySize
   opened: boolean
   onClose: () => void
   title: string
