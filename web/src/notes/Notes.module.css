@@ -202,7 +202,7 @@
 .movesColumn {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 22px;
   min-width: 0;
   padding-top: 20px;
   border-top: 1px solid var(--cn-rule);
@@ -344,6 +344,233 @@
   font-weight: 600;
 }
 
+/* The big idea: the Body at ply 0, opening the Note. */
+.bigIdeaBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.bigIdea {
+  margin: 0;
+  padding: 2px 0;
+  font-family: var(--cn-font-serif);
+  font-size: 20px;
+  font-style: italic;
+  line-height: 1.3;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
+  color: var(--cn-ink);
+}
+
+@media (min-width: 64em) {
+  .bigIdea {
+    font-size: 22px;
+  }
+}
+
+.rule {
+  height: 1px;
+  background: var(--cn-rule);
+}
+
+.lineBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* Runs of moves, each closed by the Body after its last move. */
+.lineOfThought {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.thoughtBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.glyph {
+  font-weight: 600;
+}
+
+.glyph[data-spaced] {
+  margin-left: 0.25em;
+}
+
+.comment {
+  margin: 0 6px 0 2px;
+  padding: 2px 0;
+  border-radius: 4px;
+  font-size: 16px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--cn-muted);
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.comment[data-current],
+.body[data-current],
+.bigIdea[data-current] {
+  background: var(--cn-highlight);
+  box-shadow: 0 0 0 4px var(--cn-highlight);
+  color: var(--cn-ink);
+}
+
+.more {
+  font-family: var(--cn-font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--cn-accent);
+}
+
+.more:hover {
+  text-decoration: underline;
+}
+
+.more:focus-visible {
+  outline: 2px solid var(--cn-ink);
+  outline-offset: 1px;
+}
+
+.body {
+  margin: 0;
+  padding-left: 4px;
+  border-radius: 4px;
+  font-family: var(--cn-font-serif);
+  font-size: 16px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--cn-ink);
+}
+
+.writingLoading {
+  display: flex;
+  justify-content: flex-start;
+}
+
+/* The editors for the current Ply. */
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 18px;
+  border-top: 1px solid var(--cn-rule);
+}
+
+.glyphPickers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+}
+
+.glyphPicker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.glyphPickerLabel {
+  margin-right: 4px;
+  font-family: var(--cn-font-sans);
+  font-size: 13px;
+  color: var(--cn-muted);
+}
+
+.glyphOption {
+  min-width: 32px;
+  height: 30px;
+  padding: 0 6px;
+  box-sizing: border-box;
+  border: 1px solid var(--cn-edge);
+  border-radius: var(--cn-radius-button);
+  font-family: var(--cn-font-serif);
+  font-size: 16px;
+  font-weight: 600;
+  text-align: center;
+  color: var(--cn-ink);
+}
+
+.glyphOption:hover {
+  background: var(--cn-highlight);
+}
+
+.glyphOption:focus-visible {
+  outline: 2px solid var(--cn-ink);
+  outline-offset: 1px;
+}
+
+.glyphOption[aria-pressed='true'] {
+  background: var(--cn-ink);
+  border-color: var(--cn-ink);
+  color: var(--cn-paper);
+}
+
+.textEditor {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.textEditor > :first-child {
+  align-self: stretch;
+}
+
+.editorInput {
+  /* Grows with its text where supported; elsewhere it can be resized. */
+  field-sizing: content;
+  min-height: 64px;
+  resize: vertical;
+  padding: 10px 12px;
+  background: transparent;
+  border: 1px dashed var(--cn-dashed);
+  border-radius: var(--cn-radius-button);
+  font-family: var(--cn-font-serif);
+  font-size: 17px;
+  line-height: 1.45;
+  color: var(--cn-ink);
+}
+
+.editorInput:focus {
+  border-style: solid;
+  border-color: var(--cn-ink);
+}
+
+.editorInput::placeholder {
+  color: var(--cn-muted);
+}
+
+.editorDelete {
+  font-family: var(--cn-font-sans);
+  font-size: 12px;
+  color: var(--cn-muted);
+}
+
+.editorDelete:hover {
+  color: var(--cn-accent);
+  text-decoration: underline;
+}
+
+.editorDelete:focus-visible {
+  outline: 2px solid var(--cn-ink);
+  outline-offset: 1px;
+}
+
+.saving {
+  font-family: var(--cn-font-sans);
+  font-size: 12px;
+  color: var(--cn-muted);
+}
+
 .noMoves {
   margin: 0;
   font-family: var(--cn-font-serif);
@@ -452,4 +679,10 @@
   font-family: var(--cn-font-serif);
   font-size: 16px;
   color: var(--cn-muted);
+}
+
+/* Not uppercased, so the move's SAN keeps its case ("On 10…exd5"). */
+.editorHeading {
+  text-transform: none;
+  letter-spacing: 0.02em;
 }
