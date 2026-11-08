@@ -144,3 +144,56 @@ describe('api client resendVerification', () => {
     expect(failure.retryAfterSeconds).toBe(120)
   })
 })
+
+describe('api client session transport', () => {
+  const ada = { id: 7, email: 'ada@example.com', name: 'Ada' }
+  const sessionResponse = { accessToken: 'token-1', user: ada }
+
+  it('posts credentials and returns the access token with the user', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(jsonResponse(sessionResponse))
+    const api = createApiClient(baseUrl, fetchFn)
+
+    await expect(api.login({ email: 'ada@example.com', password: 'correct horse battery' })).resolves.toEqual(sessionResponse)
+
+    const [url, init] = fetchFn.mock.calls[0]
+    expect(url).toBe('http://localhost:8080/api/auth/login')
+    expect(init.method).toBe('POST')
+    expect(JSON.parse(init.body)).toEqual({ email: 'ada@example.com', password: 'correct horse battery' })
+  })
+
+  it('refreshes with the cookie and no body', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(jsonResponse(sessionResponse))
+    const api = createApiClient(baseUrl, fetchFn)
+
+    await expect(api.refresh()).resolves.toEqual(sessionResponse)
+
+    const [url, init] = fetchFn.mock.calls[0]
+    expect(url).toBe('http://localhost:8080/api/auth/refresh')
+    expect(init.method).toBe('POST')
+    expect(init.credentials).toBe('include')
+    expect(init.body).toBeUndefined()
+  })
+
+  it('logs out with the cookie', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(new Response(null, { status: 204 }))
+    const api = createApiClient(baseUrl, fetchFn)
+
+    await api.logout()
+
+    const [url, init] = fetchFn.mock.calls[0]
+    expect(url).toBe('http://localhost:8080/api/auth/logout')
+    expect(init.method).toBe('POST')
+    expect(init.credentials).toBe('include')
+  })
+
+  it('sends the given access token to /api/me', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(jsonResponse(ada))
+    const api = createApiClient(baseUrl, fetchFn)
+
+    await expect(api.me('token-9')).resolves.toEqual(ada)
+
+    const [url, init] = fetchFn.mock.calls[0]
+    expect(url).toBe('http://localhost:8080/api/me')
+    expect(init.headers.Authorization).toBe('Bearer token-9')
+  })
+})

@@ -1,26 +1,25 @@
-import { Alert, AppShell } from '@mantine/core'
-import { useQueryClient } from '@tanstack/react-query'
+import { Alert, AppShell, Button, Group, Text } from '@mantine/core'
 import { Outlet, useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
-import { api } from './apiClient'
+import { errorMessage } from './errors'
 import { Header } from './header/Header'
-import { useAuth } from './useAuth'
+import { useSession } from './session'
 
 export function Layout() {
-  const { ready, user } = useAuth()
-  const queryClient = useQueryClient()
+  const { state, restore, signOut } = useSession()
   const navigate = useNavigate()
   const [logoutFailed, setLogoutFailed] = useState(false)
 
   async function logOut() {
     setLogoutFailed(false)
     try {
-      await api.logout()
+      await signOut()
     } catch {
-      // The browser is logged out locally, but the server may not have heard
+      // Pessimistic logout: the Session is still authenticated, so stay here
+      // and let the person retry.
       setLogoutFailed(true)
+      return
     }
-    queryClient.clear() // nothing from the old session should linger on screen
     await navigate({ to: '/' })
   }
 
@@ -34,12 +33,22 @@ export function Layout() {
       }}
     >
       <AppShell.Header>
-        <Header ready={ready} user={user} onLogOut={() => void logOut()} />
+        <Header state={state} onLogOut={() => void logOut()} />
       </AppShell.Header>
       <AppShell.Main>
+        {state.status === 'restore-failed' && (
+          <Alert color="yellow" m="md" title="Could not check your session">
+            <Group justify="space-between" gap="md">
+              <Text size="sm">{errorMessage(state.error)}</Text>
+              <Button variant="light" onClick={() => void restore()}>
+                Retry
+              </Button>
+            </Group>
+          </Alert>
+        )}
         {logoutFailed && (
           <Alert color="red" m="md">
-            Could not reach the server to end your session.
+            Could not end your session. Check your connection and try again.
           </Alert>
         )}
         <Outlet />

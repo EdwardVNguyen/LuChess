@@ -6,8 +6,8 @@ import { z } from 'zod'
 import { ApiError } from './api'
 import { AuthCard } from './AuthCard'
 import { ResendVerification } from './ResendVerification'
-import { api } from './apiClient'
 import { errorMessage } from './errors'
+import { useSession } from './session'
 
 // Login only checks that something was typed. The password rules apply when
 // choosing a password, and the server decides whether these credentials are right.
@@ -18,7 +18,8 @@ const loginSchema = z.object({
 
 export function LoginPage() {
   const navigate = useNavigate()
-  const login = useMutation({ mutationFn: api.login })
+  const { signIn } = useSession()
+  const login = useMutation({ mutationFn: signIn })
 
   const form = useForm({
     defaultValues: { email: '', password: '' },

@@ -45,7 +45,7 @@ A named container, nestable inside another Folder, used only to file Notes. A No
 _Avoid_: Collection, category, tag
 
 **Guest**:
-A visitor without an account. Can use the board and write Comments and Bodies in the browser, but nothing is saved.
+A visitor without an account. Can use the board and write Comments and Bodies in the browser, but nothing is saved. A visitor whose Session could not be restored is not yet known to be a Guest.
 _Avoid_: Anonymous user, visitor
 
 **Session**:

@@ -2,28 +2,23 @@ import { Alert, Badge, Group, Loader, Stack, Text, Title } from '@mantine/core'
 import { useQuery } from '@tanstack/react-query'
 import { api } from './apiClient'
 import { Page } from './Page'
-import { useAuth } from './useAuth'
-
-function SignedIn() {
-  // Goes through the same path every protected call will: an expired access
-  // token is replaced behind the scenes and the request retried.
-  const me = useQuery({ queryKey: ['me'], queryFn: () => api.me(), retry: false })
-
-  if (me.isPending) return <Loader size="sm" />
-  if (me.isError) return <Alert color="red">{me.error.message}</Alert>
-  return <Text>Signed in as {me.data.name} ({me.data.email}).</Text>
-}
+import { useSession } from './session'
 
 export function HomePage() {
-  const { ready, user } = useAuth()
+  const { state } = useSession()
   const health = useQuery({ queryKey: ['health'], queryFn: () => api.health() })
+  const user = state.status === 'authenticated' ? state.user : null
 
   return (
     <Page>
       <Stack>
         <Title order={2}>{user ? `Welcome back, ${user.name}` : 'Welcome to ChessNotes'}</Title>
         <Text>Connect chess games the way Luhmann connected ideas.</Text>
-        {ready && user && <SignedIn />}
+        {state.status === 'authenticated' && (
+          <Text>
+            Signed in as {state.user.name} ({state.user.email}).
+          </Text>
+        )}
         <Group>
           <Text fw={500}>API status:</Text>
           {health.isPending && <Loader size="sm" />}

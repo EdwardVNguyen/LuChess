@@ -1,20 +1,22 @@
 import { Button, Group } from '@mantine/core'
 import { Link } from '@tanstack/react-router'
-import type { User } from '../api'
 import styles from './Header.module.css'
 import { PlusIcon, SearchIcon } from './icons'
 import { UserMenu } from './UserMenu'
+import type { SessionState } from '../session'
 
 type Props = {
-  ready: boolean
-  user: User | null
+  state: SessionState
   onLogOut: () => void
 }
 
 // The app shell's header (design/screens/Note.dc.html, Note-mobile.dc.html):
 // no Library or Play tabs and no mobile bottom bar, because navigation shows
 // only what exists in v1 (web/AGENTS.md).
-export function Header({ ready, user, onLogOut }: Props) {
+export function Header({ state, onLogOut }: Props) {
+  const ready = state.status !== 'restoring'
+  const user = state.status === 'authenticated' ? state.user : null
+
   return (
     <div className={styles.header}>
       <Link to="/" className={styles.logo}>

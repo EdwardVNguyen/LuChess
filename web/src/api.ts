@@ -4,11 +4,11 @@ const healthSchema = z.object({ status: z.string() })
 const userSchema = z.object({ id: z.number(), email: z.string(), name: z.string() })
 const messageSchema = z.object({ message: z.string() })
 const errorBodySchema = z.object({ error: z.string() })
-const sessionSchema = z.object({ accessToken: z.string(), user: userSchema })
+const sessionResponseSchema = z.object({ accessToken: z.string(), user: userSchema })
 
 export type Health = z.infer<typeof healthSchema>
 export type User = z.infer<typeof userSchema>
-export type Session = { user: User }
+export type SessionResponse = z.infer<typeof sessionResponseSchema>
 
 export type SignUpInput = { email: string; name: string; password: string }
 export type LoginInput = { email: string; password: string }
@@ -25,39 +25,15 @@ export class ApiError extends Error {
   }
 }
 
-// Runs fn while holding a lock shared by every tab of this browser, when the
-// browser supports it. Refresh tokens rotate, so two tabs refreshing at once
-// would race; taking turns means the second tab uses the cookie the first set.
-export function browserLock<T>(fn: () => Promise<T>): Promise<T> {
-  if (typeof navigator !== 'undefined' && navigator.locks) {
-    return navigator.locks.request('chessnotes-refresh', fn)
-  }
-  return fn()
-}
+type RequestInput = { method?: 'GET' | 'POST'; body?: unknown; accessToken?: string }
 
-type Options = { lock?: <T>(fn: () => Promise<T>) => Promise<T> }
-
-type RequestInput = { method?: 'GET' | 'POST'; body?: unknown; accessToken?: string | null }
-
-export function createApiClient(baseUrl: string, fetchFn: typeof fetch = fetch, options: Options = {}) {
-  const lock = options.lock ?? browserLock
-
-  // The access token lives only in this variable: never in storage, so a script
-  // injected into the page cannot read a long-lived credential from disk.
-  let accessToken: string | null = null
-  let session: Session | null = null
-  const listeners = new Set<() => void>()
-
-  function setSession(next: { accessToken: string; user: User } | null) {
-    accessToken = next?.accessToken ?? null
-    session = next ? { user: next.user } : null
-    listeners.forEach((listener) => listener())
-  }
-
-  async function request(path: string, { method, body, accessToken: token }: RequestInput = {}): Promise<Response> {
+// The transport adapter: HTTP paths, credentials, schemas and ApiError. It
+// holds no Session state; the Session module decides when to call it.
+export function createApiClient(baseUrl: string, fetchFn: typeof fetch = fetch) {
+  async function request(path: string, { method, body, accessToken }: RequestInput = {}): Promise<Response> {
     const headers: Record<string, string> = {}
     if (body !== undefined) headers['Content-Type'] = 'application/json'
-    if (token) headers.Authorization = `Bearer ${token}`
+    if (accessToken) headers.Authorization = `Bearer ${accessToken}`
 
     let res: Response
     try {
@@ -82,54 +58,6 @@ export function createApiClient(baseUrl: string, fetchFn: typeof fetch = fetch, 
     )
   }
 
-  // Callers that arrive while a refresh is under way share it, so the single-use
-  // refresh token is spent once.
-  let refreshing: Promise<Session | null> | null = null
-
-  // The server may have rotated the token while the response was lost, so one
-  // retry lets the leeway window (ADR 0004) hand back a fresh one.
-  async function requestRefresh(): Promise<Response> {
-    try {
-      return await request('/api/auth/refresh', { method: 'POST' })
-    } catch (error) {
-      if (!(error instanceof ApiError) || error.status !== 0) throw error
-      return request('/api/auth/refresh', { method: 'POST' })
-    }
-  }
-
-  function refresh(): Promise<Session | null> {
-    refreshing ??= lock(async () => {
-      try {
-        const res = await requestRefresh()
-        const next = sessionSchema.parse(await res.json())
-        setSession(next)
-        return { user: next.user }
-      } catch (error) {
-        // No valid refresh token simply means nobody is logged in
-        if (error instanceof ApiError && error.status === 401) {
-          setSession(null)
-          return null
-        }
-        throw error
-      }
-    }).finally(() => {
-      refreshing = null
-    })
-    return refreshing
-  }
-
-  // Sends an authenticated request. If the access token has expired, gets a new
-  // one and tries once more.
-  async function authed(path: string): Promise<Response> {
-    try {
-      return await request(path, { accessToken })
-    } catch (error) {
-      if (!(error instanceof ApiError) || error.status !== 401) throw error
-      if (!(await refresh())) throw error
-      return request(path, { accessToken })
-    }
-  }
-
   return {
     async health(): Promise<Health> {
       const res = await request('/api/health')
@@ -150,37 +78,23 @@ export function createApiClient(baseUrl: string, fetchFn: typeof fetch = fetch, 
       return messageSchema.parse(await res.json())
     },
 
-    async login(input: LoginInput): Promise<Session> {
+    async login(input: LoginInput): Promise<SessionResponse> {
       const res = await request('/api/auth/login', { body: input })
-      const next = sessionSchema.parse(await res.json())
-      setSession(next)
-      return { user: next.user }
+      return sessionResponseSchema.parse(await res.json())
     },
 
-    refresh,
+    async refresh(): Promise<SessionResponse> {
+      const res = await request('/api/auth/refresh', { method: 'POST' })
+      return sessionResponseSchema.parse(await res.json())
+    },
 
-    // The session is forgotten locally even if the server cannot be told, so the
-    // person is never left looking logged in after pressing the button.
     async logout(): Promise<void> {
-      try {
-        await request('/api/auth/logout', { method: 'POST' })
-      } finally {
-        setSession(null)
-      }
+      await request('/api/auth/logout', { method: 'POST' })
     },
 
-    async me(): Promise<User> {
-      const res = await authed('/api/me')
+    async me(accessToken: string): Promise<User> {
+      const res = await request('/api/me', { accessToken })
       return userSchema.parse(await res.json())
-    },
-
-    getSession: () => session,
-
-    subscribe(listener: () => void) {
-      listeners.add(listener)
-      return () => {
-        listeners.delete(listener)
-      }
     },
   }
 }
