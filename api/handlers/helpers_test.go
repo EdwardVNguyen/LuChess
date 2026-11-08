@@ -64,6 +64,7 @@ func newApp(t *testing.T, tweak ...func(*handler.ApiConfig)) *app {
 		Limits: handler.RateLimits{
 			SignupPerIP: 1000, ResendPerEmail: 1000, ResendPerIP: 1000,
 			LoginPerEmail: 1000, LoginPerIP: 1000, RefreshPerIP: 1000,
+			ForgotPerEmail: 1000, ForgotPerIP: 1000,
 		},
 		Session:      sessions.New(sessions.Config{DB: db, Secret: []byte(testJWTSecret), Now: a.clock.Now}),
 		CookieSecure: true,

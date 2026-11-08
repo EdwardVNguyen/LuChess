@@ -24,3 +24,9 @@ WHERE id = sqlc.arg(id);
 SELECT *
 FROM users
 WHERE id = $1;
+
+-- name: UpdateUserPassword :exec
+UPDATE users
+SET password_hash = sqlc.arg(password_hash),
+    updated_at = sqlc.arg(now)
+WHERE id = sqlc.arg(id);

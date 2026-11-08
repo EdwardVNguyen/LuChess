@@ -17,6 +17,8 @@ func NewRouter(cfg *ApiConfig) http.Handler {
 	mux.HandleFunc("POST /api/auth/signup", cfg.HandleSignUp)
 	mux.HandleFunc("POST /api/auth/verify-email", cfg.HandleVerifyEmail)
 	mux.HandleFunc("POST /api/auth/resend-verification", cfg.HandleResendVerification)
+	mux.HandleFunc("POST /api/auth/forgot-password", cfg.HandleForgotPassword)
+	mux.HandleFunc("POST /api/auth/reset-password", cfg.HandleResetPassword)
 	mux.HandleFunc("POST /api/auth/login", cfg.HandleLogin)
 	mux.HandleFunc("POST /api/auth/refresh", cfg.sessionHTTP.HandleRefresh)
 	mux.HandleFunc("POST /api/auth/logout", cfg.sessionHTTP.HandleLogout)

@@ -12,6 +12,7 @@ export type SessionResponse = z.infer<typeof sessionResponseSchema>
 
 export type SignUpInput = { email: string; name: string; password: string }
 export type LoginInput = { email: string; password: string }
+export type ResetPasswordInput = { token: string; password: string }
 
 export class ApiError extends Error {
   readonly status: number
@@ -76,6 +77,15 @@ export function createApiClient(baseUrl: string, fetchFn: typeof fetch = fetch) 
     async resendVerification(email: string): Promise<{ message: string }> {
       const res = await request('/api/auth/resend-verification', { body: { email } })
       return messageSchema.parse(await res.json())
+    },
+
+    async forgotPassword(email: string): Promise<{ message: string }> {
+      const res = await request('/api/auth/forgot-password', { body: { email } })
+      return messageSchema.parse(await res.json())
+    },
+
+    async resetPassword(input: ResetPasswordInput): Promise<void> {
+      await request('/api/auth/reset-password', { body: input })
     },
 
     async login(input: LoginInput): Promise<SessionResponse> {

@@ -19,6 +19,8 @@ type RateLimits struct {
 	LoginPerEmail  int
 	LoginPerIP     int
 	RefreshPerIP   int
+	ForgotPerEmail int
+	ForgotPerIP    int
 }
 
 type ApiConfig struct {
@@ -42,6 +44,7 @@ type ApiConfig struct {
 	// Built by NewRouter from Limits
 	signupByIP, resendByEmail, resendByIP *ratelimit.Limiter
 	loginByEmail, loginByIP, refreshByIP  *ratelimit.Limiter
+	forgotByEmail, forgotByIP             *ratelimit.Limiter
 	sessionHTTP                           *sessionHTTP
 
 	// A valid hash of a throwaway password, checked when a login names no account
@@ -55,6 +58,8 @@ const (
 	defaultLoginPerEmail  = 10
 	defaultLoginPerIP     = 30
 	defaultRefreshPerIP   = 300
+	defaultForgotPerEmail = 5
+	defaultForgotPerIP    = 20
 )
 
 func (cfg *ApiConfig) buildLimiters() {
@@ -70,6 +75,8 @@ func (cfg *ApiConfig) buildLimiters() {
 	cfg.loginByEmail = ratelimit.New(orDefault(cfg.Limits.LoginPerEmail, defaultLoginPerEmail))
 	cfg.loginByIP = ratelimit.New(orDefault(cfg.Limits.LoginPerIP, defaultLoginPerIP))
 	cfg.refreshByIP = ratelimit.New(orDefault(cfg.Limits.RefreshPerIP, defaultRefreshPerIP))
+	cfg.forgotByEmail = ratelimit.New(orDefault(cfg.Limits.ForgotPerEmail, defaultForgotPerEmail))
+	cfg.forgotByIP = ratelimit.New(orDefault(cfg.Limits.ForgotPerIP, defaultForgotPerIP))
 }
 
 func (cfg *ApiConfig) now() time.Time {

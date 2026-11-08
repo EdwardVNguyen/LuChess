@@ -72,6 +72,10 @@ export function LoginPage() {
             )}
           </form.Field>
 
+          <Text size="sm" ta="right" mt="-xs">
+            <Link to="/forgot-password">Forgot password?</Link>
+          </Text>
+
           {login.isError && <Alert color={needsVerification ? 'yellow' : 'red'}>{errorMessage(login.error)}</Alert>}
 
           <Button type="submit" loading={login.isPending}>
