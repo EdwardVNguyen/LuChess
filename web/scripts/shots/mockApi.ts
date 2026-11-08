@@ -1,6 +1,7 @@
 import type { Page } from 'playwright'
-import type { FixtureSet } from './entries.js'
-import { loggedInSession } from './fixtures.js'
+import type { Note } from '../../src/api.js'
+import type { FixtureSet, NotesFixture } from './entries.js'
+import { loggedInSession, sampleNotes } from './fixtures.js'
 
 // Never reached over the network: every request to it is intercepted below.
 // Vite still requires VITE_API_URL to be a well-formed http(s) URL.
@@ -9,7 +10,11 @@ export const API_BASE_URL = 'http://shots.invalid'
 // Mocks the whole API surface the frontend calls, so the harness never needs a
 // real server or database. `fixtures` picks between a logged-out visitor and a
 // signed-in session (mocked refresh and /me).
-export async function installApiMocks(page: Page, fixtures: FixtureSet): Promise<void> {
+export async function installApiMocks(page: Page, fixtures: FixtureSet, notesFixture: NotesFixture = 'sample'): Promise<void> {
+  // Kept per page, so creating, renaming or deleting shows up in the list.
+  let notes: Note[] = notesFixture === 'sample' ? structuredClone(sampleNotes) : []
+  let nextId = 100
+
   await page.route(`${API_BASE_URL}/**`, async (route) => {
     const request = route.request()
     const { pathname } = new URL(request.url())
@@ -50,6 +55,41 @@ export async function installApiMocks(page: Page, fixtures: FixtureSet): Promise
     if (pathname === '/api/auth/verify-email' && method === 'POST') return json(200, {})
     if (pathname === '/api/auth/login' && method === 'POST') return json(200, loggedInSession)
     if (pathname === '/api/auth/logout' && method === 'POST') return json(200, {})
+
+    const noteMatch = /^\/api\/notes(?:\/(\d+))?$/.exec(pathname)
+    if (noteMatch) {
+      if (fixtures !== 'session') return json(401, { error: 'Unauthorized' })
+      // Left unanswered, so the screen stays loading for the screenshot.
+      if (notesFixture === 'pending') return
+      if (notesFixture === 'error') return json(500, { error: 'Could not load notes' })
+
+      const id = noteMatch[1] ? Number(noteMatch[1]) : null
+      const now = new Date().toISOString()
+      if (id === null && method === 'GET') {
+        return json(
+          200,
+          notes.map(({ id, name, createdAt, updatedAt }) => ({ id, name, createdAt, updatedAt })),
+        )
+      }
+      if (id === null && method === 'POST') {
+        const body = request.postDataJSON() as Pick<Note, 'name' | 'pgn' | 'startFen'>
+        const note: Note = { ...body, id: nextId++, createdAt: now, updatedAt: now }
+        notes = [note, ...notes]
+        return json(201, note)
+      }
+      const note = notes.find((n) => n.id === id)
+      if (!note) return json(404, { error: 'Note not found' })
+      if (method === 'GET') return json(200, note)
+      if (method === 'PATCH') {
+        const body = request.postDataJSON() as { name: string }
+        Object.assign(note, { name: body.name, updatedAt: now })
+        return json(200, note)
+      }
+      if (method === 'DELETE') {
+        notes = notes.filter((n) => n.id !== id)
+        return route.fulfill({ status: 204 })
+      }
+    }
 
     return json(404, { error: `Not mocked for the screenshot harness: ${method} ${pathname}` })
   })

@@ -5,14 +5,20 @@ const userSchema = z.object({ id: z.number(), email: z.string(), name: z.string(
 const messageSchema = z.object({ message: z.string() })
 const errorBodySchema = z.object({ error: z.string() })
 const sessionResponseSchema = z.object({ accessToken: z.string(), user: userSchema })
+const noteSummarySchema = z.object({ id: z.number(), name: z.string(), createdAt: z.string(), updatedAt: z.string() })
+const noteSchema = noteSummarySchema.extend({ pgn: z.string(), startFen: z.string().nullable() })
 
 export type Health = z.infer<typeof healthSchema>
 export type User = z.infer<typeof userSchema>
 export type SessionResponse = z.infer<typeof sessionResponseSchema>
+export type NoteSummary = z.infer<typeof noteSummarySchema>
+export type Note = z.infer<typeof noteSchema>
 
 export type SignUpInput = { email: string; name: string; password: string }
 export type LoginInput = { email: string; password: string }
 export type ResetPasswordInput = { token: string; password: string }
+/** startFen is null for the standard start. */
+export type NewNoteInput = { name: string; pgn: string; startFen: string | null }
 
 export class ApiError extends Error {
   readonly status: number
@@ -26,7 +32,7 @@ export class ApiError extends Error {
   }
 }
 
-type RequestInput = { method?: 'GET' | 'POST'; body?: unknown; accessToken?: string }
+type RequestInput = { method?: 'GET' | 'POST' | 'PATCH' | 'DELETE'; body?: unknown; accessToken?: string }
 
 // The transport adapter: HTTP paths, credentials, schemas and ApiError. It
 // holds no Session state; the Session module decides when to call it.
@@ -105,6 +111,30 @@ export function createApiClient(baseUrl: string, fetchFn: typeof fetch = fetch) 
     async me(accessToken: string): Promise<User> {
       const res = await request('/api/me', { accessToken })
       return userSchema.parse(await res.json())
+    },
+
+    async listNotes(accessToken: string): Promise<NoteSummary[]> {
+      const res = await request('/api/notes', { accessToken })
+      return z.array(noteSummarySchema).parse(await res.json())
+    },
+
+    async getNote(accessToken: string, id: number): Promise<Note> {
+      const res = await request(`/api/notes/${id}`, { accessToken })
+      return noteSchema.parse(await res.json())
+    },
+
+    async createNote(accessToken: string, input: NewNoteInput): Promise<Note> {
+      const res = await request('/api/notes', { body: input, accessToken })
+      return noteSchema.parse(await res.json())
+    },
+
+    async renameNote(accessToken: string, id: number, name: string): Promise<Note> {
+      const res = await request(`/api/notes/${id}`, { method: 'PATCH', body: { name }, accessToken })
+      return noteSchema.parse(await res.json())
+    },
+
+    async deleteNote(accessToken: string, id: number): Promise<void> {
+      await request(`/api/notes/${id}`, { method: 'DELETE', accessToken })
     },
   }
 }

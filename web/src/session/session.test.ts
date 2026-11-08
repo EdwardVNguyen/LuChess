@@ -333,3 +333,66 @@ describe('subscribe', () => {
     expect(session.getState()).not.toBe(first)
   })
 })
+
+describe('authorized', () => {
+  it('calls with the current access token', async () => {
+    const session = createSession({ transport: fakeTransport() })
+    await session.signIn(credentials)
+
+    const result = await session.authorized(async (token) => `called with ${token}`)
+
+    expect(result).toBe('called with token-1')
+  })
+
+  it('refuses without calling when there is no Session', async () => {
+    const session = createSession({ transport: fakeTransport() })
+    const call = vi.fn()
+
+    await expect(session.authorized(call)).rejects.toMatchObject({ status: 401 })
+    expect(call).not.toHaveBeenCalled()
+  })
+
+  it('refreshes an expired token once and retries', async () => {
+    const transport = fakeTransport()
+    const session = createSession({ transport })
+    await session.signIn(credentials)
+    const call = vi.fn(async (token: string) => {
+      if (token === 'token-1') throw new ApiError('Unauthorized', 401)
+      return token
+    })
+
+    await expect(session.authorized(call)).resolves.toBe('token-2')
+    expect(transport.refresh).toHaveBeenCalledTimes(1)
+    expect(call).toHaveBeenCalledTimes(2)
+  })
+
+  it('ends the Session when the refresh is refused', async () => {
+    const transport = fakeTransport({
+      refresh: vi.fn(async () => {
+        throw new ApiError('No session', 401)
+      }),
+    })
+    const session = createSession({ transport })
+    await session.signIn(credentials)
+
+    await expect(
+      session.authorized(async () => {
+        throw new ApiError('Unauthorized', 401)
+      }),
+    ).rejects.toMatchObject({ status: 401 })
+    expect(session.getState()).toEqual({ status: 'guest' })
+  })
+
+  it('passes other errors through without refreshing', async () => {
+    const transport = fakeTransport()
+    const session = createSession({ transport })
+    await session.signIn(credentials)
+
+    await expect(
+      session.authorized(async () => {
+        throw new ApiError('Note not found', 404)
+      }),
+    ).rejects.toMatchObject({ status: 404 })
+    expect(transport.refresh).not.toHaveBeenCalled()
+  })
+})

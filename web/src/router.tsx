@@ -5,6 +5,10 @@ import { ForgotPasswordPage } from './ForgotPasswordPage'
 import { HomePage } from './HomePage'
 import { Layout } from './Layout'
 import { LoginPage } from './LoginPage'
+import { NewNotePage } from './notes/NewNotePage'
+import { NoteScreen } from './notes/NoteScreen'
+import { NotesIndex } from './notes/NotesIndex'
+import { NotesLayout } from './notes/NotesLayout'
 import { DevOverlaysRoute } from './overlay/DevOverlaysRoute'
 import { ResetPasswordPage } from './ResetPasswordPage'
 import { SignUpPage } from './SignUpPage'
@@ -32,6 +36,10 @@ const resetPasswordRoute = createRoute({
   validateSearch: z.object({ token: z.string().optional() }),
   component: ResetPasswordPage,
 })
+const notesRoute = createRoute({ getParentRoute: () => rootRoute, path: '/notes', component: NotesLayout })
+const notesIndexRoute = createRoute({ getParentRoute: () => notesRoute, path: '/', component: NotesIndex })
+const newNoteRoute = createRoute({ getParentRoute: () => notesRoute, path: '/new', component: NewNotePage })
+const noteRoute = createRoute({ getParentRoute: () => notesRoute, path: '/$noteId', component: NoteScreen })
 
 // Dev-only: pages showing the theme's components and the shared overlays, so
 // a change is easy to screenshot. Not reachable, or bundled, in production
@@ -50,7 +58,7 @@ const devRoutes = import.meta.env.DEV
   : []
 
 export const router = createRouter({
-  routeTree: rootRoute.addChildren([homeRoute, signUpRoute, loginRoute, verifyEmailRoute, forgotPasswordRoute, resetPasswordRoute, ...devRoutes]),
+  routeTree: rootRoute.addChildren([homeRoute, signUpRoute, loginRoute, verifyEmailRoute, forgotPasswordRoute, resetPasswordRoute, notesRoute.addChildren([notesIndexRoute, newNoteRoute, noteRoute]), ...devRoutes]),
 })
 
 declare module '@tanstack/react-router' {

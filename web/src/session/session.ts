@@ -23,6 +23,11 @@ export type Session = {
   signIn(input: LoginInput): Promise<User>
   /** Ends the Session only after the server confirms; rejects if it cannot. */
   signOut(): Promise<void>
+  /**
+   * Calls the API with the access token. An expired token is refreshed once and
+   * the call retried; a refused refresh ends the Session.
+   */
+  authorized<T>(call: (accessToken: string) => Promise<T>): Promise<T>
 }
 
 type Options = {
@@ -139,6 +144,20 @@ export function createSession({ transport, lock = browserLock, onSessionEnded = 
     endSession()
   }
 
+  async function authorized<T>(call: (accessToken: string) => Promise<T>): Promise<T> {
+    if (accessToken === null) throw new ApiError('You are not logged in.', 401)
+    const used = accessToken
+    try {
+      return await call(used)
+    } catch (error) {
+      if (!(error instanceof ApiError) || error.status !== 401) throw error
+      // Another call may already have refreshed the token
+      if (accessToken === used) await restore()
+      if (accessToken === null || accessToken === used) throw error
+      return call(accessToken)
+    }
+  }
+
   return {
     getState: () => state,
     subscribe(listener) {
@@ -150,5 +169,6 @@ export function createSession({ transport, lock = browserLock, onSessionEnded = 
     restore,
     signIn,
     signOut,
+    authorized,
   }
 }

@@ -5,6 +5,7 @@ import {
   gameFromMoves,
   legalTargets,
   parsePgn,
+  pgnFromMoves,
   placementFromFen,
   plyLabel,
   START_FEN,
@@ -104,5 +105,34 @@ describe('set-up FEN', () => {
       ok: false,
       error: 'Invalid FEN: missing black king',
     })
+  })
+})
+
+describe('tags', () => {
+  it('keeps the PGN tags, dropping unknown "?" values', () => {
+    const game = parsed('[Event "Club night"]\n[Site "?"]\n[Date "????.??.??"]\n[Opening "Italian Game"]\n\n1. e4 e5 *')
+    expect(game.tags).toEqual({ Event: 'Club night', Opening: 'Italian Game' })
+  })
+})
+
+describe('pgnFromMoves', () => {
+  it('writes moves played from the start so they read back as the same game', () => {
+    const pgn = pgnFromMoves(START_FEN, ['e4', 'e5', 'Nf3'])
+    if (!pgn.ok) throw new Error(pgn.error)
+    expect(parsed(pgn.value).plies.map((ply) => ply.san)).toEqual([null, 'e4', 'e5', 'Nf3'])
+  })
+
+  it('writes a Position with no moves, keeping its FEN', () => {
+    const fen = '4k3/8/8/8/8/8/4P3/4K3 w - - 0 1'
+    const pgn = pgnFromMoves(fen, [])
+    if (!pgn.ok) throw new Error(pgn.error)
+    const game = parsed(pgn.value)
+    expect(game.startFen).toBe(fen)
+    expect(game.plies).toHaveLength(1)
+    expect(game.tags).toEqual({ SetUp: '1', FEN: fen })
+  })
+
+  it('refuses an illegal move', () => {
+    expect(pgnFromMoves(START_FEN, ['e5']).ok).toBe(false)
   })
 })

@@ -2,11 +2,18 @@ import type { Page } from 'playwright'
 
 export type FixtureSet = 'guest' | 'session'
 
+/** The signed-in user's Notes: the samples, none, failing, or never answering (to show loading). */
+export type NotesFixture = 'sample' | 'empty' | 'error' | 'pending'
+
 export type ShotEntry = {
   /** Matches a design screen name, e.g. `design/screenshots/<name>.png`. */
   name: string
   route: string
   fixtures: FixtureSet
+  /** @default 'sample' */
+  notes?: NotesFixture
+  /** What to wait for before setup; a never-answered request means networkidle never comes. @default 'networkidle' */
+  waitUntil?: 'load' | 'networkidle'
   /** Extra steps after the page loads, e.g. opening a dialog. */
   setup?: (page: Page) => Promise<void>
 }
@@ -130,4 +137,95 @@ export const entries: ShotEntry[] = [
     },
   },
   { name: 'DevBoardSetup', route: '/dev/board?mode=setup', fixtures: 'guest' },
+  // The Note screen (#6), matching design/screenshots/Note*.png at the same Ply.
+  {
+    name: 'Note',
+    route: '/notes/1',
+    fixtures: 'session',
+    setup: async (page) => {
+      await page.getByRole('button', { name: 'exd5', exact: true }).click()
+    },
+  },
+  // No matching design screens below: the Note screen's undesigned states,
+  // the list of Notes and the New note page.
+  { name: 'NotePosition', route: '/notes/3', fixtures: 'session' },
+  {
+    name: 'NoteAllNotes',
+    route: '/notes/1',
+    fixtures: 'session',
+    setup: async (page) => {
+      // Tablet and mobile only; desktop shows the sidebar instead.
+      const button = page.getByRole('button', { name: 'All notes' })
+      if (await button.isVisible()) await button.click()
+    },
+  },
+  {
+    name: 'NoteRename',
+    route: '/notes/1',
+    fixtures: 'session',
+    setup: async (page) => {
+      await page.getByRole('button', { name: 'Note actions' }).click()
+      await page.getByRole('menuitem', { name: 'Rename' }).click()
+    },
+  },
+  {
+    name: 'NoteDelete',
+    route: '/notes/1',
+    fixtures: 'session',
+    setup: async (page) => {
+      await page.getByRole('button', { name: 'Note actions' }).click()
+      await page.getByRole('menuitem', { name: 'Delete' }).click()
+    },
+  },
+  {
+    name: 'NoteLoading',
+    route: '/notes/1',
+    fixtures: 'session',
+    notes: 'pending',
+    waitUntil: 'load',
+    setup: async (page) => {
+      await page.getByLabel('Loading note', { exact: true }).waitFor()
+    },
+  },
+  { name: 'NoteError', route: '/notes/1', fixtures: 'session', notes: 'error' },
+  { name: 'NoteNotFound', route: '/notes/999', fixtures: 'session' },
+  { name: 'Notes', route: '/notes', fixtures: 'session' },
+  { name: 'NotesEmpty', route: '/notes', fixtures: 'session', notes: 'empty' },
+  { name: 'NotesGuest', route: '/notes', fixtures: 'guest' },
+  { name: 'NewNote', route: '/notes/new', fixtures: 'session' },
+  {
+    name: 'NewNotePasted',
+    route: '/notes/new',
+    fixtures: 'session',
+    setup: async (page) => {
+      await page.getByRole('textbox', { name: 'PGN' }).fill('[White "Lovelace, Ada"]\n[Black "Hopper, Grace"]\n[Date "1952.03.01"]\n\n1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 *')
+    },
+  },
+  {
+    name: 'NewNoteInvalid',
+    route: '/notes/new',
+    fixtures: 'session',
+    setup: async (page) => {
+      await page.getByRole('textbox', { name: 'PGN' }).fill('1. e4 e5 2. Ke3 *')
+      await page.getByRole('button', { name: 'Create note' }).click()
+    },
+  },
+  {
+    name: 'NewNotePlay',
+    route: '/notes/new',
+    fixtures: 'session',
+    setup: async (page) => {
+      await page.getByText('Play moves').click()
+      await page.locator('[id$="-square-e2"]').click()
+      await page.locator('[id$="-square-e4"]').click()
+    },
+  },
+  {
+    name: 'NewNotePosition',
+    route: '/notes/new',
+    fixtures: 'session',
+    setup: async (page) => {
+      await page.getByText('Set up a position').click()
+    },
+  },
 ]

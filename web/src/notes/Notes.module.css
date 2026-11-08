@@ -1,0 +1,455 @@
+/* The Notes area: design/screens/Note.dc.html (desktop), Note-tablet.dc.html
+ * and Note-mobile.dc.html. Breakpoints are the theme's: below `sm` (768px) is
+ * mobile, `sm` to `md` (1024px) is tablet, `md` and up is desktop with the
+ * sidebar. The margin column stays out until #9 gives it something to show. */
+
+.layout {
+  display: flex;
+  min-height: calc(100dvh - 56px);
+}
+
+.main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--cn-paper);
+}
+
+.sidebar {
+  display: none;
+}
+
+@media (min-width: 64em) {
+  .sidebar {
+    display: block;
+    position: sticky;
+    top: 56px;
+    align-self: flex-start;
+    width: 248px;
+    height: calc(100dvh - 56px);
+    flex: none;
+    box-sizing: border-box;
+    padding: 20px 12px;
+    overflow-y: auto;
+    background: var(--cn-sidebar);
+    border-right: 1px solid var(--cn-rule);
+  }
+}
+
+.eyebrow {
+  font-family: var(--cn-font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--cn-muted);
+}
+
+/* The list of Notes, in the sidebar, the "All notes" overlay and the index. */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.list > .eyebrow {
+  padding: 0 12px 4px;
+}
+
+.listState {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 0 12px;
+}
+
+.items {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  height: 40px;
+  padding: 0 12px;
+  border-radius: var(--cn-radius-button);
+  color: var(--cn-ink);
+  font-family: var(--cn-font-sans);
+  font-size: 14.5px;
+  text-decoration: none;
+}
+
+.item:hover {
+  background: var(--cn-highlight);
+}
+
+.item:focus-visible {
+  outline: 2px solid var(--cn-ink);
+  outline-offset: -2px;
+}
+
+.item[aria-current='page'] {
+  background: var(--cn-avatar);
+  font-weight: 600;
+}
+
+.itemName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Tablet and mobile: the Note's name and the "All notes" button. */
+.strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  height: 48px;
+  flex: none;
+  padding: 0 16px;
+  box-sizing: border-box;
+  background: var(--cn-sidebar);
+  border-bottom: 1px solid var(--cn-rule);
+}
+
+@media (min-width: 48em) {
+  .strip {
+    padding: 0 28px;
+  }
+}
+
+@media (min-width: 64em) {
+  .strip {
+    display: none;
+  }
+}
+
+.stripName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--cn-font-sans);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--cn-ink);
+}
+
+.stripButton {
+  flex: none;
+  height: 36px;
+  font-weight: 400;
+  background: transparent;
+}
+
+/* The Note: one column on mobile, board and moves side by side above. */
+.note {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 20px 16px 28px;
+}
+
+@media (min-width: 48em) {
+  .note {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 32px;
+    padding: 28px;
+  }
+}
+
+@media (min-width: 64em) {
+  .note {
+    flex: 1;
+    align-items: stretch;
+    gap: 0;
+    padding: 0;
+  }
+}
+
+.boardColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+@media (min-width: 48em) {
+  .boardColumn {
+    flex: 0 0 min(442px, 55%);
+    gap: 18px;
+  }
+}
+
+@media (min-width: 64em) {
+  .boardColumn {
+    flex: 0 0 464px;
+    gap: 24px;
+    padding: 36px 36px 28px;
+    box-sizing: border-box;
+    border-right: 1px solid var(--cn-rule);
+  }
+}
+
+.movesColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+  padding-top: 20px;
+  border-top: 1px solid var(--cn-rule);
+}
+
+@media (min-width: 48em) {
+  .movesColumn {
+    flex: 1;
+    padding-top: 0;
+    border-top: 0;
+  }
+}
+
+@media (min-width: 64em) {
+  .movesColumn {
+    padding: 36px 44px 28px;
+  }
+}
+
+.titleBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+@media (min-width: 64em) {
+  .titleBlock {
+    gap: 10px;
+  }
+}
+
+.titleRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.title {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-family: var(--cn-font-serif);
+  font-size: 30px;
+  font-weight: 500;
+  line-height: 1.08;
+  letter-spacing: -0.01em;
+  color: var(--cn-ink);
+}
+
+@media (min-width: 48em) {
+  .title {
+    font-size: 38px;
+  }
+}
+
+@media (min-width: 64em) {
+  .title {
+    font-size: 40px;
+  }
+}
+
+.details {
+  font-family: var(--cn-font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--cn-muted);
+}
+
+.actions {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  margin-top: 2px;
+  border: 1px solid transparent;
+  border-radius: var(--cn-radius-button);
+  color: var(--cn-muted);
+}
+
+.actions:hover,
+.actions[aria-expanded='true'] {
+  border-color: var(--cn-edge);
+  color: var(--cn-ink);
+}
+
+.actions:focus-visible {
+  outline: 2px solid var(--cn-ink);
+  outline-offset: 2px;
+}
+
+/* The move list, as running text (Note.dc.html "Line of thought"). */
+.moves {
+  margin: 0;
+  font-family: var(--cn-font-serif);
+  font-size: 17px;
+  line-height: 1.8;
+}
+
+.moveGroup {
+  white-space: nowrap;
+}
+
+.moveNumber {
+  margin-right: 2px;
+  margin-left: 4px;
+  font-family: var(--cn-font-sans);
+  font-size: 13px;
+  color: var(--cn-muted);
+}
+
+.moveGroup:first-child .moveNumber {
+  margin-left: 0;
+}
+
+.move {
+  margin: 0 1px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  font: inherit;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--cn-ink);
+}
+
+.move:hover {
+  background: var(--cn-highlight);
+}
+
+.move:focus-visible {
+  outline: 2px solid var(--cn-ink);
+  outline-offset: 1px;
+}
+
+.move[aria-current='step'] {
+  background: var(--cn-highlight);
+  font-weight: 600;
+}
+
+.noMoves {
+  margin: 0;
+  font-family: var(--cn-font-serif);
+  font-size: 17px;
+  font-style: italic;
+  color: var(--cn-muted);
+}
+
+/* Loading, error and not-found states. */
+.centered {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 16px;
+  min-height: 240px;
+}
+
+.message {
+  padding: 28px 16px;
+  max-width: 560px;
+}
+
+@media (min-width: 48em) {
+  .message {
+    padding: 36px 28px;
+  }
+}
+
+/* /notes with no Note open. */
+.index {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 20px 4px 28px;
+}
+
+@media (min-width: 48em) {
+  .index {
+    padding: 28px 16px;
+  }
+}
+
+.indexList {
+  display: block;
+}
+
+.indexPrompt {
+  display: none;
+}
+
+.indexEmpty,
+.indexPrompt {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 0 12px;
+  max-width: 480px;
+}
+
+.indexEmpty {
+  display: flex;
+}
+
+@media (min-width: 64em) {
+  .index {
+    padding: 48px 44px;
+  }
+
+  .indexList {
+    display: none;
+  }
+
+  .indexPrompt {
+    display: flex;
+  }
+}
+
+/* The New note page. */
+.newNote {
+  width: 100%;
+  max-width: 640px;
+  box-sizing: border-box;
+  padding: 24px 16px 40px;
+}
+
+@media (min-width: 48em) {
+  .newNote {
+    padding: 36px 28px 48px;
+  }
+}
+
+@media (min-width: 64em) {
+  .newNote {
+    padding: 36px 44px 48px;
+  }
+}
+
+.newBoard {
+  width: 100%;
+  max-width: 404px;
+}
+
+.playedMoves {
+  margin-left: 22px;
+  font-family: var(--cn-font-serif);
+  font-size: 16px;
+  color: var(--cn-muted);
+}

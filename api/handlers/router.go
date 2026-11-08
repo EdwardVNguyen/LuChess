@@ -23,6 +23,11 @@ func NewRouter(cfg *ApiConfig) http.Handler {
 	mux.HandleFunc("POST /api/auth/refresh", cfg.sessionHTTP.HandleRefresh)
 	mux.HandleFunc("POST /api/auth/logout", cfg.sessionHTTP.HandleLogout)
 	mux.Handle("GET /api/me", cfg.sessionHTTP.RequireAuth(cfg.HandleMe))
+	mux.Handle("GET /api/notes", cfg.sessionHTTP.RequireAuth(cfg.HandleListNotes))
+	mux.Handle("POST /api/notes", cfg.sessionHTTP.RequireAuth(cfg.HandleCreateNote))
+	mux.Handle("GET /api/notes/{id}", cfg.sessionHTTP.RequireAuth(cfg.HandleGetNote))
+	mux.Handle("PATCH /api/notes/{id}", cfg.sessionHTTP.RequireAuth(cfg.HandleRenameNote))
+	mux.Handle("DELETE /api/notes/{id}", cfg.sessionHTTP.RequireAuth(cfg.HandleDeleteNote))
 
 	return cfg.WithCORS(mux)
 }

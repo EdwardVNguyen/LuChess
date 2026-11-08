@@ -234,3 +234,50 @@ describe('api client session transport', () => {
     expect(init.headers.Authorization).toBe('Bearer token-9')
   })
 })
+
+describe('api client notes', () => {
+  const note = {
+    id: 3,
+    name: 'King and pawn',
+    pgn: '[SetUp "1"]\n[FEN "4k3/8/8/8/8/8/4P3/4K3 w - - 0 1"]\n\n*',
+    startFen: '4k3/8/8/8/8/8/4P3/4K3 w - - 0 1',
+    createdAt: '2026-11-01T12:00:00Z',
+    updatedAt: '2026-11-01T12:00:00Z',
+  }
+
+  it('creates a Note with the bearer token', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(jsonResponse(note, 201))
+    const api = createApiClient(baseUrl, fetchFn)
+
+    const created = await api.createNote('token-9', { name: note.name, pgn: note.pgn, startFen: note.startFen })
+
+    expect(created).toEqual(note)
+    const [url, init] = fetchFn.mock.calls[0]
+    expect(url).toBe('http://localhost:8080/api/notes')
+    expect(init.method).toBe('POST')
+    expect(init.headers.Authorization).toBe('Bearer token-9')
+    expect(JSON.parse(init.body)).toEqual({ name: note.name, pgn: note.pgn, startFen: note.startFen })
+  })
+
+  it('renames with PATCH and deletes with DELETE', async () => {
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ ...note, name: 'New' }))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+    const api = createApiClient(baseUrl, fetchFn)
+
+    await expect(api.renameNote('t', 3, 'New')).resolves.toMatchObject({ name: 'New' })
+    await api.deleteNote('t', 3)
+
+    expect(fetchFn.mock.calls[0][0]).toBe('http://localhost:8080/api/notes/3')
+    expect(fetchFn.mock.calls[0][1].method).toBe('PATCH')
+    expect(fetchFn.mock.calls[1][1].method).toBe('DELETE')
+  })
+
+  it('reports a missing Note as a 404 ApiError', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(jsonResponse({ error: 'Note not found' }, 404))
+    const api = createApiClient(baseUrl, fetchFn)
+
+    await expect(api.getNote('t', 99)).rejects.toMatchObject({ status: 404, message: 'Note not found' })
+  })
+})
