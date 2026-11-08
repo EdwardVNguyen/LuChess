@@ -1,4 +1,4 @@
-import { useId, type CSSProperties } from 'react'
+import { useId, type CSSProperties, type ReactNode } from 'react'
 import { Chessboard, type ChessboardOptions } from 'react-chessboard'
 import styles from './Board.module.css'
 import { glyphPieces } from './pieces'
@@ -11,6 +11,8 @@ type BoardSurfaceProps = {
   /** Per-square backgrounds, e.g. the last move or a selected piece. */
   squareStyles?: Record<string, CSSProperties>
   options?: Omit<ChessboardOptions, 'id' | 'position' | 'pieces' | 'boardOrientation' | 'squareStyles'>
+  /** Drawn over the squares, e.g. the promotion picker. */
+  children?: ReactNode
 }
 
 const FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
@@ -18,7 +20,7 @@ const RANKS = ['8', '7', '6', '5', '4', '3', '2', '1']
 
 // The squares and pieces (react-chessboard, docs/adr/0006), with the
 // coordinates drawn outside the board as in design/screens/Note.dc.html.
-export function BoardSurface({ fen, orientation, squareStyles, options }: BoardSurfaceProps) {
+export function BoardSurface({ fen, orientation, squareStyles, options, children }: BoardSurfaceProps) {
   // react-chessboard uses the id in CSS selectors, so keep it to letters and digits.
   const id = `board${useId().replace(/[^a-zA-Z0-9]/g, '')}`
   const files = orientation === 'white' ? FILES : [...FILES].reverse()
@@ -50,6 +52,7 @@ export function BoardSurface({ fen, orientation, squareStyles, options }: BoardS
             dropSquareStyle: { boxShadow: 'inset 0 0 0 2px var(--cn-ink)' },
           }}
         />
+        {children}
       </div>
       <div className={styles.files} aria-hidden="true">
         {files.map((file) => (

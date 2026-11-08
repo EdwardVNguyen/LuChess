@@ -51,7 +51,10 @@ const devRoutes = import.meta.env.DEV
       createRoute({
         getParentRoute: () => rootRoute,
         path: '/dev/board',
-        validateSearch: z.object({ mode: z.enum(['view', 'play', 'setup']).catch('view') }),
+        validateSearch: z.object({
+          mode: z.enum(['view', 'play', 'setup']).catch('view'),
+          fen: z.string().optional().catch(undefined),
+        }),
         component: DevBoardRoute,
       }),
     ]

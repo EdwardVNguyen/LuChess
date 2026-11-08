@@ -27,7 +27,41 @@
 }
 
 .squares {
+  position: relative;
   min-width: 0;
+}
+
+/* The promotion picker: undesigned, so in the style of the set-up palette. */
+.promotionBackdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: var(--cn-overlay);
+}
+
+.promotion {
+  position: absolute;
+  display: flex;
+  width: 12.5%;
+  height: 50%;
+  background: var(--cn-paper);
+  border: 1px solid var(--cn-ink);
+  box-shadow: var(--cn-dialog-shadow);
+}
+
+.promotionItem {
+  flex: 1;
+  min-height: 0;
+  background: var(--cn-paper);
+}
+
+.promotionItem:hover {
+  background: var(--cn-highlight);
+}
+
+.promotionItem:focus-visible {
+  outline: 2px solid var(--cn-ink);
+  outline-offset: -3px;
 }
 
 .files {

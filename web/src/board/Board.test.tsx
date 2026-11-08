@@ -1,4 +1,4 @@
-import { fireEvent, screen } from '@testing-library/react'
+import { fireEvent, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
@@ -63,6 +63,57 @@ describe('Board in play mode', () => {
     await userEvent.click(square(container, 'e5'))
     await userEvent.click(square(container, 'e7'))
     await userEvent.click(square(container, 'e5'))
+    expect(onMove).not.toHaveBeenCalled()
+  })
+
+  const promotionFen = '7k/P7/8/8/8/8/8/K7 w - - 0 1'
+
+  it('asks which piece to promote to, and underpromotes', async () => {
+    const onMove = vi.fn()
+    const { container } = renderWithTheme(<Board mode="play" fen={promotionFen} onMove={onMove} />)
+
+    await userEvent.click(square(container, 'a7'))
+    await userEvent.click(square(container, 'a8'))
+    expect(onMove).not.toHaveBeenCalled()
+    const picker = screen.getByRole('group', { name: 'Promote to' })
+    expect(within(picker).getAllByRole('button').map((button) => button.getAttribute('aria-label'))).toEqual([
+      'Queen',
+      'Rook',
+      'Bishop',
+      'Knight',
+    ])
+
+    await userEvent.click(within(picker).getByRole('button', { name: 'Knight' }))
+    expect(onMove).toHaveBeenCalledWith(expect.objectContaining({ san: 'a8=N', from: 'a7', to: 'a8' }))
+    expect(screen.queryByRole('group', { name: 'Promote to' })).not.toBeInTheDocument()
+  })
+
+  it('promotes for Black on a flipped board', async () => {
+    const onMove = vi.fn()
+    const { container } = renderWithTheme(
+      <Board mode="play" fen="k7/8/8/8/8/8/p7/7K b - - 0 1" orientation="black" onMove={onMove} />,
+    )
+
+    await userEvent.click(square(container, 'a2'))
+    await userEvent.click(square(container, 'a1'))
+    await userEvent.click(screen.getByRole('button', { name: 'Rook' }))
+    expect(onMove).toHaveBeenCalledWith(expect.objectContaining({ san: 'a1=R+' }))
+  })
+
+  it('plays no move when the picker is cancelled with Esc or a click away', async () => {
+    const onMove = vi.fn()
+    const { container } = renderWithTheme(<Board mode="play" fen={promotionFen} onMove={onMove} />)
+
+    await userEvent.click(square(container, 'a7'))
+    await userEvent.click(square(container, 'a8'))
+    expect(screen.getByRole('button', { name: 'Queen' })).toHaveFocus()
+    await userEvent.keyboard('{Escape}')
+    expect(screen.queryByRole('group', { name: 'Promote to' })).not.toBeInTheDocument()
+
+    await userEvent.click(square(container, 'a7'))
+    await userEvent.click(square(container, 'a8'))
+    await userEvent.click(document.body)
+    expect(screen.queryByRole('group', { name: 'Promote to' })).not.toBeInTheDocument()
     expect(onMove).not.toHaveBeenCalled()
   })
 })
