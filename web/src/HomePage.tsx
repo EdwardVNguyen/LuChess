@@ -1,5 +1,6 @@
-import { Alert, Badge, Group, Loader, Stack, Text, Title } from '@mantine/core'
+import { Alert, Badge, Button, Group, Loader, Stack, Text, Title } from '@mantine/core'
 import { useQuery } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
 import { api } from './apiClient'
 import { Page } from './Page'
 import { useSession } from './session'
@@ -15,9 +16,16 @@ export function HomePage() {
         <Title order={2}>{user ? `Welcome back, ${user.name}` : 'Welcome to ChessNotes'}</Title>
         <Text>Connect chess games the way Luhmann connected ideas.</Text>
         {state.status === 'authenticated' && (
-          <Text>
-            Signed in as {state.user.name} ({state.user.email}).
-          </Text>
+          <>
+            <Text>
+              Signed in as {state.user.name} ({state.user.email}).
+            </Text>
+            <Group>
+              <Button component={Link} to="/notes">
+                Your notes
+              </Button>
+            </Group>
+          </>
         )}
         <Group>
           <Text fw={500}>API status:</Text>

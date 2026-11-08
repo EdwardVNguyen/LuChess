@@ -11,7 +11,12 @@ const maxBodyBytes = 16 * 1024
 
 // DecodeJSON reads a small JSON request body into dst, answering 400 itself on failure.
 func DecodeJSON(w http.ResponseWriter, r *http.Request, dst any) bool {
-	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxBodyBytes)).Decode(dst); err != nil {
+	return DecodeJSONLimit(w, r, dst, maxBodyBytes)
+}
+
+// DecodeJSONLimit is DecodeJSON for bodies up to limit bytes.
+func DecodeJSONLimit(w http.ResponseWriter, r *http.Request, dst any, limit int64) bool {
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, limit)).Decode(dst); err != nil {
 		RespondError(w, http.StatusBadRequest, "Could not read JSON from HTTP request body", err)
 		return false
 	}

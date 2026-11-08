@@ -69,8 +69,8 @@ async function shootOne(browser: Browser, baseUrl: string, entry: ShotEntry, siz
   })
   const page = await context.newPage()
   try {
-    await installApiMocks(page, entry.fixtures)
-    await page.goto(`${baseUrl.replace(/\/$/, '')}${entry.route}`, { waitUntil: 'networkidle' })
+    await installApiMocks(page, entry.fixtures, entry.notes)
+    await page.goto(`${baseUrl.replace(/\/$/, '')}${entry.route}`, { waitUntil: entry.waitUntil ?? 'networkidle' })
     await page.evaluate(() => document.fonts.ready)
     // Belt and braces on top of reducedMotion: stop anything still animating
     // (e.g. loaders) so repeated runs produce identical pixels.

@@ -28,6 +28,8 @@ export type Game = {
   startFen: string
   /** `plies[0]` is the Position, `plies[n]` is the position after ply n. */
   plies: Ply[]
+  /** The PGN's tag pairs (Event, Site, Opening, …), without unknown "?" values. */
+  tags: Record<string, string>
 }
 
 type Move = { san: string; color: Color; from: string; to: string; before: string; after: string }
@@ -44,8 +46,9 @@ export function parsePgn(pgn: string): Result<Game> {
     return { ok: false, error: describePgnError(error) }
   }
 
-  const startFen = chess.getHeaders().FEN ?? START_FEN
-  return { ok: true, value: buildGame(startFen, chess.history({ verbose: true })) }
+  const headers = chess.getHeaders()
+  const startFen = headers.FEN ?? START_FEN
+  return { ok: true, value: buildGame(startFen, chess.history({ verbose: true }), knownTags(headers)) }
 }
 
 /** A Game from a Position and the SAN of each move after it, e.g. moves made in play mode. */
@@ -66,7 +69,28 @@ export function gameFromMoves(startFen: string, sans: readonly string[]): Result
   return { ok: true, value: buildGame(startFen, chess.history({ verbose: true })) }
 }
 
-function buildGame(startFen: string, moves: readonly Move[]): Game {
+/** The PGN for a Position and the SAN of each move after it, with the FEN tag when it is not the standard start. */
+export function pgnFromMoves(startFen: string, sans: readonly string[]): Result<string> {
+  const game = gameFromMoves(startFen, sans)
+  if (!game.ok) return game
+  const chess = new Chess(startFen)
+  for (const san of sans) chess.move(san)
+  return { ok: true, value: chess.pgn() }
+}
+
+function isUnknownTag(value: string | null | undefined): boolean {
+  return !value || /^[?.*\s]*$/.test(value)
+}
+
+function knownTags(headers: Record<string, string | null | undefined>): Record<string, string> {
+  const tags: Record<string, string> = {}
+  for (const [tag, value] of Object.entries(headers)) {
+    if (value && !isUnknownTag(value)) tags[tag] = value
+  }
+  return tags
+}
+
+function buildGame(startFen: string, moves: readonly Move[], tags: Record<string, string> = {}): Game {
   const [, turn, , , , fullMove] = startFen.split(' ')
   const plies: Ply[] = [
     {
@@ -90,7 +114,7 @@ function buildGame(startFen: string, moves: readonly Move[]): Game {
       fen: move.after,
     })
   }
-  return { startFen, plies }
+  return { startFen, plies, tags }
 }
 
 function describePgnError(error: unknown): string {

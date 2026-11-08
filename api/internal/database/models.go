@@ -105,6 +105,16 @@ type EmailToken struct {
 	CreatedAt time.Time
 }
 
+type Note struct {
+	ID        int64
+	UserID    int32
+	Name      string
+	Pgn       string
+	StartFen  sql.NullString
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
 type RefreshToken struct {
 	ID        int64
 	UserID    int32

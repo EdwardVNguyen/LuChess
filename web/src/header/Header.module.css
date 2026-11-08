@@ -50,8 +50,8 @@
   }
 }
 
-/* A disabled-looking stand-in for the find box (#7) and the New note button
- * (#6), so the header already has the right shape. Not interactive yet. */
+/* A disabled-looking stand-in for the find box (#7), so the header already
+ * has the right shape. Not interactive yet. */
 .findPlaceholder {
   display: none;
 }
@@ -74,12 +74,12 @@
   }
 }
 
-.newNotePlaceholder {
+.newNote {
   display: none;
 }
 
 @media (min-width: 48em) {
-  .newNotePlaceholder {
+  .newNote {
     display: inline-flex;
     align-items: center;
     height: 40px;
@@ -91,8 +91,41 @@
     font-family: var(--cn-font-sans);
     font-size: 14px;
     font-weight: 500;
-    opacity: 0.6;
+    text-decoration: none;
+    white-space: nowrap;
   }
+}
+
+/* The mobile New note button: the plus, filled ink (Note-mobile.dc.html). */
+.newNoteIcon {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  border-radius: var(--cn-radius-button);
+  border: 1px solid var(--cn-ink);
+  background: var(--cn-ink);
+  color: var(--cn-paper);
+}
+
+@media (min-width: 48em) {
+  .newNoteIcon {
+    display: none;
+  }
+}
+
+.newNote:hover,
+.newNoteIcon:hover {
+  opacity: 0.85;
+}
+
+.newNote:focus-visible,
+.newNoteIcon:focus-visible {
+  outline: 2px solid var(--cn-ink);
+  outline-offset: 2px;
 }
 
 .iconSlot {

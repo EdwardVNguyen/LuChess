@@ -34,13 +34,12 @@ export function Header({ state, onLogOut }: Props) {
             <div className={styles.iconSlot} aria-hidden="true">
               <SearchIcon />
             </div>
-            {/* #6: the New note button replaces these placeholders. */}
-            <div className={styles.newNotePlaceholder} aria-hidden="true">
+            <Link to="/notes/new" className={styles.newNote}>
               New note
-            </div>
-            <div className={styles.iconSlot} aria-hidden="true">
+            </Link>
+            <Link to="/notes/new" className={styles.newNoteIcon} aria-label="New note">
               <PlusIcon />
-            </div>
+            </Link>
             <UserMenu user={user} onLogOut={onLogOut} />
           </div>
         </>

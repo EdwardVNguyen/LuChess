@@ -20,6 +20,7 @@ function fakeSession(initial: SessionState) {
     restore: vi.fn(async () => undefined),
     signIn: vi.fn(async () => ({ id: 7, email: 'ada@example.com', name: 'Ada' })),
     signOut: vi.fn(async () => undefined),
+    authorized: vi.fn(async (call) => call('token')),
   }
 
   return {
