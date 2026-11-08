@@ -17,6 +17,7 @@ export const cssVariablesResolver: CSSVariablesResolver = () => ({
     '--cn-card': colorTokens.card,
     '--cn-edge': colorTokens.edge,
     '--cn-highlight': colorTokens.highlight,
+    '--cn-dashed': colorTokens.dashed,
     '--cn-accent': colorTokens.accent,
     '--cn-avatar': colorTokens.avatar,
     '--cn-board-light': colorTokens.boardLight,

@@ -12,6 +12,8 @@ export const colorTokens = {
   card: '#FFFCF5',
   edge: '#CFC3A6',
   highlight: '#EBDDB8',
+  // The dashed border of an editor waiting for writing (Note.dc.html "Add a thought").
+  dashed: '#A99C7E',
   accent: '#8A2E24',
   avatar: '#D6C8A6',
   boardLight: '#EDE2C8',

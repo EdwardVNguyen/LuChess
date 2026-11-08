@@ -5,6 +5,9 @@ export type FixtureSet = 'guest' | 'session'
 /** The signed-in user's Notes: the samples, none, failing, or never answering (to show loading). */
 export type NotesFixture = 'sample' | 'empty' | 'error' | 'pending'
 
+/** The writing on a Note's Plies, separately from the Notes themselves. */
+export type PliesFixture = 'sample' | 'error' | 'pending' | 'saveError'
+
 /** Answers to Quick Find's search, separately from the Notes themselves. */
 export type SearchFixture = 'sample' | 'error' | 'pending'
 
@@ -17,6 +20,8 @@ export type ShotEntry = {
   notes?: NotesFixture
   /** @default 'sample' */
   search?: SearchFixture
+  /** @default 'sample' */
+  plies?: PliesFixture
   /** What to wait for before setup; a never-answered request means networkidle never comes. @default 'networkidle' */
   waitUntil?: 'load' | 'networkidle'
   /** Extra steps after the page loads, e.g. opening a dialog. */
@@ -193,6 +198,56 @@ export const entries: ShotEntry[] = [
     },
   },
   { name: 'NoteError', route: '/notes/1', fixtures: 'session', notes: 'error' },
+  // Writing on a Ply (#8): the big idea highlighted at ply 0, a long Comment
+  // opened with "more", a Note with no writing yet, and loading, load-error
+  // and save-error states.
+  {
+    name: 'NoteAtPosition',
+    route: '/notes/1',
+    fixtures: 'session',
+    setup: async (page) => {
+      await page.getByRole('button', { name: 'First move' }).click()
+    },
+  },
+  {
+    name: 'NoteCommentMore',
+    route: '/notes/1',
+    fixtures: 'session',
+    setup: async (page) => {
+      await page.getByRole('button', { name: 'Qa3!', exact: true }).click()
+      await page.getByRole('button', { name: 'more' }).click()
+    },
+  },
+  {
+    name: 'NoteNoWriting',
+    route: '/notes/2',
+    fixtures: 'session',
+    setup: async (page) => {
+      await page.getByRole('button', { name: 'Nf3', exact: true }).click()
+    },
+  },
+  {
+    name: 'NoteWritingLoading',
+    route: '/notes/1',
+    fixtures: 'session',
+    plies: 'pending',
+    waitUntil: 'load',
+    setup: async (page) => {
+      await page.getByLabel('Loading your writing', { exact: true }).waitFor()
+    },
+  },
+  { name: 'NoteWritingError', route: '/notes/1', fixtures: 'session', plies: 'error' },
+  {
+    name: 'NoteSaveError',
+    route: '/notes/1',
+    fixtures: 'session',
+    plies: 'saveError',
+    setup: async (page) => {
+      await page.getByRole('textbox', { name: /^Comment on/ }).fill('A thought that will not save.')
+      await page.getByRole('button', { name: 'Blunder' }).focus()
+      await page.getByText('Your writing was not saved').waitFor()
+    },
+  },
   { name: 'NoteNotFound', route: '/notes/999', fixtures: 'session' },
   { name: 'Notes', route: '/notes', fixtures: 'session' },
   { name: 'NotesEmpty', route: '/notes', fixtures: 'session', notes: 'empty' },

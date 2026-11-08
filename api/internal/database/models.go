@@ -118,6 +118,17 @@ type Note struct {
 	GameDate  sql.NullString
 }
 
+type Ply struct {
+	NoteID        int64
+	Ply           int32
+	Comment       sql.NullString
+	Body          sql.NullString
+	MoveGlyph     sql.NullString
+	PositionGlyph sql.NullString
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+}
+
 type RefreshToken struct {
 	ID        int64
 	UserID    int32

@@ -14,6 +14,14 @@ const noteSearchResultSchema = z.object({
   date: z.string().nullable(),
 })
 const noteSchema = noteSummarySchema.extend({ pgn: z.string(), startFen: z.string().nullable() })
+const plyWritingSchema = z.object({
+  ply: z.number(),
+  comment: z.string().nullable(),
+  body: z.string().nullable(),
+  moveGlyph: z.string().nullable(),
+  positionGlyph: z.string().nullable(),
+  updatedAt: z.string(),
+})
 
 export type Health = z.infer<typeof healthSchema>
 export type User = z.infer<typeof userSchema>
@@ -22,6 +30,10 @@ export type NoteSummary = z.infer<typeof noteSummarySchema>
 export type Note = z.infer<typeof noteSchema>
 /** white, black and date come from the PGN headers, and are null when it has none. */
 export type NoteSearchResult = z.infer<typeof noteSearchResultSchema>
+/** The writing on one Ply; a field is null when the Ply has none of it. */
+export type PlyWriting = z.infer<typeof plyWritingSchema>
+/** Everything written on a Ply. Null or blank clears a field. */
+export type PlyWritingInput = Pick<PlyWriting, 'comment' | 'body' | 'moveGlyph' | 'positionGlyph'>
 
 export type SignUpInput = { email: string; name: string; password: string }
 export type LoginInput = { email: string; password: string }
@@ -41,7 +53,7 @@ export class ApiError extends Error {
   }
 }
 
-type RequestInput = { method?: 'GET' | 'POST' | 'PATCH' | 'DELETE'; body?: unknown; accessToken?: string }
+type RequestInput = { method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; body?: unknown; accessToken?: string }
 
 // The transport adapter: HTTP paths, credentials, schemas and ApiError. It
 // holds no Session state; the Session module decides when to call it.
@@ -149,6 +161,17 @@ export function createApiClient(baseUrl: string, fetchFn: typeof fetch = fetch) 
 
     async deleteNote(accessToken: string, id: number): Promise<void> {
       await request(`/api/notes/${id}`, { method: 'DELETE', accessToken })
+    },
+
+    async listPlies(accessToken: string, noteId: number): Promise<PlyWriting[]> {
+      const res = await request(`/api/notes/${noteId}/plies`, { accessToken })
+      return z.array(plyWritingSchema).parse(await res.json())
+    },
+
+    /** Replaces all the writing on a Ply; sending every field empty deletes it. */
+    async putPly(accessToken: string, noteId: number, ply: number, input: PlyWritingInput): Promise<PlyWriting> {
+      const res = await request(`/api/notes/${noteId}/plies/${ply}`, { method: 'PUT', body: input, accessToken })
+      return plyWritingSchema.parse(await res.json())
     },
   }
 }

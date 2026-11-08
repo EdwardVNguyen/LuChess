@@ -1,7 +1,7 @@
 import type { Page } from 'playwright'
-import type { Note } from '../../src/api.js'
-import type { FixtureSet, NotesFixture, SearchFixture } from './entries.js'
-import { loggedInSession, sampleNotes } from './fixtures.js'
+import type { Note, PlyWriting } from '../../src/api.js'
+import type { FixtureSet, NotesFixture, PliesFixture, SearchFixture } from './entries.js'
+import { loggedInSession, sampleNotes, samplePlies } from './fixtures.js'
 
 // Never reached over the network: every request to it is intercepted below.
 // Vite still requires VITE_API_URL to be a well-formed http(s) URL.
@@ -15,10 +15,12 @@ export async function installApiMocks(
   fixtures: FixtureSet,
   notesFixture: NotesFixture = 'sample',
   searchFixture: SearchFixture = 'sample',
+  pliesFixture: PliesFixture = 'sample',
 ): Promise<void> {
   // Kept per page, so creating, renaming or deleting shows up in the list.
   let notes: Note[] = notesFixture === 'sample' ? structuredClone(sampleNotes) : []
   let nextId = 100
+  const plies: Record<number, PlyWriting[]> = structuredClone(samplePlies)
 
   await page.route(`${API_BASE_URL}/**`, async (route) => {
     const request = route.request()
@@ -67,6 +69,36 @@ export async function installApiMocks(
       if (searchFixture === 'error') return json(500, { error: 'Could not search notes' })
       const query = new URL(request.url()).searchParams.get('q') ?? ''
       return json(200, searchNotes(notes, query))
+    }
+
+    const pliesMatch = /^\/api\/notes\/(\d+)\/plies(?:\/(\d+))?$/.exec(pathname)
+    if (pliesMatch) {
+      if (fixtures !== 'session') return json(401, { error: 'Unauthorized' })
+      const id = Number(pliesMatch[1])
+      if (!notes.some((n) => n.id === id)) return json(404, { error: 'Note not found' })
+      if (method === 'GET') {
+        if (pliesFixture === 'pending') return
+        if (pliesFixture === 'error') return json(500, { error: "Could not load the note's writing" })
+        return json(200, plies[id] ?? [])
+      }
+      if (method === 'PUT' && pliesMatch[2]) {
+        if (pliesFixture === 'saveError') return json(400, { error: 'Comment must be at most 20,000 characters' })
+        const ply = Number(pliesMatch[2])
+        const body = request.postDataJSON() as Omit<PlyWriting, 'ply' | 'updatedAt'>
+        const blank = (v: string | null) => (v && v.trim() ? v.trim() : null)
+        const written: PlyWriting = {
+          ply,
+          comment: blank(body.comment),
+          body: blank(body.body),
+          moveGlyph: blank(body.moveGlyph),
+          positionGlyph: blank(body.positionGlyph),
+          updatedAt: new Date().toISOString(),
+        }
+        const others = (plies[id] ?? []).filter((p) => p.ply !== ply)
+        const kept = written.comment || written.body || written.moveGlyph || written.positionGlyph
+        plies[id] = kept ? [...others, written].sort((a, b) => a.ply - b.ply) : others
+        return json(200, written)
+      }
     }
 
     const noteMatch = /^\/api\/notes(?:\/(\d+))?$/.exec(pathname)
