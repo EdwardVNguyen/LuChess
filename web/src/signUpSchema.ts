@@ -4,6 +4,10 @@ import { z } from 'zod'
 // Lengths count characters (not UTF-16 units), as the API does.
 const chars = (s: string) => [...s].length
 
+export const passwordSchema = z
+  .string()
+  .refine((password) => chars(password) >= 10 && chars(password) <= 128, 'Password must be 10 to 128 characters')
+
 export const signUpSchema = z.object({
   email: z
     .string()
@@ -17,9 +21,7 @@ export const signUpSchema = z.object({
       (name) => chars(name) >= 2 && chars(name) <= 32 && !/\p{Cc}/u.test(name),
       'Display name must be 2 to 32 characters with no control characters',
     ),
-  password: z
-    .string()
-    .refine((password) => chars(password) >= 10 && chars(password) <= 128, 'Password must be 10 to 128 characters'),
+  password: passwordSchema,
 })
 
 export type SignUpValues = z.infer<typeof signUpSchema>

@@ -1,10 +1,12 @@
 import { createRootRoute, createRoute, createRouter } from '@tanstack/react-router'
 import { z } from 'zod'
 import { DevBoardRoute } from './board/DevBoardRoute'
+import { ForgotPasswordPage } from './ForgotPasswordPage'
 import { HomePage } from './HomePage'
 import { Layout } from './Layout'
 import { LoginPage } from './LoginPage'
 import { DevOverlaysRoute } from './overlay/DevOverlaysRoute'
+import { ResetPasswordPage } from './ResetPasswordPage'
 import { SignUpPage } from './SignUpPage'
 import { DevThemeRoute } from './theme/DevThemeRoute'
 import { VerifyEmailPage } from './VerifyEmailPage'
@@ -18,6 +20,17 @@ const verifyEmailRoute = createRoute({
   path: '/verify-email',
   validateSearch: z.object({ token: z.string().optional() }),
   component: VerifyEmailPage,
+})
+const forgotPasswordRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/forgot-password',
+  component: ForgotPasswordPage,
+})
+const resetPasswordRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/reset-password',
+  validateSearch: z.object({ token: z.string().optional() }),
+  component: ResetPasswordPage,
 })
 
 // Dev-only: pages showing the theme's components and the shared overlays, so
@@ -37,7 +50,7 @@ const devRoutes = import.meta.env.DEV
   : []
 
 export const router = createRouter({
-  routeTree: rootRoute.addChildren([homeRoute, signUpRoute, loginRoute, verifyEmailRoute, ...devRoutes]),
+  routeTree: rootRoute.addChildren([homeRoute, signUpRoute, loginRoute, verifyEmailRoute, forgotPasswordRoute, resetPasswordRoute, ...devRoutes]),
 })
 
 declare module '@tanstack/react-router' {

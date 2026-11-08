@@ -119,3 +119,21 @@ func (q *Queries) MarkEmailVerified(ctx context.Context, arg MarkEmailVerifiedPa
 	_, err := q.db.ExecContext(ctx, markEmailVerified, arg.Now, arg.ID)
 	return err
 }
+
+const updateUserPassword = `-- name: UpdateUserPassword :exec
+UPDATE users
+SET password_hash = $1,
+    updated_at = $2
+WHERE id = $3
+`
+
+type UpdateUserPasswordParams struct {
+	PasswordHash string
+	Now          time.Time
+	ID           int32
+}
+
+func (q *Queries) UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error {
+	_, err := q.db.ExecContext(ctx, updateUserPassword, arg.PasswordHash, arg.Now, arg.ID)
+	return err
+}

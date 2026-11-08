@@ -36,6 +36,17 @@ export async function installApiMocks(page: Page, fixtures: FixtureSet): Promise
       return json(200, { message: 'A new link is on its way.' })
     }
 
+    if (pathname === '/api/auth/forgot-password' && method === 'POST') {
+      return json(200, { message: 'If that email belongs to an account, we have sent a link to reset its password.' })
+    }
+
+    if (pathname === '/api/auth/reset-password' && method === 'POST') {
+      const body = request.postDataJSON() as { token: string }
+      return body.token === 'expired'
+        ? json(400, { error: 'This reset link is invalid or has expired' })
+        : json(200, {})
+    }
+
     if (pathname === '/api/auth/verify-email' && method === 'POST') return json(200, {})
     if (pathname === '/api/auth/login' && method === 'POST') return json(200, loggedInSession)
     if (pathname === '/api/auth/logout' && method === 'POST') return json(200, {})

@@ -145,6 +145,43 @@ describe('api client resendVerification', () => {
   })
 })
 
+describe('api client forgotPassword', () => {
+  it('posts the email and returns the API message', async () => {
+    const message = 'If that email belongs to an account, we have sent a link to reset its password.'
+    const fetchFn = vi.fn().mockResolvedValue(jsonResponse({ message }))
+    const api = createApiClient(baseUrl, fetchFn)
+
+    await expect(api.forgotPassword('ada@example.com')).resolves.toEqual({ message })
+
+    const [url, init] = fetchFn.mock.calls[0]
+    expect(url).toBe('http://localhost:8080/api/auth/forgot-password')
+    expect(JSON.parse(init.body)).toEqual({ email: 'ada@example.com' })
+  })
+})
+
+describe('api client resetPassword', () => {
+  it('posts the token and new password and resolves when the API accepts them', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(new Response(null, { status: 204 }))
+    const api = createApiClient(baseUrl, fetchFn)
+
+    await expect(api.resetPassword({ token: 'abc123', password: 'a brand new passphrase' })).resolves.toBeUndefined()
+
+    const [url, init] = fetchFn.mock.calls[0]
+    expect(url).toBe('http://localhost:8080/api/auth/reset-password')
+    expect(JSON.parse(init.body)).toEqual({ token: 'abc123', password: 'a brand new passphrase' })
+  })
+
+  it('throws with the status and message for an invalid or expired link', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(jsonResponse({ error: 'This reset link is invalid or has expired' }, 400))
+    const api = createApiClient(baseUrl, fetchFn)
+
+    const failure = await api.resetPassword({ token: 'stale', password: 'a brand new passphrase' }).catch((e) => e)
+
+    expect(failure.status).toBe(400)
+    expect(failure.message).toBe('This reset link is invalid or has expired')
+  })
+})
+
 describe('api client session transport', () => {
   const ada = { id: 7, email: 'ada@example.com', name: 'Ada' }
   const sessionResponse = { accessToken: 'token-1', user: ada }

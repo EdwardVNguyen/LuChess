@@ -18,6 +18,60 @@ export const entries: ShotEntry[] = [
   { name: 'Login', route: '/login', fixtures: 'guest' },
   { name: 'SignUp', route: '/signup', fixtures: 'guest' },
   { name: 'VerifyEmail', route: '/verify-email', fixtures: 'guest' },
+  // No matching design screens: password reset (#5) uses the auth card style.
+  { name: 'ForgotPassword', route: '/forgot-password', fixtures: 'guest' },
+  {
+    name: 'ForgotPasswordError',
+    route: '/forgot-password',
+    fixtures: 'guest',
+    setup: async (page) => {
+      await page.getByRole('button', { name: 'Send reset link' }).click()
+    },
+  },
+  {
+    name: 'ForgotPasswordSent',
+    route: '/forgot-password',
+    fixtures: 'guest',
+    setup: async (page) => {
+      await page.getByLabel('Email').fill('ada@example.com')
+      await page.getByRole('button', { name: 'Send reset link' }).click()
+      await page.getByRole('heading', { name: 'Check your email' }).waitFor()
+    },
+  },
+  { name: 'ResetPassword', route: '/reset-password?token=valid', fixtures: 'guest' },
+  {
+    name: 'ResetPasswordMismatch',
+    route: '/reset-password?token=valid',
+    fixtures: 'guest',
+    setup: async (page) => {
+      await page.getByLabel('New password', { exact: true }).fill('a brand new passphrase')
+      await page.getByLabel('Confirm new password').fill('something else entirely')
+      await page.getByLabel('New password', { exact: true }).click()
+    },
+  },
+  {
+    name: 'ResetPasswordDone',
+    route: '/reset-password?token=valid',
+    fixtures: 'guest',
+    setup: async (page) => {
+      await page.getByLabel('New password', { exact: true }).fill('a brand new passphrase')
+      await page.getByLabel('Confirm new password').fill('a brand new passphrase')
+      await page.getByRole('button', { name: 'Set new password' }).click()
+      await page.getByRole('heading', { name: 'Password changed' }).waitFor()
+    },
+  },
+  {
+    name: 'ResetPasswordExpired',
+    route: '/reset-password?token=expired',
+    fixtures: 'guest',
+    setup: async (page) => {
+      await page.getByLabel('New password', { exact: true }).fill('a brand new passphrase')
+      await page.getByLabel('Confirm new password').fill('a brand new passphrase')
+      await page.getByRole('button', { name: 'Set new password' }).click()
+      await page.getByRole('heading', { name: "This link doesn't work" }).waitFor()
+    },
+  },
+  { name: 'ResetPasswordMissingToken', route: '/reset-password', fixtures: 'guest' },
   // No matching design screen: the home page is a placeholder until #14
   // builds the real one. This shows the logged-in app shell (header, avatar
   // menu) with no page content of its own yet.
