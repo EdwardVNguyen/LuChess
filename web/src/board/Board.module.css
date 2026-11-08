@@ -1,0 +1,132 @@
+/* The board, its coordinates and move controls: design/screens/Note.dc.html,
+ * Note-tablet.dc.html and Note-mobile.dc.html. The board fills its
+ * container; the coordinates sit outside it in a 22px gutter. */
+.board {
+  width: 100%;
+  border-radius: var(--cn-radius-button);
+}
+
+.board:focus-visible {
+  outline: 2px solid var(--cn-ink);
+  outline-offset: 4px;
+}
+
+.surface {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  grid-template-rows: auto 22px;
+  font-family: var(--cn-font-sans);
+  font-size: 12px;
+  color: var(--cn-muted);
+}
+
+.ranks {
+  display: grid;
+  grid-template-rows: repeat(8, 1fr);
+  align-items: center;
+}
+
+.squares {
+  min-width: 0;
+}
+
+.files {
+  grid-column: 2;
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  align-items: end;
+  text-align: center;
+}
+
+.controls,
+.setup {
+  margin-top: 24px;
+  margin-left: 22px;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.control {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  background: var(--cn-paper);
+  border: 1px solid var(--cn-edge);
+  border-radius: var(--cn-radius-button);
+  color: var(--cn-ink);
+}
+
+.control:hover:not(:disabled) {
+  background: var(--cn-highlight);
+}
+
+.control:focus-visible {
+  outline: 2px solid var(--cn-ink);
+  outline-offset: 2px;
+}
+
+.control:disabled {
+  color: var(--cn-edge);
+  cursor: default;
+}
+
+.caption {
+  font-family: var(--cn-font-serif);
+  font-size: 16px;
+  font-style: italic;
+  color: var(--cn-muted);
+  white-space: nowrap;
+}
+
+.setup {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.palette {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.paletteItem {
+  aspect-ratio: 1;
+  background: var(--cn-paper);
+  border: 1px solid var(--cn-edge);
+  border-radius: var(--cn-radius-button);
+}
+
+.paletteItem[aria-checked='true'] {
+  background: var(--cn-highlight);
+  border-color: var(--cn-ink);
+}
+
+.paletteItem:focus-visible {
+  outline: 2px solid var(--cn-ink);
+  outline-offset: 2px;
+}
+
+.erase {
+  grid-column: 1 / -1;
+  aspect-ratio: auto;
+  height: 32px;
+  font-family: var(--cn-font-sans);
+  font-size: 11px;
+  color: var(--cn-ink);
+  text-align: center;
+}
+
+.fen {
+  font-family: ui-monospace, monospace;
+  color: var(--cn-muted);
+  word-break: break-all;
+}

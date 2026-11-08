@@ -16,6 +16,11 @@ export const colorTokens = {
   avatar: '#D6C8A6',
   boardLight: '#EDE2C8',
   boardDark: '#B9A47C',
+  // The last move's from and to squares on the board.
+  boardLastMove: '#DDB87A',
+  // Piece glyph fills; white pieces also get an `ink` outline.
+  pieceLight: '#FFFDF6',
+  pieceDark: '#1F1B16',
   overlay: 'rgba(42, 38, 32, .45)',
 } as const
 
