@@ -115,8 +115,18 @@ func (cfg *ApiConfig) HandlePutPly(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// The Ply and its Links in the index change together (ADR 0002).
+	tx, err := cfg.SQL.BeginTx(r.Context(), nil)
+	if err != nil {
+		utils.RespondError(w, http.StatusInternalServerError, "Could not save the writing", err)
+		return
+	}
+	defer tx.Rollback()
+	q := cfg.Db.WithTx(tx)
+
 	if !comment.Valid && !body.Valid && !moveGlyph.Valid && !positionGlyph.Valid {
-		n, err := cfg.Db.ClearPly(r.Context(), database.ClearPlyParams{
+		// Clearing the Ply removes its Links with it.
+		n, err := q.ClearPly(r.Context(), database.ClearPlyParams{
 			Now: cfg.now(), NoteID: id, UserID: user.ID, Ply: int32(ply),
 		})
 		if err != nil {
@@ -127,11 +137,15 @@ func (cfg *ApiConfig) HandlePutPly(w http.ResponseWriter, r *http.Request) {
 			noteNotFound(w)
 			return
 		}
+		if err := tx.Commit(); err != nil {
+			utils.RespondError(w, http.StatusInternalServerError, "Could not save the writing", err)
+			return
+		}
 		utils.RespondJSON(w, http.StatusOK, plyResponse{Ply: int32(ply), UpdatedAt: cfg.now()})
 		return
 	}
 
-	saved, err := cfg.Db.UpsertPly(r.Context(), database.UpsertPlyParams{
+	saved, err := q.UpsertPly(r.Context(), database.UpsertPlyParams{
 		Ply:           int32(ply),
 		Comment:       comment,
 		Body:          body,
@@ -146,6 +160,17 @@ func (cfg *ApiConfig) HandlePutPly(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
+		utils.RespondError(w, http.StatusInternalServerError, "Could not save the writing", err)
+		return
+	}
+	if err := indexPlyLinks(r.Context(), q, user.ID, id, int32(ply), comment, body); errors.Is(err, errForeignLinkTarget) {
+		utils.RespondError(w, http.StatusBadRequest, err.Error(), nil)
+		return
+	} else if err != nil {
+		utils.RespondError(w, http.StatusInternalServerError, "Could not save the writing", err)
+		return
+	}
+	if err := tx.Commit(); err != nil {
 		utils.RespondError(w, http.StatusInternalServerError, "Could not save the writing", err)
 		return
 	}

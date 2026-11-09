@@ -1,6 +1,7 @@
 import type { Page } from 'playwright'
 import type { Note, PlyWriting } from '../../src/api.js'
-import type { FixtureSet, NotesFixture, PliesFixture, SearchFixture } from './entries.js'
+import { linkTargets } from '../../src/notes/links.js'
+import type { FixtureSet, LinksFixture, NotesFixture, PliesFixture, SearchFixture } from './entries.js'
 import { loggedInSession, sampleNotes, samplePlies } from './fixtures.js'
 
 // Never reached over the network: every request to it is intercepted below.
@@ -16,6 +17,7 @@ export async function installApiMocks(
   notesFixture: NotesFixture = 'sample',
   searchFixture: SearchFixture = 'sample',
   pliesFixture: PliesFixture = 'sample',
+  linksFixture: LinksFixture = 'sample',
 ): Promise<void> {
   // Kept per page, so creating, renaming or deleting shows up in the list.
   let notes: Note[] = notesFixture === 'sample' ? structuredClone(sampleNotes) : []
@@ -71,6 +73,16 @@ export async function installApiMocks(
       if (searchFixture === 'error') return json(500, { error: 'Could not search notes' })
       const query = new URL(request.url()).searchParams.get('q') ?? ''
       return json(200, searchNotes(notes, query))
+    }
+
+    const linksMatch = /^\/api\/notes\/(\d+)\/links$/.exec(pathname)
+    if (linksMatch && method === 'GET') {
+      if (fixtures !== 'session') return json(401, { error: 'Unauthorized' })
+      const id = Number(linksMatch[1])
+      if (!notes.some((n) => n.id === id)) return json(404, { error: 'Note not found' })
+      if (linksFixture === 'pending') return
+      if (linksFixture === 'error') return json(500, { error: "Could not load the note's links" })
+      return json(200, noteLinks(notes, plies, id))
     }
 
     const pliesMatch = /^\/api\/notes\/(\d+)\/plies(?:\/(\d+))?$/.exec(pathname)
@@ -142,6 +154,28 @@ export async function installApiMocks(
   })
 }
 
+// A stand-in for the server's Link index, read straight from the text.
+function noteLinks(notes: Note[], plies: Record<number, PlyWriting[]>, id: number) {
+  const ids = new Set((plies[id] ?? []).flatMap((p) => linkTargets(`${p.comment ?? ''}\n${p.body ?? ''}`)))
+  const targets = notes.filter((n) => ids.has(n.id)).map((n) => searchRow(n))
+  const backlinks = notes
+    .filter((n) => n.id !== id)
+    .flatMap((n) =>
+      (plies[n.id] ?? []).flatMap((p) =>
+        (['comment', 'body'] as const)
+          .filter((part) => linkTargets(p[part] ?? '').includes(id))
+          .map((part) => ({ noteId: n.id, name: n.name, startFen: n.startFen, ply: p.ply, part })),
+      ),
+    )
+  return { targets, backlinks }
+}
+
+const tag = (pgn: string, name: string) => new RegExp(`^\\[${name} "([^"]*)"`, 'm').exec(pgn)?.[1] ?? null
+
+function searchRow(note: Note) {
+  return { id: note.id, name: note.name, white: tag(note.pgn, 'White'), black: tag(note.pgn, 'Black'), date: tag(note.pgn, 'Date') }
+}
+
 // A stand-in for the server's trigram search: a Note matches when the query's
 // letters appear in order in its name, else in its players, name matches first.
 function searchNotes(notes: Note[], query: string) {
@@ -154,14 +188,7 @@ function searchNotes(notes: Note[], query: string) {
     }
     return true
   }
-  const tag = (pgn: string, name: string) => new RegExp(`^\\[${name} "([^"]*)"`, 'm').exec(pgn)?.[1] ?? null
-  const rows = notes.map((note) => ({
-    id: note.id,
-    name: note.name,
-    white: tag(note.pgn, 'White'),
-    black: tag(note.pgn, 'Black'),
-    date: tag(note.pgn, 'Date'),
-  }))
+  const rows = notes.map(searchRow)
   if (q === '') return []
   const byName = rows.filter((row) => fuzzy(row.name))
   const byPlayers = rows.filter((row) => !byName.includes(row) && fuzzy(`${row.white ?? ''} ${row.black ?? ''}`))

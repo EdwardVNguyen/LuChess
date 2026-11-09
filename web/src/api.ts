@@ -22,6 +22,18 @@ const plyWritingSchema = z.object({
   positionGlyph: z.string().nullable(),
   updatedAt: z.string(),
 })
+const noteLinksSchema = z.object({
+  targets: z.array(noteSearchResultSchema),
+  backlinks: z.array(
+    z.object({
+      noteId: z.number(),
+      name: z.string(),
+      startFen: z.string().nullable(),
+      ply: z.number(),
+      part: z.enum(['comment', 'body']),
+    }),
+  ),
+})
 
 export type Health = z.infer<typeof healthSchema>
 export type User = z.infer<typeof userSchema>
@@ -32,6 +44,13 @@ export type Note = z.infer<typeof noteSchema>
 export type NoteSearchResult = z.infer<typeof noteSearchResultSchema>
 /** The writing on one Ply; a field is null when the Ply has none of it. */
 export type PlyWriting = z.infer<typeof plyWritingSchema>
+/**
+ * A Note's Links: `targets` are the Notes its Comments and Bodies link to that
+ * still exist (a Link to any other is unresolved), and `backlinks` the
+ * Comments and Bodies in other Notes that link to it.
+ */
+export type NoteLinks = z.infer<typeof noteLinksSchema>
+export type Backlink = NoteLinks['backlinks'][number]
 /** Everything written on a Ply. Null or blank clears a field. */
 export type PlyWritingInput = Pick<PlyWriting, 'comment' | 'body' | 'moveGlyph' | 'positionGlyph'>
 
@@ -172,6 +191,11 @@ export function createApiClient(baseUrl: string, fetchFn: typeof fetch = fetch) 
     async putPly(accessToken: string, noteId: number, ply: number, input: PlyWritingInput): Promise<PlyWriting> {
       const res = await request(`/api/notes/${noteId}/plies/${ply}`, { method: 'PUT', body: input, accessToken })
       return plyWritingSchema.parse(await res.json())
+    },
+
+    async getLinks(accessToken: string, noteId: number): Promise<NoteLinks> {
+      const res = await request(`/api/notes/${noteId}/links`, { accessToken })
+      return noteLinksSchema.parse(await res.json())
     },
   }
 }

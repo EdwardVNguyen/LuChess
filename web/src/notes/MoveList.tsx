@@ -3,6 +3,9 @@ import { Fragment, useState } from 'react'
 import type { PlyWriting } from '../api'
 import type { Game, Ply } from '../chess/chess'
 import { glyphName } from './glyphs'
+import { LinkedText } from './LinkedText'
+import { useShownText } from './linking'
+import { cutShown, shownLength } from './links'
 import styles from './Notes.module.css'
 
 type Props = {
@@ -84,7 +87,7 @@ export function MoveList({ game, ply, onPlyChange, writing = noWriting }: Props)
           </p>
           {block.body?.body && (
             <p className={styles.body} data-current={block.body.ply === ply || undefined}>
-              {block.body.body}
+              <Written text={block.body.body} />
             </p>
           )}
         </div>
@@ -106,12 +109,12 @@ export const COMMENT_PREVIEW = 140
 
 function Comment({ text, current }: { text: string; current: boolean }) {
   const [expanded, setExpanded] = useState(false)
-  const long = text.length > COMMENT_PREVIEW + 20
-  const shown = long && !expanded ? preview(text) : text
+  const parts = useShownText(text)
+  const long = shownLength(parts) > COMMENT_PREVIEW + 20
 
   return (
     <span className={styles.comment} data-current={current || undefined}>
-      {shown}
+      <LinkedText parts={long && !expanded ? cutShown(parts, COMMENT_PREVIEW) : parts} />
       {long && (
         <>
           {' '}
@@ -124,9 +127,7 @@ function Comment({ text, current }: { text: string; current: boolean }) {
   )
 }
 
-/** The start of a long Comment, cut at a word and marked with an ellipsis. */
-function preview(text: string): string {
-  const cut = text.slice(0, COMMENT_PREVIEW)
-  const space = cut.lastIndexOf(' ')
-  return `${(space > COMMENT_PREVIEW / 2 ? cut.slice(0, space) : cut).trimEnd()}…`
+/** A Comment or Body in full, with its Links. */
+export function Written({ text }: { text: string }) {
+  return <LinkedText parts={useShownText(text)} />
 }

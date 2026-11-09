@@ -1,7 +1,7 @@
 /* The Notes area: design/screens/Note.dc.html (desktop), Note-tablet.dc.html
  * and Note-mobile.dc.html. Breakpoints are the theme's: below `sm` (768px) is
  * mobile, `sm` to `md` (1024px) is tablet, `md` and up is desktop with the
- * sidebar. The margin column stays out until #9 gives it something to show. */
+ * sidebar and the margin column. */
 
 .layout {
   display: flex;
@@ -161,6 +161,7 @@
 @media (min-width: 48em) {
   .note {
     flex-direction: row;
+    flex-wrap: wrap;
     align-items: flex-start;
     gap: 32px;
     padding: 28px;
@@ -170,6 +171,7 @@
 @media (min-width: 64em) {
   .note {
     flex: 1;
+    flex-wrap: nowrap;
     align-items: stretch;
     gap: 0;
     padding: 0;
@@ -685,4 +687,133 @@
 .editorHeading {
   text-transform: none;
   letter-spacing: 0.02em;
+}
+
+/* A Link in a Comment or Body (Note.dc.html), and an Unresolved Link, which
+ * has no design: muted and struck through, so it reads as broken. */
+.link {
+  color: var(--cn-accent);
+  text-decoration: underline dotted;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+}
+
+.link:hover {
+  text-decoration-style: solid;
+}
+
+.link:focus-visible {
+  outline: 2px solid var(--cn-ink);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.unresolved {
+  color: var(--cn-muted);
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+  cursor: help;
+}
+
+/* The editor's anchor for the link picker. */
+.editorTarget {
+  width: 100%;
+}
+
+/* The margin: Connections and Linked from (Note.dc.html's aside). After the
+ * move list on mobile, below the board and moves on tablet, a column of its
+ * own on desktop. */
+.margin {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  min-width: 0;
+  padding-top: 20px;
+  border-top: 1px solid var(--cn-rule);
+}
+
+@media (min-width: 48em) {
+  .margin {
+    flex: 0 0 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+    padding-top: 28px;
+  }
+}
+
+@media (min-width: 64em) {
+  .margin {
+    flex: 0 0 304px;
+    display: flex;
+    gap: 22px;
+    padding: 32px 28px 24px;
+    box-sizing: border-box;
+    background: var(--cn-margin-panel);
+    border-top: 0;
+    border-left: 1px solid var(--cn-rule);
+  }
+}
+
+.marginSection {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.marginRule {
+  height: 1px;
+  background: var(--cn-rule);
+}
+
+/* Side by side on tablet, where the sections need no rule between them. */
+@media (min-width: 48em) and (max-width: 63.99em) {
+  .marginRule {
+    display: none;
+  }
+}
+
+.marginEntries {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.marginEntry {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.marginLink {
+  font-family: var(--cn-font-serif);
+  font-size: 17px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.marginDetails {
+  font-family: var(--cn-font-sans);
+  font-size: 13px;
+  color: var(--cn-muted);
+}
+
+.marginEmpty {
+  margin: 0;
+  font-family: var(--cn-font-serif);
+  font-size: 15px;
+  font-style: italic;
+  line-height: 1.45;
+  color: var(--cn-muted);
+}
+
+.marginState {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
 }
