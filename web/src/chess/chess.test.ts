@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
+  editMoves,
   fenAt,
+  firstChangedPly,
   fenFromPlacement,
   gameFromMoves,
   isPromotion,
@@ -10,6 +12,7 @@ import {
   placementFromFen,
   plyLabel,
   START_FEN,
+  sansOf,
   tryMove,
   validateFen,
   type Game,
@@ -152,5 +155,67 @@ describe('pgnFromMoves', () => {
 
   it('refuses an illegal move', () => {
     expect(pgnFromMoves(START_FEN, ['e5']).ok).toBe(false)
+  })
+})
+
+describe('firstChangedPly', () => {
+  it('is the first Ply whose move differs', () => {
+    expect(firstChangedPly(['e4', 'e5', 'Nf3'], ['e4', 'c5'])).toBe(2)
+    expect(firstChangedPly(['e4', 'e5', 'Nf3'], ['e4', 'e5'])).toBe(3)
+    expect(firstChangedPly(['e4'], ['e4', 'e5'])).toBe(2)
+    expect(firstChangedPly([], ['d4'])).toBe(1)
+  })
+
+  it('is null when nothing changed', () => {
+    expect(firstChangedPly(['e4', 'e5'], ['e4', 'e5'])).toBeNull()
+  })
+})
+
+describe('editMoves', () => {
+  const pgn = '[Event "Casual"]\n[White "Lovelace, Ada"]\n\n1. e4 {Best by test} e5 2. Nf3 (2. f4) Nc6 3. Bc4 *'
+
+  function edited(sans: string[]) {
+    const result = editMoves(pgn, sans)
+    if (!result.ok) throw new Error(result.error)
+    return result.value
+  }
+
+  it('replaces a move and everything after it, keeping the tags and earlier comments', () => {
+    const edit = edited(['e4', 'e5', 'Nf3', 'Nf6'])
+    expect(edit?.firstChangedPly).toBe(4)
+    const game = parsed(edit!.pgn)
+    expect(sansOf(game)).toEqual(['e4', 'e5', 'Nf3', 'Nf6'])
+    expect(game.tags).toMatchObject({ Event: 'Casual', White: 'Lovelace, Ada' })
+    expect(edit!.pgn).toContain('{Best by test}')
+    expect(edit!.pgn).not.toContain('f4')
+  })
+
+  it('deletes moves from the end', () => {
+    const edit = edited(['e4', 'e5'])
+    expect(edit?.firstChangedPly).toBe(3)
+    expect(sansOf(parsed(edit!.pgn))).toEqual(['e4', 'e5'])
+  })
+
+  it('adds moves after the last one', () => {
+    const edit = edited(['e4', 'e5', 'Nf3', 'Nc6', 'Bc4', 'Bc5'])
+    expect(edit?.firstChangedPly).toBe(6)
+    expect(sansOf(parsed(edit!.pgn))).toHaveLength(6)
+  })
+
+  it('keeps a set-up Position when every move is deleted', () => {
+    const fromPosition = '[SetUp "1"]\n[FEN "8/8/8/4k3/8/8/4P3/4K3 w - - 0 1"]\n\n1. e3 *'
+    const result = editMoves(fromPosition, [])
+    if (!result.ok || !result.value) throw new Error('expected an edit')
+    const game = parsed(result.value.pgn)
+    expect(game.startFen).toBe('8/8/8/4k3/8/8/4P3/4K3 w - - 0 1')
+    expect(game.plies).toHaveLength(1)
+  })
+
+  it('is null when the moves are unchanged', () => {
+    expect(editMoves(pgn, ['e4', 'e5', 'Nf3', 'Nc6', 'Bc4'])).toEqual({ ok: true, value: null })
+  })
+
+  it('refuses an illegal move', () => {
+    expect(editMoves(pgn, ['e4', 'e5', 'Ke3'])).toMatchObject({ ok: false })
   })
 })

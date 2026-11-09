@@ -52,3 +52,18 @@ FROM (
 ) ranked
 ORDER BY name_score DESC, players_score DESC, updated_at DESC, id DESC
 LIMIT sqlc.arg(max_results);
+
+-- name: LockNote :one
+-- Holds the Note while its moves are edited, so writing saved meanwhile waits
+-- (saving a Ply touches the Note) and the confirmation counts what is deleted.
+SELECT id
+FROM notes
+WHERE id = sqlc.arg(id) AND user_id = sqlc.arg(user_id)
+FOR UPDATE;
+
+-- name: ReplaceNoteMoves :one
+UPDATE notes
+SET pgn = sqlc.arg(pgn),
+    updated_at = sqlc.arg(now)
+WHERE id = sqlc.arg(id) AND user_id = sqlc.arg(user_id)
+RETURNING *;

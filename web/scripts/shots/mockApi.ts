@@ -1,7 +1,7 @@
 import type { Page } from 'playwright'
 import type { Note, PlyWriting } from '../../src/api.js'
 import { linkTargets } from '../../src/notes/links.js'
-import type { FixtureSet, LinksFixture, NotesFixture, PliesFixture, SearchFixture } from './entries.js'
+import type { FixtureSet, LinksFixture, MovesFixture, NotesFixture, PliesFixture, SearchFixture } from './entries.js'
 import { loggedInSession, sampleNotes, samplePlies } from './fixtures.js'
 
 // Never reached over the network: every request to it is intercepted below.
@@ -18,6 +18,7 @@ export async function installApiMocks(
   searchFixture: SearchFixture = 'sample',
   pliesFixture: PliesFixture = 'sample',
   linksFixture: LinksFixture = 'sample',
+  movesFixture: MovesFixture = 'sample',
 ): Promise<void> {
   // Kept per page, so creating, renaming or deleting shows up in the list.
   let notes: Note[] = notesFixture === 'sample' ? structuredClone(sampleNotes) : []
@@ -83,6 +84,25 @@ export async function installApiMocks(
       if (linksFixture === 'pending') return
       if (linksFixture === 'error') return json(500, { error: "Could not load the note's links" })
       return json(200, noteLinks(notes, plies, id))
+    }
+
+    // Editing moves, as the API does it (ADR 0003): refused with the count
+    // until confirmed if it would delete writing.
+    const movesMatch = /^\/api\/notes\/(\d+)\/moves$/.exec(pathname)
+    if (movesMatch && method === 'PUT') {
+      if (fixtures !== 'session') return json(401, { error: 'Unauthorized' })
+      const id = Number(movesMatch[1])
+      const note = notes.find((n) => n.id === id)
+      if (!note) return json(404, { error: 'Note not found' })
+      if (movesFixture === 'saveError') return json(500, { error: 'Could not save the moves' })
+      const body = request.postDataJSON() as { pgn: string; firstChangedPly: number; confirm: boolean }
+      const lost = (plies[id] ?? []).filter((p) => p.ply >= body.firstChangedPly).length
+      if (lost > 0 && !body.confirm) {
+        return json(409, { error: `This will delete your writing on ${lost} ${lost === 1 ? 'move' : 'moves'}`, plies: lost })
+      }
+      plies[id] = (plies[id] ?? []).filter((p) => p.ply < body.firstChangedPly)
+      Object.assign(note, { pgn: body.pgn, updatedAt: new Date().toISOString() })
+      return json(200, note)
     }
 
     const pliesMatch = /^\/api\/notes\/(\d+)\/plies(?:\/(\d+))?$/.exec(pathname)

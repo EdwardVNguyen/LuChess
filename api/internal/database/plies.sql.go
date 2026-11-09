@@ -46,6 +46,43 @@ func (q *Queries) ClearPly(ctx context.Context, arg ClearPlyParams) (int64, erro
 	return count, err
 }
 
+const countPliesFrom = `-- name: CountPliesFrom :one
+SELECT count(*)
+FROM plies
+WHERE note_id = $1 AND ply >= $2
+`
+
+type CountPliesFromParams struct {
+	NoteID int64
+	Ply    int32
+}
+
+// The Plies at or after a Ply that hold writing or a Glyph. The caller has
+// already found the Note, scoped to its owner.
+func (q *Queries) CountPliesFrom(ctx context.Context, arg CountPliesFromParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countPliesFrom, arg.NoteID, arg.Ply)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const deletePliesFrom = `-- name: DeletePliesFrom :exec
+DELETE FROM plies
+WHERE note_id = $1 AND ply >= $2
+`
+
+type DeletePliesFromParams struct {
+	NoteID int64
+	Ply    int32
+}
+
+// Deletes every Glyph, Comment and Body at or after a Ply, and their Links
+// with them. The caller has already found the Note, scoped to its owner.
+func (q *Queries) DeletePliesFrom(ctx context.Context, arg DeletePliesFromParams) error {
+	_, err := q.db.ExecContext(ctx, deletePliesFrom, arg.NoteID, arg.Ply)
+	return err
+}
+
 const listPlies = `-- name: ListPlies :many
 
 SELECT p.note_id, p.ply, p.comment, p.body, p.move_glyph, p.position_glyph, p.created_at, p.updated_at

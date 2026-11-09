@@ -29,6 +29,7 @@ func NewRouter(cfg *ApiConfig) http.Handler {
 	mux.Handle("GET /api/notes/{id}", cfg.sessionHTTP.RequireAuth(cfg.HandleGetNote))
 	mux.Handle("PATCH /api/notes/{id}", cfg.sessionHTTP.RequireAuth(cfg.HandleRenameNote))
 	mux.Handle("DELETE /api/notes/{id}", cfg.sessionHTTP.RequireAuth(cfg.HandleDeleteNote))
+	mux.Handle("PUT /api/notes/{id}/moves", cfg.sessionHTTP.RequireAuth(cfg.HandleEditMoves))
 	mux.Handle("GET /api/notes/{id}/plies", cfg.sessionHTTP.RequireAuth(cfg.HandleListPlies))
 	mux.Handle("PUT /api/notes/{id}/plies/{ply}", cfg.sessionHTTP.RequireAuth(cfg.HandlePutPly))
 	mux.Handle("GET /api/notes/{id}/links", cfg.sessionHTTP.RequireAuth(cfg.HandleNoteLinks))

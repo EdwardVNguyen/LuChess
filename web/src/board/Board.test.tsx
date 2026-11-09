@@ -45,6 +45,19 @@ describe('Board in view mode', () => {
   })
 })
 
+describe('Board in view mode with moves to play', () => {
+  it('plays a legal move from the Ply shown', async () => {
+    const onMove = vi.fn()
+    const { container } = renderWithTheme(
+      <Board mode="view" game={game} ply={0} onPlyChange={() => {}} onMove={onMove} />,
+    )
+
+    await userEvent.click(square(container, 'e2'))
+    await userEvent.click(square(container, 'e4'))
+    expect(onMove).toHaveBeenCalledWith(expect.objectContaining({ san: 'e4', from: 'e2', to: 'e4' }))
+  })
+})
+
 describe('Board in play mode', () => {
   it('plays a legal move by clicking a piece and then a square', async () => {
     const onMove = vi.fn()

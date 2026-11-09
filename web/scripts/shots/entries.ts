@@ -16,6 +16,9 @@ export type SearchFixture = 'sample' | 'error' | 'pending'
 /** A Note's Links (its targets and Backlinks), separately from the Notes themselves. */
 export type LinksFixture = 'sample' | 'error' | 'pending'
 
+/** Answers to editing a Note's moves: as the API would, or failing. */
+export type MovesFixture = 'sample' | 'saveError'
+
 export type ShotEntry = {
   /** Matches a design screen name, e.g. `design/screenshots/<name>.png`. */
   name: string
@@ -29,6 +32,8 @@ export type ShotEntry = {
   plies?: PliesFixture
   /** @default 'sample' */
   links?: LinksFixture
+  /** @default 'sample' */
+  moves?: MovesFixture
   /** What to wait for before setup; a never-answered request means networkidle never comes. @default 'networkidle' */
   waitUntil?: 'load' | 'networkidle'
   /** Extra steps after the page loads, e.g. opening a dialog. */
@@ -264,6 +269,46 @@ export const entries: ShotEntry[] = [
       await page.getByRole('textbox', { name: /^Comment on/ }).fill('A thought that will not save.')
       await page.getByRole('button', { name: 'Blunder' }).focus()
       await page.getByText('Your writing was not saved').waitFor()
+    },
+  },
+  // Editing moves (#10): the draft with 10…exd5 deleted, the writing it would
+  // delete left out of the preview; the confirmation the API asks for; and a
+  // save that fails.
+  {
+    name: 'NoteEditMoves',
+    route: '/notes/1',
+    fixtures: 'session',
+    setup: async (page) => {
+      await page.getByRole('button', { name: 'Note actions' }).click()
+      await page.getByRole('menuitem', { name: 'Edit moves' }).click()
+      await page.getByRole('button', { name: 'exd5', exact: true }).click()
+      await page.getByRole('button', { name: 'Delete 10…exd5' }).click()
+    },
+  },
+  {
+    name: 'NoteEditMovesConfirm',
+    route: '/notes/1',
+    fixtures: 'session',
+    setup: async (page) => {
+      await page.getByRole('button', { name: 'Note actions' }).click()
+      await page.getByRole('menuitem', { name: 'Edit moves' }).click()
+      await page.getByRole('button', { name: 'exd5', exact: true }).click()
+      await page.getByRole('button', { name: 'Delete 10…exd5' }).click()
+      await page.getByRole('button', { name: 'Save moves' }).click()
+      await page.getByRole('dialog', { name: 'Delete your writing?' }).waitFor()
+    },
+  },
+  {
+    name: 'NoteEditMovesError',
+    route: '/notes/1',
+    fixtures: 'session',
+    moves: 'saveError',
+    setup: async (page) => {
+      await page.getByRole('button', { name: 'Note actions' }).click()
+      await page.getByRole('menuitem', { name: 'Edit moves' }).click()
+      await page.getByRole('button', { name: 'Delete 41.Qf4' }).click()
+      await page.getByRole('button', { name: 'Save moves' }).click()
+      await page.getByText('Could not save the moves').waitFor()
     },
   },
   { name: 'NoteNotFound', route: '/notes/999', fixtures: 'session' },

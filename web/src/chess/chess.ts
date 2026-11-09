@@ -78,6 +78,48 @@ export function pgnFromMoves(startFen: string, sans: readonly string[]): Result<
   return { ok: true, value: chess.pgn() }
 }
 
+/** A change to a Note's moves: its new PGN and the first Ply that differs (ADR 0003). */
+export type MovesEdit = { pgn: string; firstChangedPly: number }
+
+/** The first Ply at which two move lists differ, or null when they are the same. */
+export function firstChangedPly(before: readonly string[], after: readonly string[]): number | null {
+  const length = Math.max(before.length, after.length)
+  for (let i = 0; i < length; i += 1) {
+    if (before[i] !== after[i]) return i + 1
+  }
+  return null
+}
+
+/**
+ * Replaces a PGN's main line with `sans`, keeping its tags and any PGN
+ * comments on the moves that stay. Side-lines are dropped: writing lives on
+ * the main line only. Null when the moves are unchanged.
+ */
+export function editMoves(pgn: string, sans: readonly string[]): Result<MovesEdit | null> {
+  const chess = new Chess()
+  try {
+    chess.loadPgn(pgn)
+  } catch (error) {
+    return { ok: false, error: describePgnError(error) }
+  }
+  const first = firstChangedPly(chess.history(), sans)
+  if (first === null) return { ok: true, value: null }
+  while (chess.history().length >= first) chess.undo()
+  for (const san of sans.slice(first - 1)) {
+    try {
+      chess.move(san)
+    } catch {
+      return { ok: false, error: `“${san}” is not a legal move here.` }
+    }
+  }
+  return { ok: true, value: { pgn: chess.pgn(), firstChangedPly: first } }
+}
+
+/** The SAN of each move in a Game's main line, after the Position. */
+export function sansOf(game: Game): string[] {
+  return game.plies.slice(1).map((ply) => ply.san ?? '')
+}
+
 function isUnknownTag(value: string | null | undefined): boolean {
   return !value || /^[?.*\s]*$/.test(value)
 }
