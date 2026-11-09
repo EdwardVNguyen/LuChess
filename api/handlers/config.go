@@ -21,6 +21,8 @@ type RateLimits struct {
 	RefreshPerIP   int
 	ForgotPerEmail int
 	ForgotPerIP    int
+	// Password attempts to delete an account, per user
+	DeletePerUser int
 }
 
 type ApiConfig struct {
@@ -45,6 +47,7 @@ type ApiConfig struct {
 	signupByIP, resendByEmail, resendByIP *ratelimit.Limiter
 	loginByEmail, loginByIP, refreshByIP  *ratelimit.Limiter
 	forgotByEmail, forgotByIP             *ratelimit.Limiter
+	deleteByUser                          *ratelimit.Limiter
 	sessionHTTP                           *sessionHTTP
 
 	// A valid hash of a throwaway password, checked when a login names no account
@@ -60,6 +63,7 @@ const (
 	defaultRefreshPerIP   = 300
 	defaultForgotPerEmail = 5
 	defaultForgotPerIP    = 20
+	defaultDeletePerUser  = 10
 )
 
 func (cfg *ApiConfig) buildLimiters() {
@@ -77,6 +81,7 @@ func (cfg *ApiConfig) buildLimiters() {
 	cfg.refreshByIP = ratelimit.New(orDefault(cfg.Limits.RefreshPerIP, defaultRefreshPerIP))
 	cfg.forgotByEmail = ratelimit.New(orDefault(cfg.Limits.ForgotPerEmail, defaultForgotPerEmail))
 	cfg.forgotByIP = ratelimit.New(orDefault(cfg.Limits.ForgotPerIP, defaultForgotPerIP))
+	cfg.deleteByUser = ratelimit.New(orDefault(cfg.Limits.DeletePerUser, defaultDeletePerUser))
 }
 
 func (cfg *ApiConfig) now() time.Time {

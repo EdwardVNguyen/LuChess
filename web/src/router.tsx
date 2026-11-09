@@ -12,6 +12,7 @@ import { NotesIndex } from './notes/NotesIndex'
 import { NotesLayout } from './notes/NotesLayout'
 import { DevOverlaysRoute } from './overlay/DevOverlaysRoute'
 import { ResetPasswordPage } from './ResetPasswordPage'
+import { SettingsPage } from './settings/SettingsPage'
 import { SignUpPage } from './SignUpPage'
 import { DevThemeRoute } from './theme/DevThemeRoute'
 import { VerifyEmailPage } from './VerifyEmailPage'
@@ -37,6 +38,7 @@ const resetPasswordRoute = createRoute({
   validateSearch: z.object({ token: z.string().optional() }),
   component: ResetPasswordPage,
 })
+const settingsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/settings', component: SettingsPage })
 const tryRoute = createRoute({ getParentRoute: () => rootRoute, path: '/try', component: GuestPage })
 const notesRoute = createRoute({ getParentRoute: () => rootRoute, path: '/notes', component: NotesLayout })
 const notesIndexRoute = createRoute({ getParentRoute: () => notesRoute, path: '/', component: NotesIndex })
@@ -69,7 +71,7 @@ const devRoutes = import.meta.env.DEV
   : []
 
 export const router = createRouter({
-  routeTree: rootRoute.addChildren([homeRoute, signUpRoute, loginRoute, verifyEmailRoute, forgotPasswordRoute, resetPasswordRoute, tryRoute, notesRoute.addChildren([notesIndexRoute, newNoteRoute, noteRoute]), ...devRoutes]),
+  routeTree: rootRoute.addChildren([homeRoute, signUpRoute, loginRoute, verifyEmailRoute, forgotPasswordRoute, resetPasswordRoute, settingsRoute, tryRoute, notesRoute.addChildren([notesIndexRoute, newNoteRoute, noteRoute]), ...devRoutes]),
 })
 
 declare module '@tanstack/react-router' {

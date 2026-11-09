@@ -45,6 +45,16 @@ export async function installApiMocks(
       return fixtures === 'session' ? json(200, loggedInSession.user) : json(401, { error: 'Not signed in' })
     }
 
+    // Deleting the account (#12): "wrong password" is refused, "offline" fails
+    // with a server error, anything else deletes it.
+    if (pathname === '/api/me' && method === 'DELETE') {
+      if (fixtures !== 'session') return json(401, { error: 'Unauthorized' })
+      const body = request.postDataJSON() as { password: string }
+      if (body.password === 'wrong password') return json(403, { error: 'That password is not correct' })
+      if (body.password === 'offline') return json(500, { error: 'Could not delete your account' })
+      return route.fulfill({ status: 204 })
+    }
+
     if (pathname === '/api/auth/signup' && method === 'POST') {
       const body = request.postDataJSON() as { email: string; name: string }
       return json(200, { id: 99, email: body.email, name: body.name })

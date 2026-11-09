@@ -396,3 +396,36 @@ describe('authorized', () => {
     expect(transport.refresh).not.toHaveBeenCalled()
   })
 })
+
+describe('forget', () => {
+  it('ends the Session without telling the server, which already ended it', async () => {
+    const transport = fakeTransport()
+    const onSessionEnded = vi.fn()
+    const session = createSession({ transport, onSessionEnded })
+    await session.signIn(credentials)
+
+    session.forget()
+
+    expect(session.getState()).toEqual({ status: 'guest' })
+    expect(onSessionEnded).toHaveBeenCalledTimes(1)
+    expect(transport.logout).not.toHaveBeenCalled()
+    const call = vi.fn(async () => 'answer')
+    await expect(session.authorized(call)).rejects.toMatchObject({ status: 401 })
+    expect(call).not.toHaveBeenCalled()
+  })
+
+  it('wins over a restore already in flight', async () => {
+    const transport = fakeTransport()
+    const session = createSession({ transport })
+    await session.signIn(credentials)
+    const pending = deferred<SessionResponse>()
+    transport.refresh = () => pending.promise
+    const restoring = session.restore()
+
+    session.forget()
+    pending.resolve(response('stale-token'))
+    await restoring
+
+    expect(session.getState()).toEqual({ status: 'guest' })
+  })
+})

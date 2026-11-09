@@ -105,6 +105,67 @@ export const entries: ShotEntry[] = [
   // builds the real one. This shows the logged-in app shell (header, avatar
   // menu) with no page content of its own yet.
   { name: 'HomeLoggedIn', route: '/', fixtures: 'session' },
+  // Settings (#12): the design's layout, with only the Delete account section in v1.
+  { name: 'Settings', route: '/settings', fixtures: 'session' },
+  {
+    name: 'SettingsMenu',
+    route: '/settings',
+    fixtures: 'session',
+    setup: async (page) => {
+      await page.getByRole('button', { name: 'Account and settings' }).click()
+      await page.getByRole('menuitem', { name: 'Settings' }).waitFor()
+    },
+  },
+  {
+    name: 'SettingsNoPassword',
+    route: '/settings',
+    fixtures: 'session',
+    setup: async (page) => {
+      await page.getByRole('button', { name: 'Delete account' }).click()
+      await page.getByText('Enter your password').waitFor()
+    },
+  },
+  {
+    name: 'SettingsConfirmDelete',
+    route: '/settings',
+    fixtures: 'session',
+    setup: async (page) => {
+      await deleteAccount(page, 'correct horse battery')
+    },
+  },
+  {
+    name: 'SettingsWrongPassword',
+    route: '/settings',
+    fixtures: 'session',
+    setup: async (page) => {
+      await deleteAccount(page, 'wrong password')
+      await page.getByRole('dialog').getByRole('button', { name: 'Delete account' }).click()
+      await page.getByText('That password is not correct').waitFor()
+      await page.getByRole('dialog').waitFor({ state: 'detached' })
+    },
+  },
+  {
+    name: 'SettingsDeleteError',
+    route: '/settings',
+    fixtures: 'session',
+    setup: async (page) => {
+      await deleteAccount(page, 'offline')
+      await page.getByRole('dialog').getByRole('button', { name: 'Delete account' }).click()
+      await page.getByRole('dialog').getByRole('alert').waitFor()
+    },
+  },
+  {
+    name: 'SettingsDeleted',
+    route: '/settings',
+    fixtures: 'session',
+    setup: async (page) => {
+      await deleteAccount(page, 'correct horse battery')
+      await page.getByRole('dialog').getByRole('button', { name: 'Delete account' }).click()
+      await page.getByRole('link', { name: 'Sign up' }).waitFor()
+    },
+  },
+  { name: 'SettingsLoading', route: '/settings', fixtures: 'restoring', waitUntil: 'load' },
+  { name: 'SettingsGuest', route: '/settings', fixtures: 'guest' },
   // No matching design screen: shows the theme's tokens and component
   // overrides (web/src/theme) next to the matching designs by hand. Opens
   // the modal so the dialog styling (radius, overlay, title font) shows up.
@@ -606,6 +667,13 @@ export const entries: ShotEntry[] = [
     },
   },
 ]
+
+/** Types the password on Settings and opens the confirm dialog to delete the account. */
+async function deleteAccount(page: Page, password: string) {
+  await page.getByLabel('Your password').fill(password)
+  await page.getByRole('button', { name: 'Delete account' }).click()
+  await page.getByRole('dialog', { name: 'Delete your account?' }).waitFor()
+}
 
 /** Opens the [[ picker from the Comment on 10…exd5, then searches for `query`. */
 async function openLinkPicker(page: Page, query: string) {

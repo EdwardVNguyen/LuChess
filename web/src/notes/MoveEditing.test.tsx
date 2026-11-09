@@ -34,6 +34,7 @@ const session: Session = {
   restore: async () => {},
   signIn: async () => ({ id: 1, email: 'ada@example.com', name: 'Ada' }),
   signOut: async () => {},
+  forget: () => {},
   authorized: (call) => call('token'),
 }
 

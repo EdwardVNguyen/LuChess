@@ -199,6 +199,14 @@ export function createApiClient(baseUrl: string, fetchFn: typeof fetch = fetch) 
       return userSchema.parse(await res.json())
     },
 
+    /**
+     * Permanently deletes the signed-in user's account and everything in it,
+     * once they re-enter their password. Every Session ends with it.
+     */
+    async deleteAccount(accessToken: string, password: string): Promise<void> {
+      await request('/api/me', { method: 'DELETE', body: { password }, accessToken })
+    },
+
     async listNotes(accessToken: string): Promise<NoteSummary[]> {
       const res = await request('/api/notes', { accessToken })
       return z.array(noteSummarySchema).parse(await res.json())
