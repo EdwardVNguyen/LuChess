@@ -1,8 +1,8 @@
 import type { Page } from 'playwright'
-import type { Note, PlyWriting } from '../../src/api.js'
+import type { Folder, Note, PlyWriting } from '../../src/api.js'
 import { linkTargets } from '../../src/notes/links.js'
 import type { FixtureSet, LinksFixture, MovesFixture, NotesFixture, PliesFixture, SearchFixture } from './entries.js'
-import { loggedInSession, sampleNotes, samplePlies } from './fixtures.js'
+import { loggedInSession, sampleFolders, sampleNotes, samplePlies } from './fixtures.js'
 
 // Never reached over the network: every request to it is intercepted below.
 // Vite still requires VITE_API_URL to be a well-formed http(s) URL.
@@ -22,6 +22,7 @@ export async function installApiMocks(
 ): Promise<void> {
   // Kept per page, so creating, renaming or deleting shows up in the list.
   let notes: Note[] = notesFixture === 'sample' ? structuredClone(sampleNotes) : []
+  let folders: Folder[] = notesFixture === 'sample' ? structuredClone(sampleFolders) : []
   let nextId = 100
   const plies: Record<number, PlyWriting[]> = structuredClone(samplePlies)
 
@@ -73,7 +74,61 @@ export async function installApiMocks(
       if (searchFixture === 'pending') return
       if (searchFixture === 'error') return json(500, { error: 'Could not search notes' })
       const query = new URL(request.url()).searchParams.get('q') ?? ''
-      return json(200, searchNotes(notes, query))
+      return json(200, searchNotes(notes, folders, query))
+    }
+
+    // Folders, as the API keeps them (#11): deleting one that isn't empty is
+    // refused with the counts until confirmed, and its Notes go to the root.
+    const folderMatch = /^\/api\/folders(?:\/(\d+))?$/.exec(pathname)
+    if (folderMatch) {
+      if (fixtures !== 'session') return json(401, { error: 'Unauthorized' })
+      if (notesFixture === 'pending') return
+      if (notesFixture === 'error') return json(500, { error: 'Could not load folders' })
+      const id = folderMatch[1] ? Number(folderMatch[1]) : null
+      if (id === null && method === 'GET') return json(200, folders)
+      if (id === null && method === 'POST') {
+        const body = request.postDataJSON() as { name: string; parentId: number | null }
+        const folder: Folder = { id: nextId++, name: body.name, parentId: body.parentId }
+        folders = [...folders, folder]
+        return json(201, folder)
+      }
+      const folder = folders.find((f) => f.id === id)
+      if (!folder) return json(404, { error: 'Folder not found' })
+      if (method === 'PATCH') {
+        Object.assign(folder, request.postDataJSON() as Partial<Folder>)
+        return json(200, folder)
+      }
+      if (method === 'DELETE') {
+        const inside = new Set([folder.id])
+        for (let grew = true; grew; ) {
+          grew = false
+          for (const f of folders) {
+            if (f.parentId !== null && inside.has(f.parentId) && !inside.has(f.id)) {
+              inside.add(f.id)
+              grew = true
+            }
+          }
+        }
+        const filed = notes.filter((n) => n.folderId !== null && inside.has(n.folderId))
+        const confirm = new URL(request.url()).searchParams.get('confirm') === 'true'
+        if ((inside.size > 1 || filed.length > 0) && !confirm) {
+          return json(409, { error: 'Deleting this folder moves its notes to the root', folders: inside.size - 1, notes: filed.length })
+        }
+        folders = folders.filter((f) => !inside.has(f.id))
+        for (const n of filed) n.folderId = null
+        return route.fulfill({ status: 204 })
+      }
+    }
+
+    const noteFolderMatch = /^\/api\/notes\/(\d+)\/folder$/.exec(pathname)
+    if (noteFolderMatch && method === 'PUT') {
+      if (fixtures !== 'session') return json(401, { error: 'Unauthorized' })
+      const note = notes.find((n) => n.id === Number(noteFolderMatch[1]))
+      if (!note) return json(404, { error: 'Note not found' })
+      const body = request.postDataJSON() as { folderId: number | null }
+      if (body.folderId !== null && !folders.some((f) => f.id === body.folderId)) return json(404, { error: 'Folder not found' })
+      note.folderId = body.folderId
+      return json(200, note)
     }
 
     const linksMatch = /^\/api\/notes\/(\d+)\/links$/.exec(pathname)
@@ -147,12 +202,12 @@ export async function installApiMocks(
       if (id === null && method === 'GET') {
         return json(
           200,
-          notes.map(({ id, name, createdAt, updatedAt }) => ({ id, name, createdAt, updatedAt })),
+          notes.map(({ id, name, folderId, createdAt, updatedAt }) => ({ id, name, folderId, createdAt, updatedAt })),
         )
       }
       if (id === null && method === 'POST') {
         const body = request.postDataJSON() as Pick<Note, 'name' | 'pgn' | 'startFen'>
-        const note: Note = { ...body, id: nextId++, createdAt: now, updatedAt: now }
+        const note: Note = { ...body, id: nextId++, folderId: null, createdAt: now, updatedAt: now }
         notes = [note, ...notes]
         return json(201, note)
       }
@@ -177,7 +232,7 @@ export async function installApiMocks(
 // A stand-in for the server's Link index, read straight from the text.
 function noteLinks(notes: Note[], plies: Record<number, PlyWriting[]>, id: number) {
   const ids = new Set((plies[id] ?? []).flatMap((p) => linkTargets(`${p.comment ?? ''}\n${p.body ?? ''}`)))
-  const targets = notes.filter((n) => ids.has(n.id)).map((n) => searchRow(n))
+  const targets = notes.filter((n) => ids.has(n.id)).map(({ id, name, pgn }) => ({ id, name, white: tag(pgn, 'White'), black: tag(pgn, 'Black'), date: tag(pgn, 'Date') }))
   const backlinks = notes
     .filter((n) => n.id !== id)
     .flatMap((n) =>
@@ -192,13 +247,16 @@ function noteLinks(notes: Note[], plies: Record<number, PlyWriting[]>, id: numbe
 
 const tag = (pgn: string, name: string) => new RegExp(`^\\[${name} "([^"]*)"`, 'm').exec(pgn)?.[1] ?? null
 
-function searchRow(note: Note) {
-  return { id: note.id, name: note.name, white: tag(note.pgn, 'White'), black: tag(note.pgn, 'Black'), date: tag(note.pgn, 'Date') }
+function searchRow(note: Note, folders: Folder[]) {
+  const folderPath: string[] = []
+  for (let f = folders.find((x) => x.id === note.folderId); f; f = folders.find((x) => x.id === f!.parentId)) folderPath.unshift(f.name)
+  return { id: note.id, name: note.name, white: tag(note.pgn, 'White'), black: tag(note.pgn, 'Black'), date: tag(note.pgn, 'Date'), folderPath }
 }
 
 // A stand-in for the server's trigram search: a Note matches when the query's
-// letters appear in order in its name, else in its players, name matches first.
-function searchNotes(notes: Note[], query: string) {
+// letters appear in order in its name, else in its players, else in its
+// Folders; name matches first.
+function searchNotes(notes: Note[], folders: Folder[], query: string) {
   const q = query.trim().toLowerCase()
   const fuzzy = (text: string) => {
     let from = 0
@@ -208,9 +266,10 @@ function searchNotes(notes: Note[], query: string) {
     }
     return true
   }
-  const rows = notes.map(searchRow)
+  const rows = notes.map((note) => searchRow(note, folders))
   if (q === '') return []
   const byName = rows.filter((row) => fuzzy(row.name))
   const byPlayers = rows.filter((row) => !byName.includes(row) && fuzzy(`${row.white ?? ''} ${row.black ?? ''}`))
-  return [...byName, ...byPlayers]
+  const byFolder = rows.filter((row) => !byName.includes(row) && !byPlayers.includes(row) && fuzzy(row.folderPath.join(' / ')))
+  return [...byName, ...byPlayers, ...byFolder]
 }

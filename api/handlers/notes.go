@@ -25,8 +25,10 @@ const (
 )
 
 type noteSummary struct {
-	ID        int64     `json:"id"`
-	Name      string    `json:"name"`
+	ID   int64  `json:"id"`
+	Name string `json:"name"`
+	// Nil when the Note is at the root, in no Folder
+	FolderID  *int64    `json:"folderId"`
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
 }
@@ -40,7 +42,7 @@ type noteResponse struct {
 
 func toNoteResponse(n database.Note) noteResponse {
 	resp := noteResponse{
-		noteSummary: noteSummary{ID: n.ID, Name: n.Name, CreatedAt: n.CreatedAt, UpdatedAt: n.UpdatedAt},
+		noteSummary: noteSummary{ID: n.ID, Name: n.Name, FolderID: nullableID(n.FolderID), CreatedAt: n.CreatedAt, UpdatedAt: n.UpdatedAt},
 		PGN:         n.Pgn,
 	}
 	if n.StartFen.Valid {
@@ -58,19 +60,22 @@ func (cfg *ApiConfig) HandleListNotes(w http.ResponseWriter, r *http.Request) {
 	}
 	notes := make([]noteSummary, 0, len(rows))
 	for _, n := range rows {
-		notes = append(notes, noteSummary{ID: n.ID, Name: n.Name, CreatedAt: n.CreatedAt, UpdatedAt: n.UpdatedAt})
+		notes = append(notes, noteSummary{ID: n.ID, Name: n.Name, FolderID: nullableID(n.FolderID), CreatedAt: n.CreatedAt, UpdatedAt: n.UpdatedAt})
 	}
 	utils.RespondJSON(w, http.StatusOK, notes)
 }
 
 // A search result: enough to tell same-named Notes apart. White, Black and
 // Date come from the PGN headers and are nil when the PGN lacks them.
+// FolderPath names the Folders the Note is filed in, from the root down, and
+// is empty at the root.
 type noteSearchResult struct {
-	ID    int64   `json:"id"`
-	Name  string  `json:"name"`
-	White *string `json:"white"`
-	Black *string `json:"black"`
-	Date  *string `json:"date"`
+	ID         int64    `json:"id"`
+	Name       string   `json:"name"`
+	White      *string  `json:"white"`
+	Black      *string  `json:"black"`
+	Date       *string  `json:"date"`
+	FolderPath []string `json:"folderPath"`
 }
 
 func (cfg *ApiConfig) HandleSearchNotes(w http.ResponseWriter, r *http.Request) {
@@ -98,6 +103,7 @@ func (cfg *ApiConfig) HandleSearchNotes(w http.ResponseWriter, r *http.Request) 
 	for _, n := range rows {
 		results = append(results, noteSearchResult{
 			ID: n.ID, Name: n.Name, White: nullable(n.White), Black: nullable(n.Black), Date: nullable(n.GameDate),
+			FolderPath: append([]string{}, n.FolderPath...),
 		})
 	}
 	utils.RespondJSON(w, http.StatusOK, results)

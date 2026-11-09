@@ -42,8 +42,16 @@ export function highlight(query: string, text: string): Segment[] {
   return segments
 }
 
-/** "Lovelace, Ada v. Hopper, Grace · 1952.03.01", leaving out what the PGN doesn't say. */
-export function resultDetails({ white, black, date }: NoteSearchResult): string | null {
+type ResultFacts = Pick<NoteSearchResult, 'white' | 'black' | 'date'> & { folderPath?: string[] }
+
+/**
+ * What tells a result apart from same-named Notes: its Folder path
+ * ("Masters / Spassky"), or for a Note at the root its players and date
+ * ("Lovelace, Ada v. Hopper, Grace · 1952.03.01"), leaving out what the PGN
+ * doesn't say.
+ */
+export function resultDetails({ white, black, date, folderPath }: ResultFacts): string | null {
+  if (folderPath && folderPath.length > 0) return folderPath.join(' / ')
   const players = white && black ? `${white} v. ${black}` : (white ?? black)
   // PGN marks unknown parts of a date with "??": "1952.??.??" is just 1952.
   const known = date?.replace(/(\.\?\?)+$/, '')

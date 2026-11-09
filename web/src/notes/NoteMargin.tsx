@@ -1,7 +1,7 @@
 import { Button, Loader, Text } from '@mantine/core'
 import { Link } from '@tanstack/react-router'
 import { useMemo, type ReactNode } from 'react'
-import type { NoteSearchResult } from '../api'
+import type { LinkTarget } from '../api'
 import { errorMessage } from '../errors'
 import { backlinkPlace, connections, DELETED_NOTE } from './links'
 import styles from './Notes.module.css'
@@ -86,7 +86,7 @@ function Entries({ empty, children }: { empty: string; children: ReactNode[] | u
   return <ul className={styles.marginEntries}>{children}</ul>
 }
 
-function TargetEntry({ target }: { target: NoteSearchResult }) {
+function TargetEntry({ target }: { target: LinkTarget }) {
   const details = resultDetails(target)
   return (
     <li className={styles.marginEntry}>

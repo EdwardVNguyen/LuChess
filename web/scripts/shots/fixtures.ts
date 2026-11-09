@@ -1,4 +1,4 @@
-import type { Note, PlyWriting, User } from '../../src/api.js'
+import type { Folder, Note, PlyWriting, User } from '../../src/api.js'
 import { fischerSpassky1972Game6 } from '../../src/chess/fixtures.js'
 
 // Sample data only, per web/AGENTS.md: these names belong in fixtures and
@@ -12,12 +12,24 @@ export const loggedInSession = {
 
 const at = '2026-11-01T12:00:00Z'
 
+// Filed as in design/screens/Note.dc.html's sidebar.
+export const sampleFolders: Folder[] = [
+  { id: 1, parentId: null, name: 'Fischer' },
+  { id: 2, parentId: null, name: 'Openings' },
+  { id: 3, parentId: null, name: 'Concepts' },
+  { id: 4, parentId: null, name: 'Endgames' },
+  { id: 5, parentId: null, name: 'Personal games' },
+  { id: 6, parentId: 2, name: 'Queen’s Gambit Declined' },
+  { id: 7, parentId: null, name: 'Positions' },
+]
+
 export const sampleNotes: Note[] = [
   {
     id: 1,
     name: 'Fischer v. Spassky 1972',
     pgn: fischerSpassky1972Game6.replace('[Result "1-0"]', '[Result "1-0"]\n[Opening "Queen\'s Gambit Declined"]'),
     startFen: null,
+    folderId: 1,
     createdAt: at,
     updatedAt: '2026-11-03T12:00:00Z',
   },
@@ -26,6 +38,7 @@ export const sampleNotes: Note[] = [
     name: 'Byrne v. Fischer 1956',
     pgn: '[Event "Rosenwald Memorial"]\n\n1. Nf3 Nf6 2. c4 g6 3. Nc3 Bg7 4. d4 O-O *',
     startFen: null,
+    folderId: 1,
     createdAt: at,
     updatedAt: '2026-11-02T12:00:00Z',
   },
@@ -34,6 +47,7 @@ export const sampleNotes: Note[] = [
     name: 'Lucena position',
     pgn: '[SetUp "1"]\n[FEN "1K1k4/1P6/8/8/8/8/r7/2R5 w - - 0 1"]\n\n*',
     startFen: '1K1k4/1P6/8/8/8/8/r7/2R5 w - - 0 1',
+    folderId: 4,
     createdAt: at,
     updatedAt: at,
   },
@@ -43,6 +57,7 @@ export const sampleNotes: Note[] = [
     name: 'Tartakower Variation',
     pgn: '[Opening "Queen\'s Gambit Declined"]\n\n1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Bg5 Be7 5. e3 O-O 6. Nf3 h6 7. Bh4 b6 *',
     startFen: null,
+    folderId: 6,
     createdAt: at,
     updatedAt: at,
   },
@@ -51,6 +66,7 @@ export const sampleNotes: Note[] = [
     name: 'Hanging pawns',
     pgn: '*',
     startFen: null,
+    folderId: 3,
     createdAt: at,
     updatedAt: at,
   },
@@ -59,6 +75,7 @@ export const sampleNotes: Note[] = [
     name: 'Club night, October',
     pgn: '[Event "Club night"]\n[White "Lovelace, Ada"]\n[Black "Hopper, Grace"]\n[Date "2026.10.14"]\n\n1. c4 e6 2. Nc3 d5 3. d4 Nf6 4. cxd5 exd5 5. Bg5 Be7 6. e3 O-O 7. Bd3 b6 *',
     startFen: null,
+    folderId: 5,
     createdAt: at,
     updatedAt: at,
   },
@@ -67,6 +84,7 @@ export const sampleNotes: Note[] = [
     name: 'Greek gift',
     pgn: '1. e4 e6 2. d4 d5 3. Nc3 Nf6 4. e5 Nfd7 *',
     startFen: null,
+    folderId: 3,
     createdAt: at,
     updatedAt: at,
   },

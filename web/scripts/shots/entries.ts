@@ -210,6 +210,75 @@ export const entries: ShotEntry[] = [
       await page.getByRole('menuitem', { name: 'Delete' }).click()
     },
   },
+  // Folders (#11). NewFolder matches design/screenshots/NewFolder*.png, with
+  // the Folder tree behind it in place of the Library (not in v1). The rest
+  // have no design: the tree opened down to a subfolder and an empty Folder,
+  // a Folder's menu, renaming, moving and deleting a Folder, and moving a Note.
+  {
+    name: 'NewFolder',
+    route: '/notes/1',
+    fixtures: 'session',
+    setup: async (page) => {
+      await openTree(page)
+      await page.getByRole('button', { name: 'New folder' }).click()
+      await page.getByRole('textbox', { name: 'Folder name' }).fill('Rook endgame basics')
+    },
+  },
+  {
+    name: 'NoteTreeOpened',
+    route: '/notes/1',
+    fixtures: 'session',
+    setup: async (page) => {
+      await openTree(page)
+      await page.getByRole('button', { name: 'Openings', exact: true }).click()
+      await page.getByRole('button', { name: 'Queen’s Gambit Declined', exact: true }).click()
+      await page.getByRole('button', { name: 'Positions', exact: true }).click()
+    },
+  },
+  {
+    name: 'FolderActions',
+    route: '/notes/1',
+    fixtures: 'session',
+    setup: async (page) => {
+      await openTree(page)
+      await page.getByRole('button', { name: 'Folder actions: Openings' }).click()
+      await page.getByRole('menuitem', { name: 'New subfolder' }).waitFor()
+    },
+  },
+  {
+    name: 'FolderRename',
+    route: '/notes/1',
+    fixtures: 'session',
+    setup: async (page) => {
+      await openFolderAction(page, 'Openings', 'Rename')
+    },
+  },
+  {
+    name: 'FolderMove',
+    route: '/notes/1',
+    fixtures: 'session',
+    setup: async (page) => {
+      await openFolderAction(page, 'Queen’s Gambit Declined', 'Move', 'Openings')
+    },
+  },
+  {
+    name: 'FolderDelete',
+    route: '/notes/1',
+    fixtures: 'session',
+    setup: async (page) => {
+      await openFolderAction(page, 'Fischer', 'Delete')
+    },
+  },
+  {
+    name: 'NoteMoveToFolder',
+    route: '/notes/1',
+    fixtures: 'session',
+    setup: async (page) => {
+      await page.getByRole('button', { name: 'Note actions' }).click()
+      await page.getByRole('menuitem', { name: 'Move to folder' }).click()
+      await page.getByRole('dialog', { name: 'Move note' }).getByRole('radio').first().waitFor()
+    },
+  },
   {
     name: 'NoteLoading',
     route: '/notes/1',
@@ -567,4 +636,19 @@ async function openQuickFind(page: Page, query: string) {
   const input = page.getByRole('combobox', { name: 'Find a note' })
   await input.waitFor()
   if (query) await input.fill(query)
+}
+
+// The Folder tree: the sidebar on desktop, behind "All notes" on tablet and mobile.
+async function openTree(page: Page) {
+  const button = page.getByRole('button', { name: 'All notes' })
+  if (await button.isVisible()) await button.click()
+  await page.getByRole('button', { name: 'New folder' }).waitFor()
+}
+
+async function openFolderAction(page: Page, folder: string, action: string, openFirst?: string) {
+  await openTree(page)
+  if (openFirst) await page.getByRole('button', { name: openFirst, exact: true }).click()
+  await page.getByRole('button', { name: `Folder actions: ${folder}` }).click()
+  await page.getByRole('menuitem', { name: action }).click()
+  await page.getByRole('dialog').last().waitFor()
 }

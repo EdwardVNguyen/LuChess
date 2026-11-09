@@ -77,8 +77,12 @@
 .item {
   display: flex;
   align-items: center;
+  gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
   height: 40px;
-  padding: 0 12px;
+  /* Each level of the Folder tree is indented by one step. */
+  padding: 0 12px 0 calc(12px + var(--depth, 0) * var(--cn-tree-indent));
   border-radius: var(--cn-radius-button);
   color: var(--cn-ink);
   font-family: var(--cn-font-sans);
@@ -104,6 +108,121 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* The chevron of a Folder, or the same space before a Note, so names line up. */
+.treeSlot {
+  flex: none;
+  display: inline-flex;
+  width: 16px;
+  color: var(--cn-muted);
+}
+
+/* A Folder: the row toggles it, and its actions sit at the right end. */
+.folderRow {
+  position: relative;
+}
+
+.folderRow > .item {
+  padding-right: 40px;
+}
+
+.folderActions {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--cn-radius-button);
+  color: var(--cn-muted);
+  opacity: 0;
+}
+
+/* Shown on hover or focus; always on touch screens, which have no hover. */
+.folderRow:hover .folderActions,
+.folderRow:focus-within .folderActions,
+.folderActions[aria-expanded='true'] {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .folderActions {
+    opacity: 1;
+  }
+}
+
+.folderActions:hover,
+.folderActions[aria-expanded='true'] {
+  background: var(--cn-avatar);
+  color: var(--cn-ink);
+}
+
+.folderActions:focus-visible {
+  outline: 2px solid var(--cn-ink);
+  outline-offset: -2px;
+}
+
+.treeEmpty {
+  display: flex;
+  align-items: center;
+  height: 32px;
+  padding-left: calc(12px + 24px + var(--depth, 0) * var(--cn-tree-indent));
+  font-family: var(--cn-font-serif);
+  font-size: 14.5px;
+  font-style: italic;
+  color: var(--cn-muted);
+}
+
+/* "New folder", after the tree (AllStudies.dc.html's sidebar). */
+.newFolder {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 12px;
+  border-radius: var(--cn-radius-button);
+  font-family: var(--cn-font-sans);
+  font-size: 14.5px;
+  color: var(--cn-muted);
+}
+
+.newFolder:hover {
+  background: var(--cn-highlight);
+  color: var(--cn-ink);
+}
+
+.newFolder:focus-visible {
+  outline: 2px solid var(--cn-ink);
+  outline-offset: -2px;
+}
+
+/* The Folders to move a Note or Folder into, as an indented tree of radios. */
+.folderPicker {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: min(320px, 45dvh);
+  margin-top: 10px;
+  overflow-y: auto;
+}
+
+.folderChoice {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+/* The Folder path above a Note's title ("FISCHER · …" in Note.dc.html). */
+.noteEyebrow {
+  overflow-wrap: anywhere;
+}
+
+/* Tablet and mobile: the Note's Folder before its name ("Fischer / Fischer v. Spassky 1972"). */
+.stripFolder {
+  color: var(--cn-muted);
+  font-weight: 400;
 }
 
 /* Tablet and mobile: the Note's name and the "All notes" button. */

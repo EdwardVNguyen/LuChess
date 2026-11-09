@@ -1,5 +1,14 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
-import { ApiError, type MovesEditInput, type NewNoteInput, type Note, type NoteSummary, type PlyWriting } from '../api'
+import {
+  ApiError,
+  type Folder,
+  type FolderUpdate,
+  type MovesEditInput,
+  type NewNoteInput,
+  type Note,
+  type NoteSummary,
+  type PlyWriting,
+} from '../api'
 import { api } from '../apiClient'
 import { useSession } from '../session'
 import { mergeWriting, replaceWriting, type PlyChange } from './writing'
@@ -14,6 +23,7 @@ const keys = {
   note: (id: number) => ['notes', id] as const,
   plies: (id: number) => ['notes', id, 'plies'] as const,
   links: (id: number) => ['notes', id, 'links'] as const,
+  folders: ['folders'] as const,
 }
 
 // A save, rename or delete can change any Note's Links: the names they show,
@@ -55,7 +65,7 @@ export function useNote(id: number) {
 }
 
 function summary(note: Note): NoteSummary {
-  return { id: note.id, name: note.name, createdAt: note.createdAt, updatedAt: note.updatedAt }
+  return { id: note.id, name: note.name, folderId: note.folderId, createdAt: note.createdAt, updatedAt: note.updatedAt }
 }
 
 function putFirst(list: NoteSummary[] | undefined, note: Note): NoteSummary[] | undefined {
@@ -160,6 +170,75 @@ export function useEditMoves(noteId: number) {
       void queryClient.invalidateQueries({ queryKey: keys.plies(note.id) })
       void queryClient.invalidateQueries({ queryKey: keys.searches })
       invalidateLinks(queryClient)
+    },
+  })
+}
+
+export function useFolders() {
+  const { state, authorized } = useSession()
+  return useQuery({
+    queryKey: keys.folders,
+    queryFn: () => authorized((token) => api.listFolders(token)),
+    enabled: state.status === 'authenticated',
+  })
+}
+
+export function useCreateFolder() {
+  const { authorized } = useSession()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: { name: string; parentId: number | null }) => authorized((token) => api.createFolder(token, input)),
+    onSuccess: (folder) => {
+      queryClient.setQueryData<Folder[]>(keys.folders, (folders) => folders && [...folders, folder])
+    },
+  })
+}
+
+/** Renames a Folder or moves it; Notes are found by the names of their Folders, so searches change too. */
+export function useUpdateFolder(id: number) {
+  const { authorized } = useSession()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (update: FolderUpdate) => authorized((token) => api.updateFolder(token, id, update)),
+    onSuccess: (folder) => {
+      queryClient.setQueryData<Folder[]>(keys.folders, (folders) => folders?.map((f) => (f.id === id ? folder : f)))
+      void queryClient.invalidateQueries({ queryKey: keys.searches })
+    },
+  })
+}
+
+/**
+ * Deletes a Folder. A refused delete changes nothing; a done one also took
+ * its subfolders and moved their Notes to the root, so every cached Note's
+ * Folder may be stale.
+ */
+export function useDeleteFolder(id: number) {
+  const { authorized } = useSession()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (confirm: boolean) => authorized((token) => api.deleteFolder(token, id, confirm)),
+    onSuccess: (result) => {
+      if (result.status !== 'deleted') return
+      void queryClient.invalidateQueries({ queryKey: keys.folders })
+      void queryClient.invalidateQueries({ queryKey: keys.list, exact: true })
+      void queryClient.invalidateQueries({ queryKey: keys.searches })
+      void queryClient.invalidateQueries({
+        predicate: (query) => query.queryKey[0] === 'notes' && typeof query.queryKey[1] === 'number' && query.queryKey.length === 2,
+      })
+    },
+  })
+}
+
+/** Files a Note in a Folder, or at the root (null). */
+export function useMoveNote(id: number) {
+  const { authorized } = useSession()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (folderId: number | null) => authorized((token) => api.moveNote(token, id, folderId)),
+    onSuccess: (note) => {
+      queryClient.setQueryData(keys.note(note.id), note)
+      queryClient.setQueryData<NoteSummary[]>(keys.list, (list) => list?.map((n) => (n.id === note.id ? summary(note) : n)))
+      void queryClient.invalidateQueries({ queryKey: keys.searches })
     },
   })
 }

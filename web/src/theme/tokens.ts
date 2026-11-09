@@ -48,6 +48,11 @@ export const radiusTokens = {
   xl: '20px',
 } as const
 
+export const spacingTokens = {
+  // How far each level of the Folder tree is indented (Note.dc.html's sidebar).
+  treeIndent: '22px',
+} as const
+
 // Chosen so 390px (mobile), 834px (tablet) and 1440px (desktop) each land in
 // a different band: below `sm`, between `sm` and `lg`, and at or above `lg`.
 export const breakpointTokens = {

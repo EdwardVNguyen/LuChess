@@ -22,8 +22,8 @@ import { QuickFind } from './QuickFind'
 const searchNotes = vi.fn<(token: string, query: string) => Promise<NoteSearchResult[]>>()
 vi.mock('../apiClient', () => ({ api: { searchNotes: (token: string, query: string) => searchNotes(token, query) } }))
 
-const lovelace: NoteSearchResult = { id: 1, name: 'Lovelace v. Hopper', white: 'Lovelace, Ada', black: 'Hopper, Grace', date: '1952.03.01' }
-const babbage: NoteSearchResult = { id: 2, name: 'Club night', white: 'Babbage, Charles', black: 'Lovelace, Ada', date: null }
+const lovelace: NoteSearchResult = { id: 1, name: 'Lovelace v. Hopper', white: 'Lovelace, Ada', black: 'Hopper, Grace', date: '1952.03.01', folderPath: [] }
+const babbage: NoteSearchResult = { id: 2, name: 'Club night', white: 'Babbage, Charles', black: 'Lovelace, Ada', date: null, folderPath: [] }
 
 const signedIn = { status: 'authenticated', user: { id: 1, email: 'ada@example.com', name: 'Ada' } } as const
 const session: Session = {

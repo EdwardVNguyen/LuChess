@@ -15,9 +15,9 @@ type Props = {
 }
 
 // The picker opened by typing [[ in a Comment or Body: fuzzy-find one of the
-// user's Notes by name or players, and optionally give the Link a label.
-// Same-named Notes are told apart by their players and date; Folder paths
-// replace those once #11 adds Folders.
+// user's Notes by name, players or Folder, and optionally give the Link a
+// label. Same-named Notes are told apart by their Folder path, or at the root
+// by their players and date.
 export function LinkPicker({ noteId, onPick }: Props) {
   const ids = useId()
   const [query, setQuery] = useState('')

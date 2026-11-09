@@ -1,7 +1,7 @@
 import { Button, Loader, Stack, Text, Title } from '@mantine/core'
 import { Link, Outlet } from '@tanstack/react-router'
 import { useSession } from '../session'
-import { NoteList } from './NoteList'
+import { NoteTree } from './NoteTree'
 import styles from './Notes.module.css'
 
 // The Notes area: the "Your notes" sidebar on desktop beside the open Note
@@ -36,7 +36,7 @@ export function NotesLayout() {
   return (
     <div className={styles.layout}>
       <nav className={styles.sidebar} aria-label="Notes">
-        <NoteList />
+        <NoteTree />
       </nav>
       <div className={styles.main}>
         <Outlet />

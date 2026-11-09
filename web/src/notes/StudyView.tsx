@@ -38,6 +38,8 @@ export type MovesDraft = {
 
 type StudyViewProps = {
   name: string
+  /** Above the title: the Folders the Note is filed in. */
+  eyebrow?: ReactNode
   pgn: string
   /** Beside the title: the Note's menu, or a Guest's Save button. */
   actions: ReactNode
@@ -62,7 +64,7 @@ type StudyViewProps = {
 // The study view shared by a saved Note and a Guest's unsaved one: the title,
 // the board and the writing column (design/screenshots/Note*.png), so the two
 // behave the same. Where the writing comes from and goes to is the caller's.
-export function StudyView({ name, pgn, actions, children, initialPly, margin, moveEditing }: StudyViewProps) {
+export function StudyView({ name, eyebrow, pgn, actions, children, initialPly, margin, moveEditing }: StudyViewProps) {
   const parsed = parsePgn(pgn)
   // Open at the end of the game, so a pasted game shows its final position.
   const [ply, setPly] = useState(() =>
@@ -113,6 +115,7 @@ export function StudyView({ name, pgn, actions, children, initialPly, margin, mo
     <div className={styles.note}>
       <section className={styles.boardColumn} aria-label="Position">
         <div className={styles.titleBlock}>
+          {eyebrow && <div className={`${styles.eyebrow} ${styles.noteEyebrow}`}>{eyebrow}</div>}
           <div className={styles.titleRow}>
             <h1 className={styles.title}>{name}</h1>
             {actions}

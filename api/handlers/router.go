@@ -33,6 +33,11 @@ func NewRouter(cfg *ApiConfig) http.Handler {
 	mux.Handle("GET /api/notes/{id}/plies", cfg.sessionHTTP.RequireAuth(cfg.HandleListPlies))
 	mux.Handle("PUT /api/notes/{id}/plies/{ply}", cfg.sessionHTTP.RequireAuth(cfg.HandlePutPly))
 	mux.Handle("GET /api/notes/{id}/links", cfg.sessionHTTP.RequireAuth(cfg.HandleNoteLinks))
+	mux.Handle("PUT /api/notes/{id}/folder", cfg.sessionHTTP.RequireAuth(cfg.HandleSetNoteFolder))
+	mux.Handle("GET /api/folders", cfg.sessionHTTP.RequireAuth(cfg.HandleListFolders))
+	mux.Handle("POST /api/folders", cfg.sessionHTTP.RequireAuth(cfg.HandleCreateFolder))
+	mux.Handle("PATCH /api/folders/{id}", cfg.sessionHTTP.RequireAuth(cfg.HandleUpdateFolder))
+	mux.Handle("DELETE /api/folders/{id}", cfg.sessionHTTP.RequireAuth(cfg.HandleDeleteFolder))
 
 	return cfg.WithCORS(mux)
 }
