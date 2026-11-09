@@ -1,0 +1,99 @@
+/* Guest mode (#13): the Note screen without the sidebar, under the guest
+ * banner from design/screens/ArticleGuest*.dc.html. Breakpoints are the
+ * theme's: below `sm` (768px) is mobile. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100dvh - 56px);
+  background: var(--cn-paper);
+}
+
+/* The banner: one centred row on tablet and desktop, wrapped and centred on mobile. */
+.banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 10px 16px;
+  text-align: center;
+  background: var(--cn-highlight);
+  border-bottom: 1px solid var(--cn-rule);
+  font-family: var(--cn-font-sans);
+  font-size: 14px;
+  color: var(--cn-ink);
+}
+
+@media (min-width: 48em) {
+  .banner {
+    flex-wrap: nowrap;
+    gap: 16px;
+    padding: 12px 20px;
+    text-align: start;
+  }
+}
+
+.bannerActions {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 12px;
+}
+
+@media (min-width: 48em) {
+  .bannerActions {
+    gap: 16px;
+  }
+}
+
+.bannerSignUp {
+  height: 34px;
+  padding: 0 14px;
+  font-size: 13px;
+}
+
+.bannerLogIn {
+  color: var(--cn-accent);
+  text-decoration: none;
+}
+
+.bannerLogIn:hover {
+  text-decoration: underline;
+}
+
+.bannerLogIn:focus-visible {
+  outline: 2px solid var(--cn-ink);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* The start form, centred now that there is no sidebar beside it. */
+.start {
+  display: flex;
+  justify-content: center;
+}
+
+.actions {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.save {
+  height: 36px;
+  margin-top: 2px;
+  padding: 0 14px;
+  background: transparent;
+}
+
+.promptLogIn {
+  color: var(--cn-accent);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.promptLogIn:hover {
+  text-decoration: underline;
+}

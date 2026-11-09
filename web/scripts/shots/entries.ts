@@ -1,6 +1,8 @@
 import type { Page } from 'playwright'
+import { fischerSpassky1972Game6 } from '../../src/chess/fixtures.js'
 
-export type FixtureSet = 'guest' | 'session'
+/** A logged-out visitor, a signed-in session, or a visitor whose Session restore never answers or fails. */
+export type FixtureSet = 'guest' | 'session' | 'restoring' | 'restoreError'
 
 /** The signed-in user's Notes: the samples, none, failing, or never answering (to show loading). */
 export type NotesFixture = 'sample' | 'empty' | 'error' | 'pending'
@@ -356,7 +358,65 @@ export const entries: ShotEntry[] = [
       await page.getByRole('alert').waitFor()
     },
   },
+  // Guest mode (#13): the Note screen without the sidebar, under the banner
+  // from design/screenshots/ArticleGuest*.png. No design matches the whole
+  // screen. The start form, its error, a Guest's Note with writing on it, the
+  // sign-up prompt on Save, and the loading and failed Session restore.
+  { name: 'GuestStart', route: '/try', fixtures: 'guest' },
+  {
+    name: 'GuestStartInvalid',
+    route: '/try',
+    fixtures: 'guest',
+    setup: async (page) => {
+      await page.getByRole('button', { name: 'Start writing' }).click()
+    },
+  },
+  {
+    name: 'GuestNote',
+    route: '/try',
+    fixtures: 'guest',
+    setup: startGuestNote,
+  },
+  {
+    name: 'GuestSignUpPrompt',
+    route: '/try',
+    fixtures: 'guest',
+    setup: async (page) => {
+      await startGuestNote(page)
+      await page.getByRole('button', { name: 'Save' }).click()
+      await page.getByRole('dialog', { name: 'Sign up to save' }).waitFor()
+    },
+  },
+  {
+    name: 'GuestLoading',
+    route: '/try',
+    fixtures: 'restoring',
+    waitUntil: 'load',
+    setup: async (page) => {
+      await page.getByLabel('Loading', { exact: true }).waitFor()
+    },
+  },
+  {
+    name: 'GuestRestoreError',
+    route: '/try',
+    fixtures: 'restoreError',
+    setup: async (page) => {
+      await page.getByText('Could not check your session').waitFor()
+    },
+  },
 ]
+
+/** Starts a Guest's Note from a pasted game and writes on one of its moves. */
+async function startGuestNote(page: Page) {
+  await page.getByRole('textbox', { name: 'PGN' }).fill(fischerSpassky1972Game6)
+  await page.getByRole('button', { name: 'Start writing' }).click()
+  await page.getByRole('button', { name: 'exd5', exact: true }).click()
+  await page.getByRole('group', { name: 'Position Glyph' }).getByRole('button').first().click()
+  await page.getByRole('textbox', { name: /^Comment on/ }).fill('The pawn on d5 is fixed now; everything after is about it.')
+  await page.getByRole('button', { name: 'Previous move' }).focus()
+  // Writing scrolled the page; a full-page shot would catch the fixed header mid-page.
+  await page.evaluate(() => window.scrollTo(0, 0))
+}
 
 async function openQuickFind(page: Page, query: string) {
   await page.keyboard.press('Control+K')

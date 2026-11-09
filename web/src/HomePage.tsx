@@ -27,6 +27,14 @@ export function HomePage() {
             </Group>
           </>
         )}
+        {state.status === 'guest' && (
+          <Group>
+            {/* The landing page (#14) replaces this placeholder and keeps the entry point. */}
+            <Button component={Link} to="/try" variant="outline">
+              Try as a guest
+            </Button>
+          </Group>
+        )}
         <Group>
           <Text fw={500}>API status:</Text>
           {health.isPending && <Loader size="sm" />}
