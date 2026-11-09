@@ -37,6 +37,39 @@ export const sampleNotes: Note[] = [
     createdAt: at,
     updatedAt: at,
   },
+  // The targets of the Links in the design's Bodies, and the Note in its "Linked from".
+  {
+    id: 4,
+    name: 'Tartakower Variation',
+    pgn: '[Opening "Queen\'s Gambit Declined"]\n\n1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Bg5 Be7 5. e3 O-O 6. Nf3 h6 7. Bh4 b6 *',
+    startFen: null,
+    createdAt: at,
+    updatedAt: at,
+  },
+  {
+    id: 5,
+    name: 'Hanging pawns',
+    pgn: '*',
+    startFen: null,
+    createdAt: at,
+    updatedAt: at,
+  },
+  {
+    id: 6,
+    name: 'Club night, October',
+    pgn: '[Event "Club night"]\n[White "Lovelace, Ada"]\n[Black "Hopper, Grace"]\n[Date "2026.10.14"]\n\n1. c4 e6 2. Nc3 d5 3. d4 Nf6 4. cxd5 exd5 5. Bg5 Be7 6. e3 O-O 7. Bd3 b6 *',
+    startFen: null,
+    createdAt: at,
+    updatedAt: at,
+  },
+  {
+    id: 7,
+    name: 'Greek gift',
+    pgn: '1. e4 e6 2. d4 d5 3. Nc3 Nf6 4. e5 Nfd7 *',
+    startFen: null,
+    createdAt: at,
+    updatedAt: at,
+  },
 ]
 
 function writing(ply: number, fields: Partial<PlyWriting>): PlyWriting {
@@ -51,7 +84,7 @@ export const samplePlies: Record<number, PlyWriting[]> = {
     }),
     writing(1, { moveGlyph: '!?', comment: 'A surprise from a lifelong 1.e4 player.' }),
     writing(14, {
-      body: 'The Tartakower Variation: Black fianchettoes and invites trades to relieve the cramp. A surprise from a lifelong 1.e4 player, who opens 1.c4.',
+      body: 'The [[note:4]]: Black fianchettoes and invites trades to relieve the cramp. A surprise from a lifelong 1.e4 player, who opens 1.c4.',
     }),
     writing(20, {
       body: "The trades ease Black's position, but they leave a fixed pawn on d5, and that structure is what the rest of the game is about.",
@@ -63,11 +96,20 @@ export const samplePlies: Record<number, PlyWriting[]> = {
     }),
     writing(30, {
       positionGlyph: '⩲',
-      body: 'Black gets hanging pawns on c5 and d5. They are strong while they can advance and weak the moment they are frozen.',
+      body: 'Black gets [[note:5|hanging pawns]] on c5 and d5. They are strong while they can advance and weak the moment they are frozen.',
     }),
     writing(39, { moveGlyph: '!', positionGlyph: '±' }),
     writing(41, {
       body: 'Fischer trades the knight for the bishop that guarded d5, then strikes in the centre. The pawns stop being a strength and become targets.',
+    }),
+  ],
+  // A Link to a Note since deleted, with and without its label.
+  7: [
+    writing(0, { body: 'A sacrifice to study next to [[note:98|the Evergreen]] and [[note:99]].' }),
+  ],
+  6: [
+    writing(12, {
+      comment: 'The same structure as in [[note:1|the 1972 game]]: hanging pawns on c5 and d5, and I froze them too late.',
     }),
   ],
 }

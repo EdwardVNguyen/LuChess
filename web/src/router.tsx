@@ -41,7 +41,13 @@ const tryRoute = createRoute({ getParentRoute: () => rootRoute, path: '/try', co
 const notesRoute = createRoute({ getParentRoute: () => rootRoute, path: '/notes', component: NotesLayout })
 const notesIndexRoute = createRoute({ getParentRoute: () => notesRoute, path: '/', component: NotesIndex })
 const newNoteRoute = createRoute({ getParentRoute: () => notesRoute, path: '/new', component: NewNotePage })
-const noteRoute = createRoute({ getParentRoute: () => notesRoute, path: '/$noteId', component: NoteScreen })
+const noteRoute = createRoute({
+  getParentRoute: () => notesRoute,
+  path: '/$noteId',
+  // The Ply to open at, e.g. where a Backlink's Comment or Body is.
+  validateSearch: z.object({ ply: z.number().int().min(0).optional().catch(undefined) }),
+  component: NoteScreen,
+})
 
 // Dev-only: pages showing the theme's components and the shared overlays, so
 // a change is easy to screenshot. Not reachable, or bundled, in production

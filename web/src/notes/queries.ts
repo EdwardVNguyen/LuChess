@@ -1,4 +1,4 @@
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { ApiError, type NewNoteInput, type Note, type NoteSummary, type PlyWriting } from '../api'
 import { api } from '../apiClient'
 import { useSession } from '../session'
@@ -13,6 +13,13 @@ const keys = {
   search: (query: string) => ['notes', 'search', query] as const,
   note: (id: number) => ['notes', id] as const,
   plies: (id: number) => ['notes', id, 'plies'] as const,
+  links: (id: number) => ['notes', id, 'links'] as const,
+}
+
+// A save, rename or delete can change any Note's Links: the names they show,
+// whether they resolve, and the Backlinks of the Notes they point at.
+function invalidateLinks(queryClient: QueryClient) {
+  void queryClient.invalidateQueries({ predicate: (query) => query.queryKey[0] === 'notes' && query.queryKey[2] === 'links' })
 }
 
 export function useNoteList() {
@@ -77,6 +84,7 @@ export function useRenameNote(id: number) {
       queryClient.setQueryData(keys.note(note.id), note)
       queryClient.setQueryData<NoteSummary[]>(keys.list, (list) => putFirst(list, note))
       void queryClient.invalidateQueries({ queryKey: keys.searches })
+      invalidateLinks(queryClient)
     },
   })
 }
@@ -90,6 +98,7 @@ export function useDeleteNote(id: number) {
       queryClient.setQueryData<NoteSummary[]>(keys.list, (list) => list?.filter((note) => note.id !== id))
       queryClient.removeQueries({ queryKey: keys.note(id), exact: true })
       void queryClient.invalidateQueries({ queryKey: keys.searches })
+      invalidateLinks(queryClient)
     },
   })
 }
@@ -117,6 +126,17 @@ export function useSavePly(noteId: number) {
       queryClient.setQueryData<PlyWriting[]>(keys.plies(noteId), (plies) => replaceWriting(plies, written))
       // Writing touches the Note, which moves it to the top of the list.
       void queryClient.invalidateQueries({ queryKey: keys.list, exact: true })
+      invalidateLinks(queryClient)
     },
+  })
+}
+
+export function useNoteLinks(noteId: number) {
+  const { state, authorized } = useSession()
+  return useQuery({
+    queryKey: keys.links(noteId),
+    queryFn: () => authorized((token) => api.getLinks(token, noteId)),
+    enabled: state.status === 'authenticated',
+    retry: (failures, error) => !(error instanceof ApiError && error.status === 404) && failures < 2,
   })
 }

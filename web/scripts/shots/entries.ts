@@ -13,6 +13,9 @@ export type PliesFixture = 'sample' | 'error' | 'pending' | 'saveError'
 /** Answers to Quick Find's search, separately from the Notes themselves. */
 export type SearchFixture = 'sample' | 'error' | 'pending'
 
+/** A Note's Links (its targets and Backlinks), separately from the Notes themselves. */
+export type LinksFixture = 'sample' | 'error' | 'pending'
+
 export type ShotEntry = {
   /** Matches a design screen name, e.g. `design/screenshots/<name>.png`. */
   name: string
@@ -24,6 +27,8 @@ export type ShotEntry = {
   search?: SearchFixture
   /** @default 'sample' */
   plies?: PliesFixture
+  /** @default 'sample' */
+  links?: LinksFixture
   /** What to wait for before setup; a never-answered request means networkidle never comes. @default 'networkidle' */
   waitUntil?: 'load' | 'networkidle'
   /** Extra steps after the page loads, e.g. opening a dialog. */
@@ -404,7 +409,101 @@ export const entries: ShotEntry[] = [
       await page.getByText('Could not check your session').waitFor()
     },
   },
+  // Links and Backlinks (#9). The Note entry above matches the design's margin
+  // and the Links in its Bodies. No design matches the rest: the [[ picker
+  // (found, before typing, loading, failed), an Unresolved Link, a Note with
+  // no Links either way, the margin loading and failing, and a Note opened
+  // from a Backlink at the linking Comment.
+  {
+    name: 'NoteLinkPicker',
+    route: '/notes/1',
+    fixtures: 'session',
+    setup: async (page) => {
+      await openLinkPicker(page, 'hang')
+      await page.getByRole('option').first().waitFor()
+    },
+  },
+  {
+    name: 'NoteLinkPickerStart',
+    route: '/notes/1',
+    fixtures: 'session',
+    setup: async (page) => {
+      await openLinkPicker(page, '')
+    },
+  },
+  {
+    name: 'NoteLinkPickerLoading',
+    route: '/notes/1',
+    fixtures: 'session',
+    search: 'pending',
+    setup: async (page) => {
+      await openLinkPicker(page, 'hang')
+      await page.getByLabel('Finding notes').waitFor()
+    },
+  },
+  {
+    name: 'NoteLinkPickerError',
+    route: '/notes/1',
+    fixtures: 'session',
+    search: 'error',
+    setup: async (page) => {
+      await openLinkPicker(page, 'hang')
+      await page.getByRole('alert').waitFor()
+    },
+  },
+  {
+    name: 'NoteUnresolvedLink',
+    route: '/notes/7',
+    fixtures: 'session',
+    setup: async (page) => {
+      await page.getByRole('region', { name: 'Connections' }).getByText('Deleted note').first().waitFor()
+    },
+  },
+  { name: 'NoteLinksEmpty', route: '/notes/2', fixtures: 'session' },
+  {
+    name: 'NoteLinksLoading',
+    route: '/notes/1',
+    fixtures: 'session',
+    links: 'pending',
+    waitUntil: 'load',
+    setup: async (page) => {
+      await page.getByLabel('Loading links').first().waitFor()
+    },
+  },
+  {
+    name: 'NoteLinksError',
+    route: '/notes/1',
+    fixtures: 'session',
+    links: 'error',
+    setup: async (page) => {
+      await page.getByRole('alert').first().waitFor()
+    },
+  },
+  {
+    name: 'NoteFromBacklink',
+    route: '/notes/1',
+    fixtures: 'session',
+    setup: async (page) => {
+      await page.getByRole('region', { name: 'Linked from' }).getByRole('link', { name: 'Club night, October' }).click()
+      await page.getByRole('heading', { name: 'Club night, October' }).waitFor()
+      await page.waitForLoadState('networkidle')
+      // Full-page shots start at the top; the highlighted Comment is on screen there too.
+      await page.evaluate(() => window.scrollTo(0, 0))
+    },
+  },
 ]
+
+/** Opens the [[ picker from the Comment on 10…exd5, then searches for `query`. */
+async function openLinkPicker(page: Page, query: string) {
+  await page.getByRole('button', { name: 'exd5', exact: true }).click()
+  await page.getByRole('textbox', { name: /^Comment on/ }).click()
+  await page.keyboard.type('Compare [[')
+  const search = page.getByRole('combobox', { name: 'Find a note to link' })
+  await search.waitFor()
+  if (query) await search.fill(query)
+  // Not scrolled back to the top as elsewhere: the anchored popover hides
+  // when its editor leaves the screen, so the header shows mid-page here.
+}
 
 /** Starts a Guest's Note from a pasted game and writes on one of its moves. */
 async function startGuestNote(page: Page) {

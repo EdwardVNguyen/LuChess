@@ -4,4 +4,4 @@ A Link is stored in a Comment or a Body as a token holding the target Note's ID 
 
 ## Consequences
 
-Deleting a target Note leaves the token in the text as an Unresolved Link. Links may only target Notes the author owns.
+Deleting a target Note leaves the token in the text as an Unresolved Link. Links may only target Notes the author owns: on save, every target must be one of the author's Notes or already be indexed on that Ply, so an Unresolved Link does not block editing the text around it. A target that belongs to another user and one that never existed are rejected alike, so a save reveals nothing about other users' Notes.

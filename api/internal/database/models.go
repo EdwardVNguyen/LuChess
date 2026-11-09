@@ -105,6 +105,13 @@ type EmailToken struct {
 	CreatedAt time.Time
 }
 
+type Link struct {
+	NoteID   int64
+	Ply      int32
+	Part     string
+	TargetID int64
+}
+
 type Note struct {
 	ID        int64
 	UserID    int32
