@@ -2,39 +2,45 @@ import { Alert, Badge, Button, Group, Loader, Stack, Text, Title } from '@mantin
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { api } from './apiClient'
+import { LandingPage } from './landing/LandingPage'
+import noteStyles from './notes/Notes.module.css'
 import { Page } from './Page'
 import { useSession } from './session'
+import type { User } from './api'
 
+// `/`: the landing page for a Guest, the home page for someone logged in.
 export function HomePage() {
   const { state } = useSession()
+
+  if (state.status === 'restoring') {
+    return (
+      <div className={noteStyles.centered}>
+        <Loader aria-label="Loading" />
+      </div>
+    )
+  }
+  // Not yet known to be a Guest (GLOSSARY.md); the shell shows the error with a Retry button.
+  if (state.status === 'restore-failed') return null
+  if (state.status === 'guest') return <LandingPage />
+  return <SignedInHome user={state.user} />
+}
+
+function SignedInHome({ user }: { user: User }) {
   const health = useQuery({ queryKey: ['health'], queryFn: () => api.health() })
-  const user = state.status === 'authenticated' ? state.user : null
 
   return (
     <Page>
       <Stack>
-        <Title order={2}>{user ? `Welcome back, ${user.name}` : 'Welcome to ChessNotes'}</Title>
+        <Title order={2}>Welcome back, {user.name}</Title>
         <Text>Connect chess games the way Luhmann connected ideas.</Text>
-        {state.status === 'authenticated' && (
-          <>
-            <Text>
-              Signed in as {state.user.name} ({state.user.email}).
-            </Text>
-            <Group>
-              <Button component={Link} to="/notes">
-                Your notes
-              </Button>
-            </Group>
-          </>
-        )}
-        {state.status === 'guest' && (
-          <Group>
-            {/* The landing page (#14) replaces this placeholder and keeps the entry point. */}
-            <Button component={Link} to="/try" variant="outline">
-              Try as a guest
-            </Button>
-          </Group>
-        )}
+        <Text>
+          Signed in as {user.name} ({user.email}).
+        </Text>
+        <Group>
+          <Button component={Link} to="/notes">
+            Your notes
+          </Button>
+        </Group>
         <Group>
           <Text fw={500}>API status:</Text>
           {health.isPending && <Loader size="sm" />}

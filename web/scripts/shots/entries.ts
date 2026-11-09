@@ -4,8 +4,11 @@ import { fischerSpassky1972Game6 } from '../../src/chess/fixtures.js'
 /** A logged-out visitor, a signed-in session, or a visitor whose Session restore never answers or fails. */
 export type FixtureSet = 'guest' | 'session' | 'restoring' | 'restoreError'
 
-/** The signed-in user's Notes: the samples, none, failing, or never answering (to show loading). */
-export type NotesFixture = 'sample' | 'empty' | 'error' | 'pending'
+/**
+ * The signed-in user's Notes: the samples, none, failing, or never answering (to show loading).
+ * `landing` is a separate user and set of Notes, for the landing page's picture of the Note screen.
+ */
+export type NotesFixture = 'sample' | 'landing' | 'empty' | 'error' | 'pending'
 
 /** The writing on a Note's Plies, separately from the Notes themselves. */
 export type PliesFixture = 'sample' | 'error' | 'pending' | 'saveError'
@@ -43,7 +46,49 @@ export type ShotEntry = {
 // Start with the pages that already exist. Later tickets add their own entries
 // as each screen is built.
 export const entries: ShotEntry[] = [
+  // The landing page (#42), matching design/screenshots/HomeLoggedOut*.png. No
+  // design matches the rest: the page while the Session is being restored and
+  // when restoring it fails, a later FAQ answer opened, and the picture of the
+  // Note screen the page shows. To update that picture, run this entry and
+  // `magick shots/LandingNotePicture.png -crop 1440x1080+0+0 +repage -quality 82 src/landing/note-screen.webp`.
   { name: 'HomeLoggedOut', route: '/', fixtures: 'guest' },
+  {
+    name: 'HomeLoading',
+    route: '/',
+    fixtures: 'restoring',
+    waitUntil: 'load',
+    setup: async (page) => {
+      await page.getByLabel('Loading', { exact: true }).waitFor()
+    },
+  },
+  {
+    name: 'HomeRestoreError',
+    route: '/',
+    fixtures: 'restoreError',
+    setup: async (page) => {
+      await page.getByText('Could not check your session').waitFor()
+    },
+  },
+  {
+    name: 'HomeFaq',
+    route: '/',
+    fixtures: 'guest',
+    setup: async (page) => {
+      await page.getByRole('button', { name: 'Who can see my notes?' }).click()
+      await page.getByText('Only you.').waitFor()
+      // Opening it scrolled the page; a full-page shot would catch the fixed header mid-page.
+      await page.evaluate(() => window.scrollTo(0, 0))
+    },
+  },
+  {
+    name: 'LandingNotePicture',
+    route: '/notes/1',
+    fixtures: 'session',
+    notes: 'landing',
+    setup: async (page) => {
+      await page.getByRole('button', { name: 'Nxd4!', exact: true }).click()
+    },
+  },
   { name: 'Login', route: '/login', fixtures: 'guest' },
   { name: 'SignUp', route: '/signup', fixtures: 'guest' },
   { name: 'VerifyEmail', route: '/verify-email', fixtures: 'guest' },
@@ -101,9 +146,8 @@ export const entries: ShotEntry[] = [
     },
   },
   { name: 'ResetPasswordMissingToken', route: '/reset-password', fixtures: 'guest' },
-  // No matching design screen: the home page is a placeholder until #14
-  // builds the real one. This shows the logged-in app shell (header, avatar
-  // menu) with no page content of its own yet.
+  // No matching design screen: the logged-in home page, which the landing
+  // page (#42) leaves as it was.
   { name: 'HomeLoggedIn', route: '/', fixtures: 'session' },
   // Settings (#12): the design's layout, with only the Delete account section in v1.
   { name: 'Settings', route: '/settings', fixtures: 'session' },

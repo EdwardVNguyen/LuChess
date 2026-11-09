@@ -78,11 +78,14 @@
   margin-left: 22px;
 }
 
+/* The caption drops under the buttons when the board is too narrow for both,
+ * e.g. in the landing page's hero on a phone. */
 .controls {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px 12px;
 }
 
 .control {

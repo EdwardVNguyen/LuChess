@@ -120,3 +120,53 @@
   font-size: 15px;
   font-weight: 600;
 }
+
+/* The landing page's header (HomeLoggedOut*.dc.html): wider padding, and from
+ * the theme's `md` size a 64px bar with a larger logo. */
+@media (min-width: 48em) {
+  .landing {
+    padding-inline: 28px;
+  }
+}
+
+@media (min-width: 64em) {
+  .landing {
+    padding-inline: 48px;
+  }
+
+  .landing .logo {
+    font-size: 26px;
+  }
+}
+
+.sections {
+  display: none;
+}
+
+@media (min-width: 48em) {
+  .sections {
+    display: flex;
+    gap: 24px;
+    margin-left: 32px;
+  }
+}
+
+.section {
+  display: flex;
+  align-items: center;
+  height: 40px;
+  padding-inline: 4px;
+  font-family: var(--cn-font-sans);
+  font-size: 15px;
+  color: var(--cn-muted);
+  text-decoration: none;
+}
+
+.section:hover {
+  color: var(--cn-ink);
+}
+
+.section:focus-visible {
+  outline: 2px solid var(--cn-ink);
+  outline-offset: 2px;
+}

@@ -2,7 +2,7 @@ import type { Page } from 'playwright'
 import type { Folder, Note, PlyWriting } from '../../src/api.js'
 import { linkTargets } from '../../src/notes/links.js'
 import type { FixtureSet, LinksFixture, MovesFixture, NotesFixture, PliesFixture, SearchFixture } from './entries.js'
-import { loggedInSession, sampleFolders, sampleNotes, samplePlies } from './fixtures.js'
+import { landingFolders, landingNotes, landingPlies, landingSession, loggedInSession, sampleFolders, sampleNotes, samplePlies } from './fixtures.js'
 
 // Never reached over the network: every request to it is intercepted below.
 // Vite still requires VITE_API_URL to be a well-formed http(s) URL.
@@ -21,10 +21,12 @@ export async function installApiMocks(
   movesFixture: MovesFixture = 'sample',
 ): Promise<void> {
   // Kept per page, so creating, renaming or deleting shows up in the list.
-  let notes: Note[] = notesFixture === 'sample' ? structuredClone(sampleNotes) : []
-  let folders: Folder[] = notesFixture === 'sample' ? structuredClone(sampleFolders) : []
+  const landing = notesFixture === 'landing'
+  const session = landing ? landingSession : loggedInSession
+  let notes: Note[] = notesFixture === 'sample' ? structuredClone(sampleNotes) : landing ? structuredClone(landingNotes) : []
+  let folders: Folder[] = notesFixture === 'sample' ? structuredClone(sampleFolders) : landing ? structuredClone(landingFolders) : []
   let nextId = 100
-  const plies: Record<number, PlyWriting[]> = structuredClone(samplePlies)
+  const plies: Record<number, PlyWriting[]> = structuredClone(landing ? landingPlies : samplePlies)
 
   await page.route(`${API_BASE_URL}/**`, async (route) => {
     const request = route.request()
@@ -38,11 +40,11 @@ export async function installApiMocks(
     if (pathname === '/api/auth/refresh' && method === 'POST') {
       if (fixtures === 'restoring') return
       if (fixtures === 'restoreError') return json(500, { error: 'Something went wrong' })
-      return fixtures === 'session' ? json(200, loggedInSession) : json(401, { error: 'No session' })
+      return fixtures === 'session' ? json(200, session) : json(401, { error: 'No session' })
     }
 
     if (pathname === '/api/me' && method === 'GET') {
-      return fixtures === 'session' ? json(200, loggedInSession.user) : json(401, { error: 'Not signed in' })
+      return fixtures === 'session' ? json(200, session.user) : json(401, { error: 'Not signed in' })
     }
 
     // Deleting the account (#12): "wrong password" is refused, "offline" fails

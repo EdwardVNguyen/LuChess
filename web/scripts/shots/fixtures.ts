@@ -131,3 +131,76 @@ export const samplePlies: Record<number, PlyWriting[]> = {
     }),
   ],
 }
+
+// The landing page's picture of the Note screen (LandingNotePicture in
+// entries.ts) is a screenshot of these, not of the samples above, so no
+// sample game or person ends up in product content (web/AGENTS.md). The
+// game is the landing page's hero game (src/landing/heroGame.ts).
+export const landingUser: User = { id: 2, email: 'reader@example.com', name: 'Reader' }
+
+export const landingSession = { accessToken: 'shots-access-token', user: landingUser }
+
+export const landingFolders: Folder[] = [
+  { id: 1, parentId: null, name: 'Club games' },
+  { id: 2, parentId: null, name: 'Openings' },
+  { id: 3, parentId: null, name: 'Concepts' },
+  { id: 4, parentId: null, name: 'Endgames' },
+]
+
+export const landingNotes: Note[] = [
+  {
+    id: 1,
+    name: 'Club night, round 3',
+    pgn: '[Event "Club night"]\n[Round "3"]\n[Opening "Tarrasch Defense"]\n\n1. d4 d5 2. c4 e6 3. Nc3 c5 4. cxd5 exd5 5. Nf3 Nc6 6. g3 Nf6 7. Bg2 Be7 8. O-O O-O 9. Bg5 cxd4 10. Nxd4 h6 11. Be3 Re8 12. Rc1 Bf8 *',
+    startFen: null,
+    folderId: 1,
+    createdAt: at,
+    updatedAt: '2026-11-03T12:00:00Z',
+  },
+  { id: 2, name: 'Isolated queen’s pawn', pgn: '*', startFen: null, folderId: 3, createdAt: at, updatedAt: at },
+  {
+    id: 3,
+    name: 'Tarrasch Defense',
+    pgn: '1. d4 d5 2. c4 e6 3. Nc3 c5 *',
+    startFen: null,
+    folderId: 2,
+    createdAt: at,
+    updatedAt: at,
+  },
+  { id: 4, name: 'Blockade the isolated pawn', pgn: '*', startFen: null, folderId: 3, createdAt: at, updatedAt: at },
+  {
+    id: 5,
+    name: 'Rook and pawn endings',
+    pgn: '[SetUp "1"]\n[FEN "8/8/3k4/3p4/8/3K4/8/3R3r w - - 0 1"]\n\n*',
+    startFen: '8/8/3k4/3p4/8/3K4/8/3R3r w - - 0 1',
+    folderId: 4,
+    createdAt: at,
+    updatedAt: at,
+  },
+]
+
+export const landingPlies: Record<number, PlyWriting[]> = {
+  1: [
+    writing(0, {
+      body: 'I took on an isolated pawn for quick development. The game turned on whether my opponent could stop it advancing.',
+    }),
+    writing(6, {
+      body: 'The [[note:3]]: Black accepts an [[note:2|isolated queen’s pawn]] in return for free, active pieces.',
+    }),
+    writing(17, { moveGlyph: '!?', comment: 'Pins the knight that guards d5.' }),
+    writing(18, {
+      positionGlyph: '=',
+      body: 'After cxd4 the pawn on d5 stands alone. It is weak in an endgame and strong while the pieces stay on, so trades help White.',
+    }),
+    writing(19, {
+      moveGlyph: '!',
+      comment: 'Straight to the square in front of the pawn: the [[note:4|blockade]] starts here.',
+    }),
+    writing(22, { comment: 'Every piece I have aims at e4 and d4 now. Next time, push d4 before White is ready.' }),
+  ],
+  4: [
+    writing(0, {
+      body: 'Put a knight on the square in front of the [[note:2|isolated pawn]]. It cannot be chased by a pawn, and it stops the pawn for good. I saw it in [[note:1|round 3]].',
+    }),
+  ],
+}
