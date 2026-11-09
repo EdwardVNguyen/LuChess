@@ -140,6 +140,27 @@ func (q *Queries) ListNotes(ctx context.Context, userID int32) ([]ListNotesRow, 
 	return items, nil
 }
 
+const lockNote = `-- name: LockNote :one
+SELECT id
+FROM notes
+WHERE id = $1 AND user_id = $2
+FOR UPDATE
+`
+
+type LockNoteParams struct {
+	ID     int64
+	UserID int32
+}
+
+// Holds the Note while its moves are edited, so writing saved meanwhile waits
+// (saving a Ply touches the Note) and the confirmation counts what is deleted.
+func (q *Queries) LockNote(ctx context.Context, arg LockNoteParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, lockNote, arg.ID, arg.UserID)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
+}
+
 const renameNote = `-- name: RenameNote :one
 UPDATE notes
 SET name = $1,
@@ -158,6 +179,44 @@ type RenameNoteParams struct {
 func (q *Queries) RenameNote(ctx context.Context, arg RenameNoteParams) (Note, error) {
 	row := q.db.QueryRowContext(ctx, renameNote,
 		arg.Name,
+		arg.Now,
+		arg.ID,
+		arg.UserID,
+	)
+	var i Note
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Name,
+		&i.Pgn,
+		&i.StartFen,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.White,
+		&i.Black,
+		&i.GameDate,
+	)
+	return i, err
+}
+
+const replaceNoteMoves = `-- name: ReplaceNoteMoves :one
+UPDATE notes
+SET pgn = $1,
+    updated_at = $2
+WHERE id = $3 AND user_id = $4
+RETURNING id, user_id, name, pgn, start_fen, created_at, updated_at, white, black, game_date
+`
+
+type ReplaceNoteMovesParams struct {
+	Pgn    string
+	Now    time.Time
+	ID     int64
+	UserID int32
+}
+
+func (q *Queries) ReplaceNoteMoves(ctx context.Context, arg ReplaceNoteMovesParams) (Note, error) {
+	row := q.db.QueryRowContext(ctx, replaceNoteMoves,
+		arg.Pgn,
 		arg.Now,
 		arg.ID,
 		arg.UserID,

@@ -281,3 +281,46 @@ describe('api client notes', () => {
     await expect(api.getNote('t', 99)).rejects.toMatchObject({ status: 404, message: 'Note not found' })
   })
 })
+
+describe('api client editMoves', () => {
+  const note = {
+    id: 3,
+    name: 'Italian',
+    pgn: '1. e4 e5 2. Nf3 Nf6 *',
+    startFen: null,
+    createdAt: '2026-11-01T12:00:00Z',
+    updatedAt: '2026-11-01T12:05:00Z',
+  }
+  const input = { pgn: note.pgn, firstChangedPly: 4, confirm: false }
+
+  it('sends the PGN and first changed Ply, and returns the saved Note', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(jsonResponse(note))
+    const api = createApiClient(baseUrl, fetchFn)
+
+    await expect(api.editMoves('t', 3, input)).resolves.toEqual({ status: 'saved', note })
+    const [url, init] = fetchFn.mock.calls[0]
+    expect(url).toBe('http://localhost:8080/api/notes/3/moves')
+    expect(init.method).toBe('PUT')
+    expect(JSON.parse(init.body)).toEqual(input)
+  })
+
+  it('turns a 409 into a request for confirmation with the count', async () => {
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValue(jsonResponse({ error: 'This will delete your writing on 3 moves', plies: 3 }, 409))
+    const api = createApiClient(baseUrl, fetchFn)
+
+    await expect(api.editMoves('t', 3, input)).resolves.toEqual({
+      status: 'needsConfirmation',
+      plies: 3,
+      message: 'This will delete your writing on 3 moves',
+    })
+  })
+
+  it('still throws other errors', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(jsonResponse({ error: 'Note not found' }, 404))
+    const api = createApiClient(baseUrl, fetchFn)
+
+    await expect(api.editMoves('t', 3, input)).rejects.toBeInstanceOf(ApiError)
+  })
+})

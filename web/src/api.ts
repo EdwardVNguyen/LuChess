@@ -60,15 +60,29 @@ export type ResetPasswordInput = { token: string; password: string }
 /** startFen is null for the standard start. */
 export type NewNoteInput = { name: string; pgn: string; startFen: string | null }
 
+/** Editing moves: the new PGN and the first Ply that changed (ADR 0003). */
+export type MovesEditInput = { pgn: string; firstChangedPly: number; confirm: boolean }
+/**
+ * An edit either saved, or was refused until confirmed because it would
+ * delete the Glyphs, Comments or Bodies on `plies` Plies.
+ */
+export type MovesEditResult =
+  { status: 'saved'; note: Note } | { status: 'needsConfirmation'; plies: number; message: string }
+
+const movesConflictSchema = z.object({ error: z.string(), plies: z.number().int().positive() })
+
 export class ApiError extends Error {
   readonly status: number
   readonly retryAfterSeconds?: number
+  /** The response body, for errors that carry more than a message. */
+  readonly body?: unknown
 
-  constructor(message: string, status: number, retryAfterSeconds?: number) {
+  constructor(message: string, status: number, retryAfterSeconds?: number, body?: unknown) {
     super(message)
     this.name = 'ApiError'
     this.status = status
     this.retryAfterSeconds = retryAfterSeconds
+    this.body = body
   }
 }
 
@@ -96,12 +110,14 @@ export function createApiClient(baseUrl: string, fetchFn: typeof fetch = fetch) 
     if (res.ok) return res
 
     // Only trust the message if the body is the API's own error shape
-    const parsed = errorBodySchema.safeParse(await res.json().catch(() => null))
+    const errorBody: unknown = await res.json().catch(() => null)
+    const parsed = errorBodySchema.safeParse(errorBody)
     const retryAfter = Number(res.headers.get('Retry-After'))
     throw new ApiError(
       parsed.success ? parsed.data.error : `Something went wrong (status ${res.status}). Please try again.`,
       res.status,
       Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : undefined,
+      errorBody,
     )
   }
 
@@ -180,6 +196,23 @@ export function createApiClient(baseUrl: string, fetchFn: typeof fetch = fetch) 
 
     async deleteNote(accessToken: string, id: number): Promise<void> {
       await request(`/api/notes/${id}`, { method: 'DELETE', accessToken })
+    },
+
+    /**
+     * Replaces a Note's moves, deleting the writing at and after the first
+     * changed Ply. Without `confirm`, an edit that would delete any is refused.
+     */
+    async editMoves(accessToken: string, noteId: number, input: MovesEditInput): Promise<MovesEditResult> {
+      try {
+        const res = await request(`/api/notes/${noteId}/moves`, { method: 'PUT', body: input, accessToken })
+        return { status: 'saved', note: noteSchema.parse(await res.json()) }
+      } catch (error) {
+        const conflict = error instanceof ApiError && error.status === 409 && movesConflictSchema.safeParse(error.body)
+        if (conflict && conflict.success) {
+          return { status: 'needsConfirmation', plies: conflict.data.plies, message: conflict.data.error }
+        }
+        throw error
+      }
     },
 
     async listPlies(accessToken: string, noteId: number): Promise<PlyWriting[]> {

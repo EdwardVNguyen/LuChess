@@ -1,5 +1,5 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
-import { ApiError, type NewNoteInput, type Note, type NoteSummary, type PlyWriting } from '../api'
+import { ApiError, type MovesEditInput, type NewNoteInput, type Note, type NoteSummary, type PlyWriting } from '../api'
 import { api } from '../apiClient'
 import { useSession } from '../session'
 import { mergeWriting, replaceWriting, type PlyChange } from './writing'
@@ -138,5 +138,28 @@ export function useNoteLinks(noteId: number) {
     queryFn: () => authorized((token) => api.getLinks(token, noteId)),
     enabled: state.status === 'authenticated',
     retry: (failures, error) => !(error instanceof ApiError && error.status === 404) && failures < 2,
+  })
+}
+
+/**
+ * Replaces the Note's moves. A refused edit changes nothing; a saved one may
+ * have deleted writing, and the Links in it, at and after the changed Ply.
+ */
+export function useEditMoves(noteId: number) {
+  const { authorized } = useSession()
+  const queryClient = useQueryClient()
+  return useMutation({
+    // After any pending writing, so a save cannot land on a Ply the edit just cleared.
+    scope: { id: `plies-${noteId}` },
+    mutationFn: (input: MovesEditInput) => authorized((token) => api.editMoves(token, noteId, input)),
+    onSuccess: (result) => {
+      if (result.status !== 'saved') return
+      const { note } = result
+      queryClient.setQueryData(keys.note(note.id), note)
+      queryClient.setQueryData<NoteSummary[]>(keys.list, (list) => putFirst(list, note))
+      void queryClient.invalidateQueries({ queryKey: keys.plies(note.id) })
+      void queryClient.invalidateQueries({ queryKey: keys.searches })
+      invalidateLinks(queryClient)
+    },
   })
 }

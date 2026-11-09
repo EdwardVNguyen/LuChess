@@ -29,6 +29,8 @@ type ViewProps = {
   game: Game
   ply: number
   onPlyChange: (ply: number) => void
+  /** When given, legal moves can be played from the Ply shown, e.g. to edit a Note's moves. */
+  onMove?: (move: LegalMove) => void
 }
 
 type PlayProps = {
@@ -72,9 +74,16 @@ function highlight(...entries: [string | null | undefined, CSSProperties][]): Re
   return result
 }
 
-function ViewBoard({ game, ply: requestedPly, onPlyChange, orientation }: ViewProps & { orientation: Orientation }) {
+function ViewBoard({
+  game,
+  ply: requestedPly,
+  onPlyChange,
+  onMove,
+  orientation,
+}: ViewProps & { orientation: Orientation }) {
   const ply = clampPly(game, requestedPly)
   const current = game.plies[ply]
+  const play = usePlay(current.fen, onMove ?? null, orientation)
   const last = game.plies.length - 1
   const label = plyLabel(current)
   const caption = label ? `After ${label}` : 'Start position'
@@ -99,8 +108,11 @@ function ViewBoard({ game, ply: requestedPly, onPlyChange, orientation }: ViewPr
       <BoardSurface
         fen={current.fen}
         orientation={orientation}
-        squareStyles={highlight([current.from, lastMoveStyle], [current.to, lastMoveStyle])}
-      />
+        squareStyles={highlight([current.from, lastMoveStyle], [current.to, lastMoveStyle], ...play.highlights)}
+        options={play.options}
+      >
+        {play.picker}
+      </BoardSurface>
       <div className={styles.controls}>
         <Group gap={8} wrap="nowrap">
           <ControlButton label="First move" disabled={ply === 0} onClick={() => onPlyChange(0)}>
@@ -143,15 +155,35 @@ function ControlButton({
 }
 
 function PlayBoard({ fen, lastMove, onMove, orientation }: PlayProps & { orientation: Orientation }) {
-  // Click a piece, then a square, as well as dragging, so play works on touch.
+  const play = usePlay(fen, onMove, orientation)
+  return (
+    <div className={styles.board}>
+      <BoardSurface
+        fen={fen}
+        orientation={orientation}
+        squareStyles={highlight([lastMove?.from, lastMoveStyle], [lastMove?.to, lastMoveStyle], ...play.highlights)}
+        options={play.options}
+      >
+        {play.picker}
+      </BoardSurface>
+    </div>
+  )
+}
+
+// Playing legal moves on a board showing `fen`: click a piece, then a square,
+// as well as dragging, so play works on touch. A pawn move to the last rank
+// waits for the piece to promote to. With no onMove, nothing can be played.
+function usePlay(fen: string, onMove: ((move: LegalMove) => void) | null, orientation: Orientation) {
   const [selected, setSelected] = useState<{ fen: string; square: string } | null>(null)
-  // A pawn move to the last rank waits here for the piece to promote to.
   const [promoting, setPromoting] = useState<{ fen: string; from: string; to: string } | null>(null)
-  const selectedSquare = selected?.fen === fen ? selected.square : null
-  const pending = promoting?.fen === fen ? promoting : null
+  const selectedSquare = onMove && selected?.fen === fen ? selected.square : null
+  const pending = onMove && promoting?.fen === fen ? promoting : null
   const cancelPromotion = useCallback(() => setPromoting(null), [])
   const targets = selectedSquare ? legalTargets(fen, selectedSquare) : []
   const turn: Color = fen.split(' ')[1] === 'b' ? 'b' : 'w'
+
+  if (!onMove) return { highlights: [], options: undefined, picker: null }
+  const played = onMove
 
   function move(from: string, to: string): boolean {
     setSelected(null)
@@ -162,7 +194,7 @@ function PlayBoard({ fen, lastMove, onMove, orientation }: PlayProps & { orienta
     }
     const result = tryMove(fen, from, to)
     if (!result) return false
-    onMove(result)
+    played(result)
     return true
   }
 
@@ -170,7 +202,7 @@ function PlayBoard({ fen, lastMove, onMove, orientation }: PlayProps & { orienta
     if (!pending) return
     setPromoting(null)
     const result = tryMove(fen, pending.from, pending.to, promotion)
-    if (result) onMove(result)
+    if (result) played(result)
   }
 
   function onSquareClick({ square }: { square: string }) {
@@ -182,38 +214,31 @@ function PlayBoard({ fen, lastMove, onMove, orientation }: PlayProps & { orienta
     setSelected(ownPiece && square !== selectedSquare ? { fen, square } : null)
   }
 
-  return (
-    <div className={styles.board}>
-      <BoardSurface
-        fen={fen}
+  const highlights: [string | null | undefined, CSSProperties][] = [
+    [selectedSquare, selectedStyle],
+    [pending?.from, selectedStyle],
+    ...targets.map((square): [string, CSSProperties] => [square, targetStyle]),
+  ]
+  return {
+    highlights,
+    options: {
+      allowDragging: !pending,
+      allowDragOffBoard: false,
+      canDragPiece: ({ piece }: { piece: { pieceType: string } }) => piece.pieceType[0] === turn,
+      onPieceDrop: ({ sourceSquare, targetSquare }: { sourceSquare: string; targetSquare: string | null }) =>
+        targetSquare ? move(sourceSquare, targetSquare) : false,
+      onSquareClick,
+    },
+    picker: pending && (
+      <PromotionPicker
+        square={pending.to}
+        color={turn}
         orientation={orientation}
-        squareStyles={highlight(
-          [lastMove?.from, lastMoveStyle],
-          [lastMove?.to, lastMoveStyle],
-          [selectedSquare, selectedStyle],
-          [pending?.from, selectedStyle],
-          ...targets.map((square): [string, CSSProperties] => [square, targetStyle]),
-        )}
-        options={{
-          allowDragging: !pending,
-          allowDragOffBoard: false,
-          canDragPiece: ({ piece }) => piece.pieceType[0] === turn,
-          onPieceDrop: ({ sourceSquare, targetSquare }) => (targetSquare ? move(sourceSquare, targetSquare) : false),
-          onSquareClick,
-        }}
-      >
-        {pending && (
-          <PromotionPicker
-            square={pending.to}
-            color={turn}
-            orientation={orientation}
-            onPick={promote}
-            onCancel={cancelPromotion}
-          />
-        )}
-      </BoardSurface>
-    </div>
-  )
+        onPick={promote}
+        onCancel={cancelPromotion}
+      />
+    ),
+  }
 }
 
 const PROMOTION_PIECES: Record<Promotion, { code: PieceCode[1]; name: string }> = {

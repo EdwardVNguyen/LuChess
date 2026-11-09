@@ -41,3 +41,16 @@ WITH note AS (
   WHERE p.note_id = note.id AND p.ply = sqlc.arg(ply)
 )
 SELECT count(*) FROM note;
+
+-- name: CountPliesFrom :one
+-- The Plies at or after a Ply that hold writing or a Glyph. The caller has
+-- already found the Note, scoped to its owner.
+SELECT count(*)
+FROM plies
+WHERE note_id = sqlc.arg(note_id) AND ply >= sqlc.arg(ply);
+
+-- name: DeletePliesFrom :exec
+-- Deletes every Glyph, Comment and Body at or after a Ply, and their Links
+-- with them. The caller has already found the Note, scoped to its owner.
+DELETE FROM plies
+WHERE note_id = sqlc.arg(note_id) AND ply >= sqlc.arg(ply);

@@ -1,11 +1,11 @@
 import { Alert, Button, Loader, Stack, Text, Title } from '@mantine/core'
 import { useDisclosure } from '@mantine/hooks'
 import { Link, useParams, useSearch } from '@tanstack/react-router'
-import { useCallback, useEffect, useMemo, useRef } from 'react'
-import { ApiError, type Note } from '../api'
-import type { Game } from '../chess/chess'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { ApiError, type Note, type PlyWriting } from '../api'
+import { parsePgn, type Game, type MovesEdit } from '../chess/chess'
 import { errorMessage } from '../errors'
-import { ResponsivePopover, useOverlaySize } from '../overlay'
+import { ConfirmDialog, ResponsivePopover, useOverlaySize } from '../overlay'
 import { FolderIcon } from './icons'
 import { LinkingContext, type Linking } from './linking'
 import type { LinkStatus } from './links'
@@ -13,8 +13,8 @@ import { NoteActions } from './NoteActions'
 import { NoteList } from './NoteList'
 import styles from './Notes.module.css'
 import { NoteMargin } from './NoteMargin'
-import { useNote, useNoteLinks, usePlies, useSavePly } from './queries'
-import { StudyView, WritingView } from './StudyView'
+import { useEditMoves, useNote, useNoteLinks, usePlies, useSavePly } from './queries'
+import { StudyView, WritingView, type MovesDraft } from './StudyView'
 
 export function NoteScreen() {
   const { noteId } = useParams({ from: '/notes/$noteId' })
@@ -60,20 +60,96 @@ function LoadedNote({ id, initialPly }: { id: number; initialPly: number | undef
 
 function NoteView({ note, initialPly }: { note: Note; initialPly: number | undefined }) {
   const linking = useNoteLinking(note.id)
+  const moves = useMoveEditing(note)
   return (
     <LinkingContext value={linking}>
       <Strip name={note.name} />
       <StudyView
         name={note.name}
         pgn={note.pgn}
-        actions={<NoteActions note={note} />}
+        actions={<NoteActions note={note} onEditMoves={moves.start} />}
         initialPly={initialPly}
         margin={<NoteMargin noteId={note.id} />}
+        moveEditing={moves.editing}
       >
         {(view) => <Writing noteId={note.id} scrollToCurrent={initialPly !== undefined} {...view} />}
       </StudyView>
+      {moves.confirmDialog}
     </LinkingContext>
   )
+}
+
+// Editing a Note's moves (ADR 0003): the edit is sent as is, and if the API
+// answers that it would delete writing, the user confirms before it is sent
+// again with the confirmation.
+function useMoveEditing(note: Note) {
+  const [active, setActive] = useState(false)
+  const [confirming, setConfirming] = useState<{ edit: MovesEdit; plies: number } | null>(null)
+  const edit = useEditMoves(note.id)
+  const size = useOverlaySize()
+  const readable = useMemo(() => parsePgn(note.pgn).ok, [note.pgn])
+
+  function send(moves: MovesEdit, confirm: boolean) {
+    edit.mutate(
+      { ...moves, confirm },
+      {
+        onSuccess: (result) => {
+          if (result.status === 'saved') {
+            setConfirming(null)
+            setActive(false)
+          } else {
+            setConfirming({ edit: moves, plies: result.plies })
+          }
+        },
+      },
+    )
+  }
+
+  const start =
+    readable && !active
+      ? () => {
+          edit.reset()
+          setActive(true)
+        }
+      : undefined
+
+  return {
+    start,
+    editing: active
+      ? {
+          onCancel: () => setActive(false),
+          onSave: (moves: MovesEdit) => send(moves, false),
+          saving: edit.isPending,
+          error: edit.isError && !confirming ? errorMessage(edit.error) : null,
+        }
+      : null,
+    confirmDialog: confirming && (
+      <ConfirmDialog
+        size={size}
+        opened
+        onClose={() => {
+          setConfirming(null)
+          edit.reset()
+        }}
+        title="Delete your writing?"
+        message={
+          <>
+            This will delete your writing on {confirming.plies} {confirming.plies === 1 ? 'move' : 'moves'}: the Glyphs,
+            Comments and Bodies from the changed move on, and the Links in them. This cannot be undone.
+            {edit.isError && (
+              <Text component="span" display="block" c="accent" size="sm" mt="sm" role="alert">
+                {errorMessage(edit.error)}
+              </Text>
+            )}
+          </>
+        }
+        confirmLabel="Delete and save"
+        onConfirm={() => send(confirming.edit, true)}
+        confirmLoading={edit.isPending}
+        destructive
+      />
+    ),
+  }
 }
 
 // Links show their targets' current names from the Note's links. Until those
@@ -100,6 +176,7 @@ function Writing({
   game,
   ply,
   onPlyChange,
+  draft,
 }: {
   noteId: number
   /** Bring the current Ply's writing into view once it loads, as when arriving by a Backlink. */
@@ -107,10 +184,16 @@ function Writing({
   game: Game | null
   ply: number
   onPlyChange: (ply: number) => void
+  /** While the moves are edited: the writing from the first changed Ply on is not shown, as saving deletes it. */
+  draft: MovesDraft | null
 }) {
   const plies = usePlies(noteId)
   const save = useSavePly(noteId)
-  const writing = useMemo(() => new Map((plies.data ?? []).map((p) => [p.ply, p])), [plies.data])
+  const writing = useMemo(() => {
+    const cut = draft?.firstChangedPly ?? null
+    const kept = (plies.data ?? []).filter((p: PlyWriting) => cut === null || p.ply < cut)
+    return new Map(kept.map((p) => [p.ply, p]))
+  }, [plies.data, draft?.firstChangedPly])
   const anchor = useRef<HTMLDivElement>(null)
   const scrolled = useRef(!scrollToCurrent)
 
@@ -123,47 +206,47 @@ function Writing({
 
   return (
     <>
-    <div ref={anchor} hidden />
-    <WritingView
-      game={game}
-      ply={ply}
-      onPlyChange={onPlyChange}
-      writing={writing}
-      editable={plies.isSuccess}
-      onSave={(change) => save.mutate(change)}
-      aboveMoves={
-        plies.isError && (
-          <Alert color="red" title="Could not load your writing">
-            <Stack gap="sm" align="flex-start">
-              <Text size="sm">{errorMessage(plies.error)}</Text>
-              <Button variant="light" onClick={() => void plies.refetch()}>
-                Try again
-              </Button>
-            </Stack>
-          </Alert>
-        )
-      }
-      belowMoves={
-        <>
-          {plies.isPending && (
-            <div className={styles.writingLoading}>
-              <Loader size="sm" aria-label="Loading your writing" />
-            </div>
-          )}
-          {save.isError && save.variables && (
-            <Alert color="red" title="Your writing was not saved">
+      <div ref={anchor} hidden />
+      <WritingView
+        game={game}
+        ply={ply}
+        onPlyChange={onPlyChange}
+        writing={writing}
+        editable={plies.isSuccess && draft === null}
+        onSave={(change) => save.mutate(change)}
+        aboveMoves={
+          plies.isError && (
+            <Alert color="red" title="Could not load your writing">
               <Stack gap="sm" align="flex-start">
-                <Text size="sm">{errorMessage(save.error)}</Text>
-                <Button variant="light" onClick={() => save.mutate(save.variables)}>
+                <Text size="sm">{errorMessage(plies.error)}</Text>
+                <Button variant="light" onClick={() => void plies.refetch()}>
                   Try again
                 </Button>
               </Stack>
             </Alert>
-          )}
-        </>
-      }
-      belowEditor={save.isPending && <div className={styles.saving}>Saving…</div>}
-    />
+          )
+        }
+        belowMoves={
+          <>
+            {plies.isPending && (
+              <div className={styles.writingLoading}>
+                <Loader size="sm" aria-label="Loading your writing" />
+              </div>
+            )}
+            {save.isError && save.variables && (
+              <Alert color="red" title="Your writing was not saved">
+                <Stack gap="sm" align="flex-start">
+                  <Text size="sm">{errorMessage(save.error)}</Text>
+                  <Button variant="light" onClick={() => save.mutate(save.variables)}>
+                    Try again
+                  </Button>
+                </Stack>
+              </Alert>
+            )}
+          </>
+        }
+        belowEditor={save.isPending && <div className={styles.saving}>Saving…</div>}
+      />
     </>
   )
 }
@@ -183,7 +266,13 @@ function Strip({ name }: { name: string | null }) {
         onClose={close}
         label="Your notes"
         target={
-          <Button variant="outline" size="sm" leftSection={<FolderIcon />} onClick={toggle} className={styles.stripButton}>
+          <Button
+            variant="outline"
+            size="sm"
+            leftSection={<FolderIcon />}
+            onClick={toggle}
+            className={styles.stripButton}
+          >
             All notes
           </Button>
         }
