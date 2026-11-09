@@ -1,5 +1,5 @@
 import { Alert, AppShell, Button, Group, Text } from '@mantine/core'
-import { Outlet, useNavigate } from '@tanstack/react-router'
+import { Outlet, useNavigate, useRouterState } from '@tanstack/react-router'
 import { useState } from 'react'
 import { errorMessage } from './errors'
 import { Header } from './header/Header'
@@ -9,6 +9,9 @@ export function Layout() {
   const { state, restore, signOut } = useSession()
   const navigate = useNavigate()
   const [logoutFailed, setLogoutFailed] = useState(false)
+  // A Guest at `/` sees the landing page, which has a taller header (HomeLoggedOut.dc.html).
+  const pathname = useRouterState({ select: (s) => s.location.pathname })
+  const landing = pathname === '/' && state.status === 'guest'
 
   async function logOut() {
     setLogoutFailed(false)
@@ -25,7 +28,7 @@ export function Layout() {
 
   return (
     <AppShell
-      header={{ height: 56 }}
+      header={{ height: landing ? { base: 56, md: 64 } : 56 }}
       padding={0}
       styles={{
         header: { backgroundColor: 'var(--cn-ground)', borderBottom: '1px solid var(--cn-rule)' },
@@ -33,7 +36,7 @@ export function Layout() {
       }}
     >
       <AppShell.Header>
-        <Header state={state} onLogOut={() => void logOut()} />
+        <Header state={state} landing={landing} onLogOut={() => void logOut()} />
       </AppShell.Header>
       <AppShell.Main>
         {state.status === 'restore-failed' && (

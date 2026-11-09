@@ -1,0 +1,802 @@
+/* The landing page: design/screens/HomeLoggedOut.dc.html (desktop),
+ * HomeLoggedOut-tablet.dc.html and HomeLoggedOut-mobile.dc.html. Mobile
+ * first; 48em is the theme's `sm` (tablet), 64em its `md` (desktop). */
+.page {
+  background: var(--cn-paper);
+  color: var(--cn-ink);
+  font-family: var(--cn-font-serif);
+}
+
+.container {
+  width: 100%;
+  max-width: 1160px;
+  margin-inline: auto;
+  padding-inline: 16px;
+  box-sizing: border-box;
+}
+
+@media (min-width: 48em) {
+  .container {
+    padding-inline: 28px;
+  }
+}
+
+@media (min-width: 64em) {
+  .container {
+    padding-inline: 48px;
+  }
+}
+
+.eyebrow {
+  margin: 0;
+  font-family: var(--cn-font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--cn-muted);
+}
+
+/* Buttons. The design's are taller than the app's, so they are drawn here. */
+.primary,
+.secondary,
+.bandPrimary,
+.bandSecondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 56px;
+  padding-inline: 28px;
+  box-sizing: border-box;
+  border-radius: var(--cn-radius-button);
+  border: 1px solid;
+  font-family: var(--cn-font-sans);
+  font-size: 17px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.primary {
+  padding-inline: 30px;
+  border-color: var(--cn-ink);
+  background: var(--cn-ink);
+  color: var(--cn-paper);
+  font-weight: 500;
+}
+
+.secondary {
+  border-color: var(--cn-dashed);
+  color: var(--cn-ink);
+}
+
+.bandPrimary {
+  padding-inline: 30px;
+  border-color: var(--cn-paper);
+  background: var(--cn-paper);
+  color: var(--cn-ink);
+  font-weight: 500;
+}
+
+.bandSecondary {
+  padding-inline: 26px;
+  border-color: var(--cn-band-edge);
+  color: var(--cn-paper);
+}
+
+.primary:hover,
+.bandPrimary:hover {
+  opacity: 0.85;
+}
+
+.secondary:hover {
+  background: var(--cn-ground);
+}
+
+.bandSecondary:hover {
+  border-color: var(--cn-paper);
+}
+
+.primary:focus-visible,
+.secondary:focus-visible {
+  outline: 2px solid var(--cn-ink);
+  outline-offset: 2px;
+}
+
+.bandPrimary:focus-visible,
+.bandSecondary:focus-visible {
+  outline: 2px solid var(--cn-paper);
+  outline-offset: 2px;
+}
+
+/* Hero */
+.hero {
+  padding-block: 32px 40px;
+}
+
+@media (min-width: 48em) {
+  .hero {
+    padding-block: 56px 64px;
+  }
+}
+
+@media (min-width: 64em) {
+  .hero {
+    padding-block: 84px 96px;
+  }
+}
+
+.heroGrid {
+  display: grid;
+  gap: 24px;
+}
+
+@media (min-width: 48em) {
+  .heroGrid {
+    gap: 30px;
+  }
+}
+
+@media (min-width: 64em) {
+  .heroGrid {
+    grid-template-columns: minmax(0, 6fr) minmax(0, 5fr);
+    gap: 56px;
+    align-items: center;
+  }
+}
+
+.heroCopy {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+@media (min-width: 64em) {
+  .heroCopy {
+    gap: 26px;
+  }
+}
+
+.title {
+  margin: 0;
+  font-size: 42px;
+  line-height: 1.03;
+  font-weight: 500;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+
+@media (min-width: 48em) {
+  .title {
+    font-size: 64px;
+  }
+}
+
+@media (min-width: 64em) {
+  .title {
+    font-size: 72px;
+    line-height: 1.02;
+  }
+}
+
+.lede {
+  margin: 0;
+  max-width: 600px;
+  font-size: 20px;
+  line-height: 1.5;
+  color: var(--cn-prose);
+}
+
+@media (min-width: 48em) {
+  .lede {
+    font-size: 23px;
+  }
+}
+
+@media (min-width: 64em) {
+  .lede {
+    max-width: 560px;
+    font-size: 24px;
+  }
+}
+
+/* Stacked, full width on mobile (HomeLoggedOut-mobile.png). */
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+@media (min-width: 48em) {
+  .actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+}
+
+/* The hero's Note and its two linked cards. The cards float over the corners;
+ * the threads run from the middle of the Note card out to each of them. */
+.heroNote {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  padding-block: 92px 64px;
+  max-width: 540px;
+  width: 100%;
+  margin-inline: auto;
+}
+
+@media (min-width: 48em) {
+  .heroNote {
+    padding-block: 100px 72px;
+  }
+}
+
+.threads {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.threads path {
+  fill: none;
+  stroke: var(--cn-accent);
+  stroke-width: 1.6;
+  vector-effect: non-scaling-stroke;
+}
+
+.noteCard {
+  position: relative;
+  /* Full width on mobile, so the board's move controls fit beside their caption. */
+  width: min(372px, 100%);
+  padding: 18px 14px 14px;
+  box-sizing: border-box;
+  background: var(--cn-card);
+  border: 1px solid var(--cn-edge);
+  border-radius: 14px;
+  box-shadow: var(--cn-lift-shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+@media (min-width: 48em) {
+  .noteCard {
+    padding-inline: 18px;
+  }
+}
+
+.cardLabel {
+  font-family: var(--cn-font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--cn-muted);
+}
+
+.linkCard {
+  position: absolute;
+  z-index: 1;
+  width: 200px;
+  padding: 12px 14px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: var(--cn-card);
+  border: 1px solid var(--cn-edge);
+  border-radius: var(--cn-radius-card);
+  box-shadow: var(--cn-card-shadow);
+}
+
+@media (min-width: 48em) {
+  .linkCard {
+    width: 250px;
+    padding: 14px 16px;
+  }
+}
+
+.linkCardTop {
+  top: 0;
+  left: 0;
+}
+
+.linkCardBottom {
+  bottom: 0;
+  right: 0;
+}
+
+.linkName {
+  font-size: 18px;
+  line-height: 1.2;
+  font-weight: 500;
+  color: var(--cn-accent);
+}
+
+@media (min-width: 48em) {
+  .linkName {
+    font-size: 21px;
+  }
+}
+
+/* Sections */
+.section {
+  padding-block: 44px;
+  border-top: 1px solid var(--cn-rule);
+  scroll-margin-top: var(--app-shell-header-height, 56px);
+}
+
+@media (min-width: 48em) {
+  .section {
+    padding-block: 64px;
+  }
+}
+
+@media (min-width: 64em) {
+  .section {
+    padding-block: 88px;
+  }
+}
+
+.sunk {
+  background: var(--cn-sidebar);
+}
+
+.sectionHead {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 640px;
+}
+
+.heading {
+  margin: 0;
+  font-size: 32px;
+  line-height: 1.08;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+
+@media (min-width: 48em) {
+  .heading {
+    font-size: 42px;
+  }
+}
+
+@media (min-width: 64em) {
+  .heading {
+    font-size: 44px;
+  }
+}
+
+/* How it works */
+.steps {
+  margin: 32px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 24px;
+}
+
+@media (min-width: 48em) {
+  .steps {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 32px;
+  }
+}
+
+@media (min-width: 64em) {
+  .steps {
+    margin-top: 40px;
+    gap: 48px;
+  }
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.stepNumber {
+  font-size: 56px;
+  line-height: 1;
+  font-style: italic;
+  color: var(--cn-accent);
+}
+
+.stepTitle {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 500;
+}
+
+@media (min-width: 64em) {
+  .stepTitle {
+    font-size: 30px;
+  }
+}
+
+.stepText {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.5;
+  color: var(--cn-prose);
+}
+
+@media (min-width: 64em) {
+  .stepText {
+    font-size: 19px;
+  }
+}
+
+/* Luhmann's method: copy beside a picture of the Note screen */
+.featureGrid {
+  display: grid;
+  gap: 32px;
+}
+
+@media (min-width: 64em) {
+  .featureGrid {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+    gap: 64px;
+    align-items: center;
+  }
+}
+
+.featureCopy {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.featureText {
+  margin: 0;
+  font-size: 19px;
+  line-height: 1.5;
+  color: var(--cn-prose);
+}
+
+@media (min-width: 48em) {
+  .featureText {
+    font-size: 21px;
+  }
+}
+
+.points {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.points li {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 17px;
+  line-height: 1.45;
+}
+
+@media (min-width: 48em) {
+  .points li {
+    font-size: 19px;
+  }
+}
+
+@media (min-width: 64em) {
+  .points {
+    gap: 12px;
+  }
+
+  .points li {
+    gap: 12px;
+  }
+}
+
+.check {
+  flex: none;
+  margin-top: 0.2em;
+  fill: none;
+  stroke: var(--cn-accent);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.picture {
+  margin: 0;
+  overflow: hidden;
+  background: var(--cn-card);
+  border: 1px solid var(--cn-edge);
+  border-radius: var(--cn-radius-dialog);
+  box-shadow: var(--cn-picture-shadow);
+}
+
+.pictureBar {
+  display: flex;
+  gap: 6px;
+  padding: 10px 14px;
+  background: var(--cn-ground);
+  border-bottom: 1px solid var(--cn-rule);
+}
+
+.pictureBar span {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--cn-window-dot);
+}
+
+.picture img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* FAQ */
+.faqGrid {
+  display: grid;
+  gap: 24px;
+}
+
+@media (min-width: 64em) {
+  .faqGrid {
+    grid-template-columns: minmax(0, 4fr) minmax(0, 8fr);
+    gap: 64px;
+  }
+}
+
+.faq {
+  border-bottom: 1px solid var(--cn-rule);
+}
+
+.faqItem {
+  border: 0;
+  border-top: 1px solid var(--cn-rule);
+}
+
+.faqControl {
+  padding: 22px 0;
+  background: transparent;
+  color: var(--cn-ink);
+}
+
+.faqControl:hover {
+  background: transparent;
+}
+
+.faqControl:hover .faqQuestion {
+  color: var(--cn-accent);
+}
+
+.faqControl:focus-visible {
+  outline: 2px solid var(--cn-ink);
+  outline-offset: 2px;
+}
+
+.faqQuestion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0;
+  font-family: var(--cn-font-serif);
+  font-size: 21px;
+  line-height: 1.3;
+  font-weight: 500;
+  text-align: left;
+}
+
+@media (min-width: 48em) {
+  .faqQuestion {
+    font-size: 24px;
+  }
+}
+
+.faqSign {
+  flex: none;
+  font-family: var(--cn-font-sans);
+  font-size: 22px;
+  line-height: 1;
+  color: var(--cn-muted);
+}
+
+.faqSign::before {
+  content: '+';
+}
+
+.faqItem[data-active] .faqSign::before {
+  content: '−';
+}
+
+.faqAnswer {
+  max-width: 720px;
+  padding: 0 0 22px;
+  font-size: 19px;
+  line-height: 1.55;
+  color: var(--cn-prose);
+}
+
+/* The sign-up band */
+.band {
+  padding-block: 56px;
+  background: var(--cn-ink);
+  color: var(--cn-paper);
+}
+
+@media (min-width: 48em) {
+  .band {
+    padding-block: 80px;
+  }
+}
+
+@media (min-width: 64em) {
+  .band {
+    padding-block: 96px;
+  }
+}
+
+.bandInner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  text-align: center;
+}
+
+@media (min-width: 64em) {
+  .bandInner {
+    gap: 24px;
+  }
+}
+
+.bandTitle {
+  margin: 0;
+  max-width: 760px;
+  font-size: 38px;
+  line-height: 1.05;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+@media (min-width: 48em) {
+  .bandTitle {
+    font-size: 54px;
+  }
+}
+
+@media (min-width: 64em) {
+  .bandTitle {
+    font-size: 56px;
+  }
+}
+
+.bandText {
+  margin: 0;
+  max-width: 520px;
+  font-size: 19px;
+  line-height: 1.5;
+  color: var(--cn-rule);
+}
+
+@media (min-width: 48em) {
+  .bandText {
+    font-size: 22px;
+  }
+}
+
+@media (min-width: 64em) {
+  .bandText {
+    max-width: 560px;
+  }
+}
+
+.bandActions {
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
+  gap: 12px;
+}
+
+@media (min-width: 48em) {
+  .bandActions {
+    flex-direction: row;
+    align-self: center;
+  }
+}
+
+/* Footer */
+.footer {
+  padding-block: 40px 32px;
+  background: var(--cn-ground);
+  border-top: 1px solid var(--cn-rule);
+}
+
+@media (min-width: 64em) {
+  .footer {
+    padding-block: 56px 40px;
+  }
+}
+
+.footerInner {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+@media (min-width: 64em) {
+  .footerInner {
+    flex-direction: row;
+    justify-content: space-between;
+    gap: 80px;
+  }
+}
+
+.footerBrand {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 320px;
+}
+
+.footerLogo {
+  font-size: 26px;
+  font-style: italic;
+  font-weight: 500;
+}
+
+.footerTagline {
+  font-family: var(--cn-font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--cn-muted);
+}
+
+.footerColumns {
+  display: flex;
+  gap: 48px;
+}
+
+@media (min-width: 64em) {
+  .footerColumns {
+    gap: 80px;
+  }
+}
+
+.footerColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.footerHeading {
+  font-family: var(--cn-font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--cn-muted);
+}
+
+.footerColumn a {
+  font-family: var(--cn-font-sans);
+  font-size: 15px;
+  color: var(--cn-ink);
+  text-decoration: none;
+}
+
+.footerColumn a:hover {
+  text-decoration: underline;
+}
+
+.footerColumn a:focus-visible {
+  outline: 2px solid var(--cn-ink);
+  outline-offset: 2px;
+}

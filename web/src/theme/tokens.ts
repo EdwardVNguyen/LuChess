@@ -26,6 +26,17 @@ export const colorTokens = {
   overlay: 'rgba(42, 38, 32, .45)',
   // The lift under a dialog that floats over the page (QuickFind.dc.html).
   dialogShadow: '0 24px 60px rgba(42, 38, 32, .28)',
+  // Long-form copy on the landing page (HomeLoggedOut.dc.html), a shade lighter than ink.
+  prose: '#4A443A',
+  // The outline button's border on the ink sign-up band (HomeLoggedOut.dc.html).
+  bandEdge: '#6B6353',
+  // The three dots on the browser frame around a picture of the app (HomeLoggedOut.dc.html).
+  windowDot: '#CDBF9F',
+  // The landing hero's cards: the Note card, and the smaller linked cards around it.
+  liftShadow: '0 22px 50px rgba(42, 38, 32, .18)',
+  cardShadow: '0 10px 26px rgba(42, 38, 32, .12)',
+  // The browser frame around a picture of the app.
+  pictureShadow: '0 18px 44px rgba(42, 38, 32, .16)',
 } as const
 
 export const fontTokens = {
