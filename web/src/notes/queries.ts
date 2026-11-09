@@ -1,7 +1,8 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ApiError, type NewNoteInput, type Note, type NoteSummary, type PlyWriting, type PlyWritingInput } from '../api'
+import { ApiError, type NewNoteInput, type Note, type NoteSummary, type PlyWriting } from '../api'
 import { api } from '../apiClient'
 import { useSession } from '../session'
+import { mergeWriting, replaceWriting, type PlyChange } from './writing'
 
 // Every Note call goes through the Session, so an expired access token is
 // refreshed once instead of failing. Cached Notes are cleared when the
@@ -103,15 +104,6 @@ export function usePlies(noteId: number) {
   })
 }
 
-export type PlyChange = { ply: number } & Partial<PlyWritingInput>
-
-const empty: PlyWritingInput = { comment: null, body: null, moveGlyph: null, positionGlyph: null }
-
-/**
- * Saves one part of a Ply's writing (a Comment, a Body or a Glyph), keeping
- * the rest. Saves run one at a time, each merging onto the result of the one
- * before, so a Glyph chosen while a Comment is saving does not undo it.
- */
 export function useSavePly(noteId: number) {
   const { authorized } = useSession()
   const queryClient = useQueryClient()
@@ -119,21 +111,10 @@ export function useSavePly(noteId: number) {
     scope: { id: `plies-${noteId}` },
     mutationFn: ({ ply, ...change }: PlyChange) => {
       const saved = queryClient.getQueryData<PlyWriting[]>(keys.plies(noteId))?.find((p) => p.ply === ply)
-      const input: PlyWritingInput = {
-        comment: saved?.comment ?? empty.comment,
-        body: saved?.body ?? empty.body,
-        moveGlyph: saved?.moveGlyph ?? empty.moveGlyph,
-        positionGlyph: saved?.positionGlyph ?? empty.positionGlyph,
-        ...change,
-      }
-      return authorized((token) => api.putPly(token, noteId, ply, input))
+      return authorized((token) => api.putPly(token, noteId, ply, mergeWriting(saved, change)))
     },
     onSuccess: (written) => {
-      const hasWriting = written.comment || written.body || written.moveGlyph || written.positionGlyph
-      queryClient.setQueryData<PlyWriting[]>(keys.plies(noteId), (plies) => {
-        const others = (plies ?? []).filter((p) => p.ply !== written.ply)
-        return hasWriting ? [...others, written].sort((a, b) => a.ply - b.ply) : others
-      })
+      queryClient.setQueryData<PlyWriting[]>(keys.plies(noteId), (plies) => replaceWriting(plies, written))
       // Writing touches the Note, which moves it to the top of the list.
       void queryClient.invalidateQueries({ queryKey: keys.list, exact: true })
     },

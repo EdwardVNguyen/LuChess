@@ -32,6 +32,8 @@ export async function installApiMocks(
     if (pathname === '/api/health' && method === 'GET') return json(200, { status: 'ok' })
 
     if (pathname === '/api/auth/refresh' && method === 'POST') {
+      if (fixtures === 'restoring') return
+      if (fixtures === 'restoreError') return json(500, { error: 'Something went wrong' })
       return fixtures === 'session' ? json(200, loggedInSession) : json(401, { error: 'No session' })
     }
 

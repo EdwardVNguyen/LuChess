@@ -18,3 +18,12 @@ export function MoreIcon({ size = 18 }: IconProps) {
     </svg>
   )
 }
+
+// The Save button's bookmark (ArticleGuest.dc.html).
+export function BookmarkIcon({ size = 16 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M6.5 4h11v16l-5.5-4-5.5 4z" />
+    </svg>
+  )
+}

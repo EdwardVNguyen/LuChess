@@ -34,3 +34,11 @@ if (typeof window.ResizeObserver === 'undefined') {
     disconnect() {}
   }
 }
+
+// jsdom has no document.fonts; Mantine's autosizing Textarea (the PGN box)
+// listens on it to resize once fonts load. Nothing loads fonts here.
+if (!('fonts' in document)) {
+  Object.defineProperty(document, 'fonts', {
+    value: { addEventListener: () => {}, removeEventListener: () => {}, ready: Promise.resolve() },
+  })
+}
