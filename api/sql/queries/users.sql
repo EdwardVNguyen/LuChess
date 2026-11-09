@@ -30,3 +30,9 @@ UPDATE users
 SET password_hash = sqlc.arg(password_hash),
     updated_at = sqlc.arg(now)
 WHERE id = sqlc.arg(id);
+
+-- Hard-deletes the user. Everything they own goes with them through ON DELETE
+-- CASCADE: Folders, Notes, their Plies and Links, refresh and email tokens.
+-- name: DeleteUser :execrows
+DELETE FROM users
+WHERE id = $1;

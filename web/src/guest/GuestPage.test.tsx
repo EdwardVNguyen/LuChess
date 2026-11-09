@@ -37,6 +37,7 @@ function sessionIn(state: SessionState): Session {
     restore: async () => {},
     signIn: async () => ({ id: 1, email: 'ada@example.com', name: 'Ada' }),
     signOut: async () => {},
+    forget: () => {},
     authorized: () => Promise.reject(new Error('a Guest has no Session')),
   }
 }

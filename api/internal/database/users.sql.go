@@ -55,6 +55,21 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 	return i, err
 }
 
+const deleteUser = `-- name: DeleteUser :execrows
+DELETE FROM users
+WHERE id = $1
+`
+
+// Hard-deletes the user. Everything they own goes with them through ON DELETE
+// CASCADE: Folders, Notes, their Plies and Links, refresh and email tokens.
+func (q *Queries) DeleteUser(ctx context.Context, id int32) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteUser, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const getUserByEmail = `-- name: GetUserByEmail :one
 SELECT id, email, password_hash, name, biography, avatar_url, role, created_at, updated_at, email_verified_at 
 FROM users

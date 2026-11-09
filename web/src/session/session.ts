@@ -24,6 +24,11 @@ export type Session = {
   /** Ends the Session only after the server confirms; rejects if it cannot. */
   signOut(): Promise<void>
   /**
+   * Ends the Session in this browser once the server has already ended it,
+   * as deleting the account does. Tells the server nothing.
+   */
+  forget(): void
+  /**
    * Calls the API with the access token. An expired token is refreshed once and
    * the call retried; a refused refresh ends the Session.
    */
@@ -169,6 +174,7 @@ export function createSession({ transport, lock = browserLock, onSessionEnded = 
     restore,
     signIn,
     signOut,
+    forget: endSession,
     authorized,
   }
 }
