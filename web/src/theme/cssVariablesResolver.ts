@@ -1,5 +1,5 @@
 import type { CSSVariablesResolver } from '@mantine/core'
-import { colorTokens, fontTokens, radiusTokens } from './tokens'
+import { colorTokens, fontTokens, radiusTokens, spacingTokens } from './tokens'
 
 // Exposes the design tokens that don't map onto Mantine's own theme shape
 // (flat surface colors, the board colors, fonts) as CSS variables, so CSS
@@ -34,6 +34,7 @@ export const cssVariablesResolver: CSSVariablesResolver = () => ({
     '--cn-radius-card': radiusTokens.md,
     '--cn-radius-dialog': radiusTokens.lg,
     '--cn-radius-pill': radiusTokens.xl,
+    '--cn-tree-indent': spacingTokens.treeIndent,
   },
   light: {},
   dark: {},

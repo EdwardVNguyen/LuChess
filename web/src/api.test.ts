@@ -241,6 +241,7 @@ describe('api client notes', () => {
     name: 'King and pawn',
     pgn: '[SetUp "1"]\n[FEN "4k3/8/8/8/8/8/4P3/4K3 w - - 0 1"]\n\n*',
     startFen: '4k3/8/8/8/8/8/4P3/4K3 w - - 0 1',
+    folderId: null,
     createdAt: '2026-11-01T12:00:00Z',
     updatedAt: '2026-11-01T12:00:00Z',
   }
@@ -288,6 +289,7 @@ describe('api client editMoves', () => {
     name: 'Italian',
     pgn: '1. e4 e5 2. Nf3 Nf6 *',
     startFen: null,
+    folderId: null,
     createdAt: '2026-11-01T12:00:00Z',
     updatedAt: '2026-11-01T12:05:00Z',
   }
@@ -322,5 +324,64 @@ describe('api client editMoves', () => {
     const api = createApiClient(baseUrl, fetchFn)
 
     await expect(api.editMoves('t', 3, input)).rejects.toBeInstanceOf(ApiError)
+  })
+})
+
+describe('api client folders', () => {
+  it('moves a Folder to the root by sending a null parent', async () => {
+    const folder = { id: 4, parentId: null, name: 'Openings' }
+    const fetchFn = vi.fn().mockResolvedValue(jsonResponse(folder))
+    const api = createApiClient(baseUrl, fetchFn)
+
+    await expect(api.updateFolder('t', 4, { parentId: null })).resolves.toEqual(folder)
+    const [url, init] = fetchFn.mock.calls[0]
+    expect(url).toBe('http://localhost:8080/api/folders/4')
+    expect(init.method).toBe('PATCH')
+    expect(JSON.parse(init.body)).toEqual({ parentId: null })
+  })
+
+  it('files a Note with PUT', async () => {
+    const note = {
+      id: 3,
+      name: 'Italian',
+      pgn: '1. e4 *',
+      startFen: null,
+      folderId: 4,
+      createdAt: '2026-11-01T12:00:00Z',
+      updatedAt: '2026-11-01T12:00:00Z',
+    }
+    const fetchFn = vi.fn().mockResolvedValue(jsonResponse(note))
+    const api = createApiClient(baseUrl, fetchFn)
+
+    await expect(api.moveNote('t', 3, 4)).resolves.toEqual(note)
+    const [url, init] = fetchFn.mock.calls[0]
+    expect(url).toBe('http://localhost:8080/api/notes/3/folder')
+    expect(init.method).toBe('PUT')
+    expect(JSON.parse(init.body)).toEqual({ folderId: 4 })
+  })
+
+  it('deletes a Folder, confirmed with a query parameter', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(new Response(null, { status: 204 }))
+    const api = createApiClient(baseUrl, fetchFn)
+
+    await expect(api.deleteFolder('t', 4, true)).resolves.toEqual({ status: 'deleted' })
+    const [url, init] = fetchFn.mock.calls[0]
+    expect(url).toBe('http://localhost:8080/api/folders/4?confirm=true')
+    expect(init.method).toBe('DELETE')
+  })
+
+  it('turns a 409 into a request for confirmation with the counts', async () => {
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValue(jsonResponse({ error: 'Deleting this folder deletes 1 subfolder', folders: 1, notes: 2 }, 409))
+    const api = createApiClient(baseUrl, fetchFn)
+
+    await expect(api.deleteFolder('t', 4, false)).resolves.toEqual({
+      status: 'needsConfirmation',
+      folders: 1,
+      notes: 2,
+      message: 'Deleting this folder deletes 1 subfolder',
+    })
+    expect(fetchFn.mock.calls[0][0]).toBe('http://localhost:8080/api/folders/4')
   })
 })

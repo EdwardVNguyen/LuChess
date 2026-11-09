@@ -27,3 +27,21 @@ export function BookmarkIcon({ size = 16 }: IconProps) {
     </svg>
   )
 }
+
+// The Folder tree's disclosure chevron (Note.dc.html): right when closed, down when open.
+export function ChevronIcon({ size = 16, open = false }: IconProps & { open?: boolean }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d={open ? 'M6 9l6 6 6-6' : 'M9 6l6 6-6 6'} />
+    </svg>
+  )
+}
+
+// "New folder" (AllStudies.dc.html's sidebar).
+export function FolderPlusIcon({ size = 16 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 5v14M5 12h14" />
+    </svg>
+  )
+}

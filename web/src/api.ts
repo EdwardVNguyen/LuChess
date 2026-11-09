@@ -5,13 +5,21 @@ const userSchema = z.object({ id: z.number(), email: z.string(), name: z.string(
 const messageSchema = z.object({ message: z.string() })
 const errorBodySchema = z.object({ error: z.string() })
 const sessionResponseSchema = z.object({ accessToken: z.string(), user: userSchema })
-const noteSummarySchema = z.object({ id: z.number(), name: z.string(), createdAt: z.string(), updatedAt: z.string() })
+const noteSummarySchema = z.object({
+  id: z.number(),
+  name: z.string(),
+  folderId: z.number().nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+})
+const folderSchema = z.object({ id: z.number(), parentId: z.number().nullable(), name: z.string() })
 const noteSearchResultSchema = z.object({
   id: z.number(),
   name: z.string(),
   white: z.string().nullable(),
   black: z.string().nullable(),
   date: z.string().nullable(),
+  folderPath: z.array(z.string()),
 })
 const noteSchema = noteSummarySchema.extend({ pgn: z.string(), startFen: z.string().nullable() })
 const plyWritingSchema = z.object({
@@ -23,7 +31,7 @@ const plyWritingSchema = z.object({
   updatedAt: z.string(),
 })
 const noteLinksSchema = z.object({
-  targets: z.array(noteSearchResultSchema),
+  targets: z.array(noteSearchResultSchema.omit({ folderPath: true })),
   backlinks: z.array(
     z.object({
       noteId: z.number(),
@@ -38,9 +46,15 @@ const noteLinksSchema = z.object({
 export type Health = z.infer<typeof healthSchema>
 export type User = z.infer<typeof userSchema>
 export type SessionResponse = z.infer<typeof sessionResponseSchema>
+/** folderId is null for a Note at the root, in no Folder. */
 export type NoteSummary = z.infer<typeof noteSummarySchema>
+/** A Folder; parentId is null at the root. */
+export type Folder = z.infer<typeof folderSchema>
 export type Note = z.infer<typeof noteSchema>
-/** white, black and date come from the PGN headers, and are null when it has none. */
+/**
+ * white, black and date come from the PGN headers, and are null when it has
+ * none. folderPath names the Folders the Note is filed in, root first.
+ */
 export type NoteSearchResult = z.infer<typeof noteSearchResultSchema>
 /** The writing on one Ply; a field is null when the Ply has none of it. */
 export type PlyWriting = z.infer<typeof plyWritingSchema>
@@ -50,6 +64,7 @@ export type PlyWriting = z.infer<typeof plyWritingSchema>
  * Comments and Bodies in other Notes that link to it.
  */
 export type NoteLinks = z.infer<typeof noteLinksSchema>
+export type LinkTarget = NoteLinks['targets'][number]
 export type Backlink = NoteLinks['backlinks'][number]
 /** Everything written on a Ply. Null or blank clears a field. */
 export type PlyWritingInput = Pick<PlyWriting, 'comment' | 'body' | 'moveGlyph' | 'positionGlyph'>
@@ -70,6 +85,21 @@ export type MovesEditResult =
   { status: 'saved'; note: Note } | { status: 'needsConfirmation'; plies: number; message: string }
 
 const movesConflictSchema = z.object({ error: z.string(), plies: z.number().int().positive() })
+
+/** A Folder's new name, parent (null for the root), or both. */
+export type FolderUpdate = { name?: string; parentId?: number | null }
+/**
+ * Deleting a Folder either happened, or was refused until confirmed because
+ * it would delete `folders` subfolders and move `notes` Notes to the root.
+ */
+export type FolderDeleteResult =
+  { status: 'deleted' } | { status: 'needsConfirmation'; folders: number; notes: number; message: string }
+
+const folderConflictSchema = z.object({
+  error: z.string(),
+  folders: z.number().int().nonnegative(),
+  notes: z.number().int().nonnegative(),
+})
 
 export class ApiError extends Error {
   readonly status: number
@@ -229,6 +259,45 @@ export function createApiClient(baseUrl: string, fetchFn: typeof fetch = fetch) 
     async getLinks(accessToken: string, noteId: number): Promise<NoteLinks> {
       const res = await request(`/api/notes/${noteId}/links`, { accessToken })
       return noteLinksSchema.parse(await res.json())
+    },
+
+    /** Files a Note in a Folder, or at the root when folderId is null. */
+    async moveNote(accessToken: string, noteId: number, folderId: number | null): Promise<Note> {
+      const res = await request(`/api/notes/${noteId}/folder`, { method: 'PUT', body: { folderId }, accessToken })
+      return noteSchema.parse(await res.json())
+    },
+
+    async listFolders(accessToken: string): Promise<Folder[]> {
+      const res = await request('/api/folders', { accessToken })
+      return z.array(folderSchema).parse(await res.json())
+    },
+
+    async createFolder(accessToken: string, input: { name: string; parentId: number | null }): Promise<Folder> {
+      const res = await request('/api/folders', { body: input, accessToken })
+      return folderSchema.parse(await res.json())
+    },
+
+    async updateFolder(accessToken: string, id: number, update: FolderUpdate): Promise<Folder> {
+      const res = await request(`/api/folders/${id}`, { method: 'PATCH', body: update, accessToken })
+      return folderSchema.parse(await res.json())
+    },
+
+    /**
+     * Deletes a Folder and its subfolders, moving their Notes to the root.
+     * Without `confirm`, deleting one that isn't empty is refused.
+     */
+    async deleteFolder(accessToken: string, id: number, confirm: boolean): Promise<FolderDeleteResult> {
+      try {
+        await request(`/api/folders/${id}${confirm ? '?confirm=true' : ''}`, { method: 'DELETE', accessToken })
+        return { status: 'deleted' }
+      } catch (error) {
+        const conflict = error instanceof ApiError && error.status === 409 && folderConflictSchema.safeParse(error.body)
+        if (conflict && conflict.success) {
+          const { folders, notes, error: message } = conflict.data
+          return { status: 'needsConfirmation', folders, notes, message }
+        }
+        throw error
+      }
     },
   }
 }

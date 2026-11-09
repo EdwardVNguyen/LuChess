@@ -11,9 +11,9 @@ import { highlight, resultDetails } from './quickFind'
 import styles from './QuickFind.module.css'
 
 // The "Find a note" box in the header (an icon on mobile) and the overlay it
-// opens, also on ⌘K / Ctrl+K: fuzzy-find a Note by name or players and open
-// it (design/screenshots/QuickFind*.png). Folder paths replace the players
-// and date under each result once #11 adds Folders.
+// opens, also on ⌘K / Ctrl+K: fuzzy-find a Note by name, players or Folder
+// and open it (design/screenshots/QuickFind*.png), with its Folder path (or,
+// at the root, its players and date) under each result.
 export function QuickFind() {
   const size = useOverlaySize()
   const os = useOs()

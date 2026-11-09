@@ -10,10 +10,11 @@ import { FolderIcon } from './icons'
 import { LinkingContext, type Linking } from './linking'
 import type { LinkStatus } from './links'
 import { NoteActions } from './NoteActions'
-import { NoteList } from './NoteList'
+import { folderPath } from './folders'
+import { NoteTree } from './NoteTree'
 import styles from './Notes.module.css'
 import { NoteMargin } from './NoteMargin'
-import { useEditMoves, useNote, useNoteLinks, usePlies, useSavePly } from './queries'
+import { useEditMoves, useFolders, useNote, useNoteLinks, usePlies, useSavePly } from './queries'
 import { StudyView, WritingView, type MovesDraft } from './StudyView'
 
 export function NoteScreen() {
@@ -61,11 +62,14 @@ function LoadedNote({ id, initialPly }: { id: number; initialPly: number | undef
 function NoteView({ note, initialPly }: { note: Note; initialPly: number | undefined }) {
   const linking = useNoteLinking(note.id)
   const moves = useMoveEditing(note)
+  const folders = useFolders()
+  const path = folderPath(folders.data ?? [], note.folderId).map((folder) => folder.name)
   return (
     <LinkingContext value={linking}>
-      <Strip name={note.name} />
+      <Strip name={note.name} folder={path.at(-1)} />
       <StudyView
         name={note.name}
+        eyebrow={path.length > 0 ? path.join(' / ') : undefined}
         pgn={note.pgn}
         actions={<NoteActions note={note} onEditMoves={moves.start} />}
         initialPly={initialPly}
@@ -251,15 +255,19 @@ function Writing({
   )
 }
 
-// Tablet and mobile: the Note's name and a button opening the list of Notes,
-// in place of the desktop sidebar (Note-tablet.png, Note-mobile.png).
-function Strip({ name }: { name: string | null }) {
+// Tablet and mobile: the Note's Folder and name as a breadcrumb, and a button
+// opening the Folder tree, in place of the desktop sidebar (Note-tablet.png,
+// Note-mobile.png).
+function Strip({ name, folder }: { name: string | null; folder?: string }) {
   const [opened, { toggle, close }] = useDisclosure(false)
   const size = useOverlaySize()
 
   return (
     <div className={styles.strip}>
-      <span className={styles.stripName}>{name}</span>
+      <span className={styles.stripName}>
+        {folder && <span className={styles.stripFolder}>{folder} / </span>}
+        {name}
+      </span>
       <ResponsivePopover
         size={size}
         opened={opened}
@@ -277,7 +285,7 @@ function Strip({ name }: { name: string | null }) {
           </Button>
         }
       >
-        <NoteList onNavigate={close} showHeading={false} />
+        <NoteTree onNavigate={close} showHeading={false} />
       </ResponsivePopover>
     </div>
   )

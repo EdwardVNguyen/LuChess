@@ -23,6 +23,7 @@ vi.mock('../apiClient', () => ({
     getLinks: (token: string, id: number) => getLinks(token, id),
     editMoves: (token: string, id: number, input: MovesEditInput) => editMoves(token, id, input),
     listNotes: async () => [],
+    listFolders: async () => [],
   },
 }))
 
@@ -41,6 +42,7 @@ const note: Note = {
   name: 'Italian',
   pgn: '[Event "Casual"]\n\n1. e4 e5 2. Nf3 Nc6 *',
   startFen: null,
+  folderId: null,
   createdAt: '2026-11-01T12:00:00Z',
   updatedAt: '2026-11-01T12:00:00Z',
 }

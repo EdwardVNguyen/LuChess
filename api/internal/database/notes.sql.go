@@ -9,13 +9,15 @@ import (
 	"context"
 	"database/sql"
 	"time"
+
+	"github.com/lib/pq"
 )
 
 const createNote = `-- name: CreateNote :one
 
 INSERT INTO notes(user_id, name, pgn, start_fen, created_at, updated_at)
 VALUES ($1, $2, $3, $4, $5, $5)
-RETURNING id, user_id, name, pgn, start_fen, created_at, updated_at, white, black, game_date
+RETURNING id, user_id, name, pgn, start_fen, created_at, updated_at, white, black, game_date, folder_id
 `
 
 type CreateNoteParams struct {
@@ -47,6 +49,7 @@ func (q *Queries) CreateNote(ctx context.Context, arg CreateNoteParams) (Note, e
 		&i.White,
 		&i.Black,
 		&i.GameDate,
+		&i.FolderID,
 	)
 	return i, err
 }
@@ -70,7 +73,7 @@ func (q *Queries) DeleteNote(ctx context.Context, arg DeleteNoteParams) (int64, 
 }
 
 const getNote = `-- name: GetNote :one
-SELECT id, user_id, name, pgn, start_fen, created_at, updated_at, white, black, game_date
+SELECT id, user_id, name, pgn, start_fen, created_at, updated_at, white, black, game_date, folder_id
 FROM notes
 WHERE id = $1 AND user_id = $2
 `
@@ -94,12 +97,13 @@ func (q *Queries) GetNote(ctx context.Context, arg GetNoteParams) (Note, error) 
 		&i.White,
 		&i.Black,
 		&i.GameDate,
+		&i.FolderID,
 	)
 	return i, err
 }
 
 const listNotes = `-- name: ListNotes :many
-SELECT id, name, created_at, updated_at
+SELECT id, name, folder_id, created_at, updated_at
 FROM notes
 WHERE user_id = $1
 ORDER BY updated_at DESC, id DESC
@@ -108,6 +112,7 @@ ORDER BY updated_at DESC, id DESC
 type ListNotesRow struct {
 	ID        int64
 	Name      string
+	FolderID  sql.NullInt64
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
@@ -124,6 +129,7 @@ func (q *Queries) ListNotes(ctx context.Context, userID int32) ([]ListNotesRow, 
 		if err := rows.Scan(
 			&i.ID,
 			&i.Name,
+			&i.FolderID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -166,7 +172,7 @@ UPDATE notes
 SET name = $1,
     updated_at = $2
 WHERE id = $3 AND user_id = $4
-RETURNING id, user_id, name, pgn, start_fen, created_at, updated_at, white, black, game_date
+RETURNING id, user_id, name, pgn, start_fen, created_at, updated_at, white, black, game_date, folder_id
 `
 
 type RenameNoteParams struct {
@@ -195,6 +201,7 @@ func (q *Queries) RenameNote(ctx context.Context, arg RenameNoteParams) (Note, e
 		&i.White,
 		&i.Black,
 		&i.GameDate,
+		&i.FolderID,
 	)
 	return i, err
 }
@@ -204,7 +211,7 @@ UPDATE notes
 SET pgn = $1,
     updated_at = $2
 WHERE id = $3 AND user_id = $4
-RETURNING id, user_id, name, pgn, start_fen, created_at, updated_at, white, black, game_date
+RETURNING id, user_id, name, pgn, start_fen, created_at, updated_at, white, black, game_date, folder_id
 `
 
 type ReplaceNoteMovesParams struct {
@@ -233,14 +240,25 @@ func (q *Queries) ReplaceNoteMoves(ctx context.Context, arg ReplaceNoteMovesPara
 		&i.White,
 		&i.Black,
 		&i.GameDate,
+		&i.FolderID,
 	)
 	return i, err
 }
 
 const searchNotes = `-- name: SearchNotes :many
-SELECT id, name, white, black, game_date, updated_at
+WITH RECURSIVE paths AS (
+  SELECT f.id, ARRAY[f.name::text] AS names
+  FROM folders f
+  WHERE f.user_id = $3 AND f.parent_id IS NULL
+  UNION ALL
+  SELECT f.id, p.names || f.name::text
+  FROM folders f
+  JOIN paths p ON f.parent_id = p.id
+)
+SELECT id, name, white, black, game_date, folder_path::text[] AS folder_path, updated_at
 FROM (
-  SELECT n.id, n.user_id, n.name, n.pgn, n.start_fen, n.created_at, n.updated_at, n.white, n.black, n.game_date,
+  SELECT n.id, n.name, n.white, n.black, n.game_date, n.updated_at,
+    coalesce(p.names, '{}'::text[]) AS folder_path,
     CASE WHEN n.name ILIKE $1::text THEN 1 + word_similarity($2::text, n.name)
          WHEN $2::text <% n.name THEN word_similarity($2::text, n.name)
          ELSE 0 END AS name_score,
@@ -248,15 +266,18 @@ FROM (
            THEN 1 + word_similarity($2::text, coalesce(n.white, '') || ' ' || coalesce(n.black, ''))
          WHEN $2::text <% (coalesce(n.white, '') || ' ' || coalesce(n.black, ''))
            THEN word_similarity($2::text, coalesce(n.white, '') || ' ' || coalesce(n.black, ''))
-         ELSE 0 END AS players_score
+         ELSE 0 END AS players_score,
+    CASE WHEN array_to_string(p.names, ' / ') ILIKE $1::text
+           THEN 1 + word_similarity($2::text, array_to_string(p.names, ' / '))
+         WHEN $2::text <% array_to_string(p.names, ' / ')
+           THEN word_similarity($2::text, array_to_string(p.names, ' / '))
+         ELSE 0 END AS folder_score
   FROM notes n
+  LEFT JOIN paths p ON p.id = n.folder_id
   WHERE n.user_id = $3
-    AND (n.name ILIKE $1::text
-      OR $2::text <% n.name
-      OR (coalesce(n.white, '') || ' ' || coalesce(n.black, '')) ILIKE $1::text
-      OR $2::text <% (coalesce(n.white, '') || ' ' || coalesce(n.black, '')))
 ) ranked
-ORDER BY name_score DESC, players_score DESC, updated_at DESC, id DESC
+WHERE name_score > 0 OR players_score > 0 OR folder_score > 0
+ORDER BY name_score DESC, players_score DESC, folder_score DESC, updated_at DESC, id DESC
 LIMIT $4
 `
 
@@ -268,18 +289,20 @@ type SearchNotesParams struct {
 }
 
 type SearchNotesRow struct {
-	ID        int64
-	Name      string
-	White     sql.NullString
-	Black     sql.NullString
-	GameDate  sql.NullString
-	UpdatedAt time.Time
+	ID         int64
+	Name       string
+	White      sql.NullString
+	Black      sql.NullString
+	GameDate   sql.NullString
+	FolderPath []string
+	UpdatedAt  time.Time
 }
 
-// Fuzzy-finds Notes by name, then by players: a Note matches when the query
-// is a substring of, or trigram-similar to a word in, its name or players.
-// Name matches rank above player-only matches; the pattern is a LIKE pattern
-// with its wildcards already escaped.
+// Fuzzy-finds Notes by name, players and Folder: a Note matches when the
+// query is a substring of, or trigram-similar to a word in, its name, its
+// players, or the names of the Folders it is filed in. Name matches rank
+// first, then players, then Folders; the pattern is a LIKE pattern with its
+// wildcards already escaped. folder_path lists the Folders from the root down.
 func (q *Queries) SearchNotes(ctx context.Context, arg SearchNotesParams) ([]SearchNotesRow, error) {
 	rows, err := q.db.QueryContext(ctx, searchNotes,
 		arg.Pattern,
@@ -300,6 +323,7 @@ func (q *Queries) SearchNotes(ctx context.Context, arg SearchNotesParams) ([]Sea
 			&i.White,
 			&i.Black,
 			&i.GameDate,
+			pq.Array(&i.FolderPath),
 			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
@@ -313,4 +337,37 @@ func (q *Queries) SearchNotes(ctx context.Context, arg SearchNotesParams) ([]Sea
 		return nil, err
 	}
 	return items, nil
+}
+
+const setNoteFolder = `-- name: SetNoteFolder :one
+UPDATE notes
+SET folder_id = $1
+WHERE id = $2 AND user_id = $3
+RETURNING id, user_id, name, pgn, start_fen, created_at, updated_at, white, black, game_date, folder_id
+`
+
+type SetNoteFolderParams struct {
+	FolderID sql.NullInt64
+	ID       int64
+	UserID   int32
+}
+
+// Filing a Note is not writing on it, so updated_at stays.
+func (q *Queries) SetNoteFolder(ctx context.Context, arg SetNoteFolderParams) (Note, error) {
+	row := q.db.QueryRowContext(ctx, setNoteFolder, arg.FolderID, arg.ID, arg.UserID)
+	var i Note
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Name,
+		&i.Pgn,
+		&i.StartFen,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.White,
+		&i.Black,
+		&i.GameDate,
+		&i.FolderID,
+	)
+	return i, err
 }

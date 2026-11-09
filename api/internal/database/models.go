@@ -105,6 +105,15 @@ type EmailToken struct {
 	CreatedAt time.Time
 }
 
+type Folder struct {
+	ID        int64
+	UserID    int32
+	ParentID  sql.NullInt64
+	Name      string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
 type Link struct {
 	NoteID   int64
 	Ply      int32
@@ -123,6 +132,7 @@ type Note struct {
 	White     sql.NullString
 	Black     sql.NullString
 	GameDate  sql.NullString
+	FolderID  sql.NullInt64
 }
 
 type Ply struct {

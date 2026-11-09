@@ -6,14 +6,15 @@ import { errorMessage } from '../errors'
 import { ConfirmDialog, ResponsiveDialog, useOverlaySize } from '../overlay'
 import { MoreIcon } from './icons'
 import styles from './Notes.module.css'
+import { MoveNoteDialog } from './FolderDialogs'
 import { useDeleteNote, useRenameNote } from './queries'
 
 const MAX_NAME_LENGTH = 200
 
 // The menu beside a Note's title: Edit moves, which the Note screen handles,
-// and Rename and Delete, each confirmed in a dialog.
+// and Rename, Move to folder and Delete, each in a dialog.
 export function NoteActions({ note, onEditMoves }: { note: Note; onEditMoves?: () => void }) {
-  const [dialog, setDialog] = useState<'rename' | 'delete' | null>(null)
+  const [dialog, setDialog] = useState<'rename' | 'move' | 'delete' | null>(null)
   const size = useOverlaySize()
 
   return (
@@ -27,12 +28,14 @@ export function NoteActions({ note, onEditMoves }: { note: Note; onEditMoves?: (
         <Menu.Dropdown>
           {onEditMoves && <Menu.Item onClick={onEditMoves}>Edit moves</Menu.Item>}
           <Menu.Item onClick={() => setDialog('rename')}>Rename</Menu.Item>
+          <Menu.Item onClick={() => setDialog('move')}>Move to folder</Menu.Item>
           <Menu.Item color="accent.6" onClick={() => setDialog('delete')}>
             Delete
           </Menu.Item>
         </Menu.Dropdown>
       </Menu>
       {dialog === 'rename' && <RenameDialog note={note} size={size} onClose={() => setDialog(null)} />}
+      {dialog === 'move' && <MoveNoteDialog note={note} size={size} onClose={() => setDialog(null)} />}
       {dialog === 'delete' && <DeleteDialog note={note} size={size} onClose={() => setDialog(null)} />}
     </>
   )

@@ -26,7 +26,7 @@ describe('highlight', () => {
 })
 
 describe('resultDetails', () => {
-  const base = { id: 1, name: 'Club night', white: null, black: null, date: null }
+  const base = { id: 1, name: 'Club night', white: null, black: null, date: null, folderPath: [] }
 
   it('joins the players and the date', () => {
     expect(resultDetails({ ...base, white: 'Lovelace, Ada', black: 'Hopper, Grace', date: '1952.03.01' })).toBe(
@@ -41,5 +41,9 @@ describe('resultDetails', () => {
 
   it('is null when the PGN says nothing', () => {
     expect(resultDetails(base)).toBeNull()
+  })
+
+  it('shows the Folder path in place of the players', () => {
+    expect(resultDetails({ ...base, white: 'Lovelace, Ada', folderPath: ['Masters', 'Spassky'] })).toBe('Masters / Spassky')
   })
 })

@@ -46,9 +46,9 @@ function written(ply: number, fields: Partial<PlyWriting>): PlyWriting {
   return { ply, comment: null, body: null, moveGlyph: null, positionGlyph: null, updatedAt: '', ...fields }
 }
 
-const hanging: NoteSearchResult = { id: 5, name: 'Hanging pawns', white: null, black: null, date: null }
-const club1: NoteSearchResult = { id: 6, name: 'Club night', white: 'Lovelace, Ada', black: 'Hopper, Grace', date: '1952.03.01' }
-const club2: NoteSearchResult = { id: 7, name: 'Club night', white: 'Babbage, Charles', black: 'Lovelace, Ada', date: null }
+const hanging: NoteSearchResult = { id: 5, name: 'Hanging pawns', white: null, black: null, date: null, folderPath: [] }
+const club1: NoteSearchResult = { id: 6, name: 'Club night', white: 'Lovelace, Ada', black: 'Hopper, Grace', date: '1952.03.01', folderPath: [] }
+const club2: NoteSearchResult = { id: 7, name: 'Club night', white: 'Babbage, Charles', black: 'Lovelace, Ada', date: null, folderPath: [] }
 
 const linking: Linking = {
   noteId: 1,
