@@ -1,8 +1,9 @@
-import { useId, type CSSProperties, type ReactNode } from 'react'
+import { useId, useState, type ReactNode } from 'react'
 import { Chessboard, type ChessboardOptions } from 'react-chessboard'
 import type { Color } from '../chess/chess'
 import styles from './Board.module.css'
 import { glyphPieces } from './pieces'
+import { dragOverStyle, layer, type Highlight } from './squareStyles'
 
 export type Orientation = 'white' | 'black'
 
@@ -14,8 +15,8 @@ type BoardSurfaceProps = {
   orientation: Orientation
   /** Pieces that can't move do nothing when pressed: no cursor, no text selection. */
   movable?: Movable
-  /** Per-square backgrounds, e.g. the last move or a selected piece. */
-  squareStyles?: Record<string, CSSProperties>
+  /** Per-square highlights, e.g. the last move or a selected piece, drawn in order. */
+  highlights?: Highlight[]
   options?: Omit<ChessboardOptions, 'id' | 'position' | 'pieces' | 'boardOrientation' | 'squareStyles'>
   /** Drawn over the squares, e.g. the promotion picker. */
   children?: ReactNode
@@ -30,10 +31,14 @@ export function BoardSurface({
   fen,
   orientation,
   movable = 'none',
-  squareStyles,
+  highlights = [],
   options,
   children,
 }: BoardSurfaceProps) {
+  // The square under a dragged piece. react-chessboard's own dropSquareStyle
+  // is drawn beneath squareStyles, so a highlighted square would hide it.
+  const [drag, setDrag] = useState<{ over: string | null } | null>(null)
+
   // react-chessboard uses the id in CSS selectors, so keep it to letters and digits.
   const id = `board${useId().replace(/[^a-zA-Z0-9]/g, '')}`
   const files = orientation === 'white' ? FILES : [...FILES].reverse()
@@ -54,15 +59,32 @@ export function BoardSurface({
             animationDurationInMs: 150,
             showNotation: false,
             ...options,
+            onPieceDrag: (args) => {
+              setDrag({ over: args.square })
+              options?.onPieceDrag?.(args)
+            },
+            onPieceDrop: (args) => {
+              setDrag(null)
+              return options?.onPieceDrop?.(args) ?? false
+            },
+            onPieceDragCancel: () => {
+              setDrag(null)
+              options?.onPieceDragCancel?.()
+            },
+            // Also called on plain hover; only a drag highlights.
+            onMouseOverSquare: ({ square }) => setDrag((current) => current && { over: square }),
+            onMouseOutSquare: ({ square }) =>
+              setDrag((current) => (current?.over === square ? { over: null } : current)),
             id,
             position: fen,
             pieces: glyphPieces,
             boardOrientation: orientation,
-            squareStyles,
+            squareStyles: layer(...highlights, [drag?.over, dragOverStyle]),
             boardStyle: { border: '1px solid var(--cn-ink)', borderRadius: 0, boxSizing: 'border-box' },
             lightSquareStyle: { backgroundColor: 'var(--cn-board-light)' },
             darkSquareStyle: { backgroundColor: 'var(--cn-board-dark)' },
-            dropSquareStyle: { boxShadow: 'inset 0 0 0 2px var(--cn-ink)' },
+            // Replaces react-chessboard's default ring; the drag-over highlight is in squareStyles.
+            dropSquareStyle: { boxShadow: 'none' },
           }}
         />
         {children}

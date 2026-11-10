@@ -1,6 +1,7 @@
 import { Button, Group, SegmentedControl, Text, UnstyledButton } from '@mantine/core'
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import {
+  checkedKing,
   clampPly,
   fenFromPlacement,
   isPromotion,
@@ -22,7 +23,14 @@ import { BoardSurface, type Movable, type Orientation } from './BoardSurface'
 import { FirstIcon, LastIcon, NextIcon, PreviousIcon } from './icons'
 import { PieceGlyph } from './PieceGlyph'
 import { ALL_PIECES, pieceName } from './pieces'
-import { lastMoveStyle, selectedStyle, targetStyle } from './squareStyles'
+import {
+  captureStyle,
+  checkStyle,
+  lastMoveStyle,
+  selectedStyle,
+  targetStyle,
+  type Highlight,
+} from './squareStyles'
 
 type ViewProps = {
   mode: 'view'
@@ -66,14 +74,6 @@ export function Board(props: BoardProps) {
   }
 }
 
-function highlight(...entries: [string | null | undefined, CSSProperties][]): Record<string, CSSProperties> {
-  const result: Record<string, CSSProperties> = {}
-  for (const [square, style] of entries) {
-    if (square) result[square] = { ...result[square], ...style }
-  }
-  return result
-}
-
 function ViewBoard({
   game,
   ply: requestedPly,
@@ -109,7 +109,12 @@ function ViewBoard({
         fen={current.fen}
         orientation={orientation}
         movable={play.movable}
-        squareStyles={highlight([current.from, lastMoveStyle], [current.to, lastMoveStyle], ...play.highlights)}
+        highlights={[
+          [current.from, lastMoveStyle],
+          [current.to, lastMoveStyle],
+          [checkedKing(current.fen), checkStyle],
+          ...play.highlights,
+        ]}
         options={play.options}
       >
         {play.picker}
@@ -163,7 +168,12 @@ function PlayBoard({ fen, lastMove, onMove, orientation }: PlayProps & { orienta
         fen={fen}
         orientation={orientation}
         movable={play.movable}
-        squareStyles={highlight([lastMove?.from, lastMoveStyle], [lastMove?.to, lastMoveStyle], ...play.highlights)}
+        highlights={[
+          [lastMove?.from, lastMoveStyle],
+          [lastMove?.to, lastMoveStyle],
+          [checkedKing(fen), checkStyle],
+          ...play.highlights,
+        ]}
         options={play.options}
       >
         {play.picker}
@@ -173,7 +183,9 @@ function PlayBoard({ fen, lastMove, onMove, orientation }: PlayProps & { orienta
 }
 
 // Playing legal moves on a board showing `fen`: click a piece, then a square,
-// as well as dragging, so play works on touch. A pawn move to the last rank
+// as well as dragging, so play works on touch. As on Lichess, a dragged piece
+// is selected too, so its targets show while it is dragged: a dot on an empty
+// square, a ring around a piece it can capture. A pawn move to the last rank
 // waits for the piece to promote to. With no onMove, nothing can be played.
 function usePlay(fen: string, onMove: ((move: LegalMove) => void) | null, orientation: Orientation) {
   const [selected, setSelected] = useState<{ fen: string; square: string } | null>(null)
@@ -183,6 +195,7 @@ function usePlay(fen: string, onMove: ((move: LegalMove) => void) | null, orient
   const cancelPromotion = useCallback(() => setPromoting(null), [])
   const targets = selectedSquare ? legalTargets(fen, selectedSquare) : []
   const turn: Color = fen.split(' ')[1] === 'b' ? 'b' : 'w'
+  const placement = placementFromFen(fen)
 
   if (!onMove) return { highlights: [], movable: 'none' as Movable, options: undefined, picker: null }
   const played = onMove
@@ -212,14 +225,15 @@ function usePlay(fen: string, onMove: ((move: LegalMove) => void) | null, orient
       move(selectedSquare, square)
       return
     }
-    const ownPiece = placementFromFen(fen)[square]?.[0] === turn
+    const ownPiece = placement[square]?.[0] === turn
     setSelected(ownPiece && square !== selectedSquare ? { fen, square } : null)
   }
 
-  const highlights: [string | null | undefined, CSSProperties][] = [
+  const highlights: Highlight[] = [
     [selectedSquare, selectedStyle],
     [pending?.from, selectedStyle],
-    ...targets.map((square): [string, CSSProperties] => [square, targetStyle]),
+    // En passant takes from an empty square, so it gets a dot, as on Lichess.
+    ...targets.map((square): Highlight => [square, placement[square] ? captureStyle : targetStyle]),
   ]
   return {
     highlights,
@@ -228,8 +242,16 @@ function usePlay(fen: string, onMove: ((move: LegalMove) => void) | null, orient
       allowDragging: !pending,
       allowDragOffBoard: false,
       canDragPiece: ({ piece }: { piece: { pieceType: string } }) => piece.pieceType[0] === turn,
-      onPieceDrop: ({ sourceSquare, targetSquare }: { sourceSquare: string; targetSquare: string | null }) =>
-        targetSquare ? move(sourceSquare, targetSquare) : false,
+      onPieceDrag: ({ square }: { square: string | null }) => {
+        if (square) setSelected({ fen, square })
+      },
+      onPieceDrop: ({ sourceSquare, targetSquare }: { sourceSquare: string; targetSquare: string | null }) => {
+        // Put back where it started, the piece stays selected.
+        if (targetSquare === sourceSquare) return false
+        if (targetSquare) return move(sourceSquare, targetSquare)
+        setSelected(null)
+        return false
+      },
       onSquareClick,
     },
     picker: pending && (

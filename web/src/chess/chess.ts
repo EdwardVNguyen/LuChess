@@ -216,6 +216,13 @@ export function legalTargets(fen: string, from: string): string[] {
   return chess.moves({ square: from as never, verbose: true }).map((move) => move.to)
 }
 
+/** The square of the king of the side to move when it is in check, otherwise null. */
+export function checkedKing(fen: string): string | null {
+  const chess = new Chess(fen)
+  if (!chess.inCheck()) return null
+  return chess.findPiece({ type: 'k', color: chess.turn() })[0] ?? null
+}
+
 export function validateFen(fen: string): Result<string> {
   const result = chessJsValidateFen(fen)
   return result.ok ? { ok: true, value: fen } : { ok: false, error: result.error ?? 'The position is not valid.' }

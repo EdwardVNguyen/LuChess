@@ -2,7 +2,7 @@ import { fireEvent, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
-import { parsePgn, START_FEN, validateFen, type Game } from '../chess/chess'
+import { gameFromMoves, parsePgn, START_FEN, validateFen, type Game } from '../chess/chess'
 import { fischerSpassky1972Game6 } from '../chess/fixtures'
 import { renderWithTheme } from '../overlay/testUtils'
 import { Board } from './Board'
@@ -11,6 +11,17 @@ function square(container: HTMLElement, name: string): HTMLElement {
   const element = container.querySelector<HTMLElement>(`[id$="-square-${name}"]`)
   if (!element) throw new Error(`no square ${name}`)
   return element
+}
+
+// What is drawn on a square: a target dot or capture ring, or the glow of a
+// king in check. react-chessboard puts squareStyles on the square's inner div.
+function marks(container: HTMLElement, name: string): string[] {
+  const style = square(container, name).querySelector<HTMLElement>(':scope > div')?.style.backgroundImage ?? ''
+  return [
+    style.includes('var(--cn-board-target) 0 16%') && 'dot',
+    style.includes('var(--cn-board-target) 80%') && 'ring',
+    style.includes('var(--cn-board-check)') && 'check',
+  ].filter((mark): mark is string => Boolean(mark))
 }
 
 // Which pieces the board lets be pressed; Board.module.css turns off text
@@ -56,6 +67,25 @@ describe('Board in view mode', () => {
   })
 })
 
+describe('Board in view mode, check', () => {
+  // 1.e4 f5 2.Qh5+
+  const checkGame = (() => {
+    const result = gameFromMoves(START_FEN, ['e4', 'f5', 'Qh5+'])
+    if (!result.ok) throw new Error(result.error)
+    return result.value
+  })()
+
+  // Each position is a fresh render: changing it animates, which needs real layout.
+  it('highlights the king in check at the Ply shown', () => {
+    const inCheck = renderWithTheme(<Board mode="view" game={checkGame} ply={3} onPlyChange={() => {}} />)
+    expect(marks(inCheck.container, 'e8')).toEqual(['check'])
+    inCheck.unmount()
+
+    const before = renderWithTheme(<Board mode="view" game={checkGame} ply={2} onPlyChange={() => {}} />)
+    expect(marks(before.container, 'e8')).toEqual([])
+  })
+})
+
 describe('Board in view mode with moves to play', () => {
   it('plays a legal move from the Ply shown', async () => {
     const onMove = vi.fn()
@@ -88,6 +118,38 @@ describe('Board in play mode', () => {
     await userEvent.click(square(container, 'e7'))
     await userEvent.click(square(container, 'e5'))
     expect(onMove).not.toHaveBeenCalled()
+  })
+
+  it('marks empty targets with a dot and captures with a ring', async () => {
+    // 1.e4 d5: the e4 pawn can take on d5 or push to e5. En passant on f6,
+    // after 2.e5 f5, takes from an empty square, so it gets a dot.
+    const capture = renderWithTheme(
+      <Board mode="play" fen="rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2" onMove={() => {}} />,
+    )
+    await userEvent.click(square(capture.container, 'e4'))
+    expect(marks(capture.container, 'd5')).toEqual(['ring'])
+    expect(marks(capture.container, 'e5')).toEqual(['dot'])
+    expect(marks(capture.container, 'e6')).toEqual([])
+    capture.unmount()
+
+    const enPassant = renderWithTheme(
+      <Board mode="play" fen="rnbqkbnr/ppp1p1pp/8/3pPp2/8/8/PPPP1PPP/RNBQKBNR w KQkq f6 0 3" onMove={() => {}} />,
+    )
+    await userEvent.click(square(enPassant.container, 'e5'))
+    expect(marks(enPassant.container, 'f6')).toEqual(['dot'])
+    expect(marks(enPassant.container, 'e6')).toEqual(['dot'])
+  })
+
+  it('highlights the king in check, and only while it is in check', () => {
+    const inCheck = renderWithTheme(
+      <Board mode="play" fen="rnbqkbnr/ppppp1pp/8/5p1Q/4P3/8/PPPP1PPP/RNB1KBNR b KQkq - 1 2" onMove={() => {}} />,
+    )
+    expect(marks(inCheck.container, 'e8')).toEqual(['check'])
+    expect(marks(inCheck.container, 'e1')).toEqual([])
+    inCheck.unmount()
+
+    const start = renderWithTheme(<Board mode="play" fen={START_FEN} onMove={() => {}} />)
+    expect(marks(start.container, 'e8')).toEqual([])
   })
 
   it("lets only the side to move's pieces be moved", () => {
