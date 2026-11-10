@@ -146,9 +146,6 @@ export const entries: ShotEntry[] = [
     },
   },
   { name: 'ResetPasswordMissingToken', route: '/reset-password', fixtures: 'guest' },
-  // No matching design screen: the logged-in home page, which the landing
-  // page (#42) leaves as it was.
-  { name: 'HomeLoggedIn', route: '/', fixtures: 'session' },
   // Settings (#12): the design's layout, with only the Delete account section in v1.
   { name: 'Settings', route: '/settings', fixtures: 'session' },
   {

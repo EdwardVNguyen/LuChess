@@ -27,7 +27,7 @@ export function LoginPage() {
     onSubmit: async ({ value }) => {
       try {
         await login.mutateAsync(loginSchema.parse(value))
-        await navigate({ to: '/' })
+        await navigate({ to: '/notes' })
       } catch {
         // The error is shown from the mutation state below
       }
