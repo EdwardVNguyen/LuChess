@@ -18,7 +18,7 @@ import {
   type Promotion,
 } from '../chess/chess'
 import styles from './Board.module.css'
-import { BoardSurface, type Orientation } from './BoardSurface'
+import { BoardSurface, type Movable, type Orientation } from './BoardSurface'
 import { FirstIcon, LastIcon, NextIcon, PreviousIcon } from './icons'
 import { PieceGlyph } from './PieceGlyph'
 import { ALL_PIECES, pieceName } from './pieces'
@@ -108,6 +108,7 @@ function ViewBoard({
       <BoardSurface
         fen={current.fen}
         orientation={orientation}
+        movable={play.movable}
         squareStyles={highlight([current.from, lastMoveStyle], [current.to, lastMoveStyle], ...play.highlights)}
         options={play.options}
       >
@@ -161,6 +162,7 @@ function PlayBoard({ fen, lastMove, onMove, orientation }: PlayProps & { orienta
       <BoardSurface
         fen={fen}
         orientation={orientation}
+        movable={play.movable}
         squareStyles={highlight([lastMove?.from, lastMoveStyle], [lastMove?.to, lastMoveStyle], ...play.highlights)}
         options={play.options}
       >
@@ -182,7 +184,7 @@ function usePlay(fen: string, onMove: ((move: LegalMove) => void) | null, orient
   const targets = selectedSquare ? legalTargets(fen, selectedSquare) : []
   const turn: Color = fen.split(' ')[1] === 'b' ? 'b' : 'w'
 
-  if (!onMove) return { highlights: [], options: undefined, picker: null }
+  if (!onMove) return { highlights: [], movable: 'none' as Movable, options: undefined, picker: null }
   const played = onMove
 
   function move(from: string, to: string): boolean {
@@ -221,6 +223,7 @@ function usePlay(fen: string, onMove: ((move: LegalMove) => void) | null, orient
   ]
   return {
     highlights,
+    movable: (pending ? 'none' : turn) as Movable,
     options: {
       allowDragging: !pending,
       allowDragOffBoard: false,
@@ -353,6 +356,7 @@ function SetupBoard({ fen, onFenChange, orientation }: SetupProps & { orientatio
       <BoardSurface
         fen={fen}
         orientation={orientation}
+        movable="all"
         options={{ allowDragging: true, allowDragOffBoard: true, showAnimations: false, onSquareClick, onPieceDrop }}
       />
       <div className={styles.setup}>

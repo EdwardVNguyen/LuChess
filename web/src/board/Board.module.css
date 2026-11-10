@@ -29,6 +29,19 @@
 .squares {
   position: relative;
   min-width: 0;
+  /* Pressing a piece that can't move would otherwise start selecting its
+   * glyph, since react-chessboard leaves that press to the browser. */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* react-chessboard gives pieces that can't be dragged a pointer cursor, inline,
+ * so only !important overrides it. Lichess shows the default cursor. */
+.squares[data-movable='none'] [data-piece],
+.squares[data-movable='w'] [data-piece^='b'],
+.squares[data-movable='b'] [data-piece^='w'] {
+  cursor: default !important;
 }
 
 /* The promotion picker: undesigned, so in the style of the set-up palette. */
