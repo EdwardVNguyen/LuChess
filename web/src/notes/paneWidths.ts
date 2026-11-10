@@ -4,10 +4,10 @@
 
 export type Pane = 'sidebar' | 'board' | 'margin'
 
-/** Each pane's width as designed, and how far it can be dragged either way. */
+/** Each pane's width before the reader chooses one, and how far it can be dragged either way. The board opens at its widest (#62). */
 export const paneLimits: Record<Pane, { initial: number; min: number; max: number }> = {
   sidebar: { initial: 248, min: 200, max: 400 },
-  board: { initial: 464, min: 360, max: 720 },
+  board: { initial: 720, min: 360, max: 720 },
   margin: { initial: 304, min: 240, max: 480 },
 }
 

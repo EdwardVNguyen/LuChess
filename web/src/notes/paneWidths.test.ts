@@ -2,10 +2,17 @@ import { describe, expect, it } from 'vitest'
 import { createPaneWidthStore, fitNote, fitSidebar, movesFloor, parseChosen, storageKey } from './paneWidths'
 
 describe('fitNote', () => {
-  it('shows the initial widths when nothing is chosen and there is room', () => {
-    const fit = fitNote({}, 1192, true)
-    expect(fit.board.width).toBe(464)
+  it('opens the board at its widest when nothing is chosen and there is room', () => {
+    const fit = fitNote({}, 720 + 304 + movesFloor, true)
+    expect(fit.board.width).toBe(720)
     expect(fit.margin?.width).toBe(304)
+  })
+
+  it('narrows the margin to its minimum before the board when opening without room', () => {
+    // 1440px with the default sidebar (#62).
+    const fit = fitNote({}, 1440 - 248, true)
+    expect(fit.board.width).toBe(632)
+    expect(fit.margin?.width).toBe(240)
   })
 
   it('shows chosen widths, within each pane’s limits', () => {
@@ -15,7 +22,7 @@ describe('fitNote', () => {
   })
 
   it('lets each pane grow only as far as leaves the moves their floor', () => {
-    const fit = fitNote({}, 1192, true)
+    const fit = fitNote({ board: 464 }, 1192, true)
     expect(fit.board.max).toBe(1192 - movesFloor - 304)
     expect(fit.margin?.max).toBe(1192 - movesFloor - 464)
   })
