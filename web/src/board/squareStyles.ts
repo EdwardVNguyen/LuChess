@@ -5,7 +5,7 @@ import type { CSSProperties } from 'react'
 // pointer dragging over it: `layer` keeps every one's backgroundImage, so a
 // highlight is a backgroundColor (one wins) or a backgroundImage (all show).
 export const lastMoveStyle: CSSProperties = { backgroundColor: 'var(--cn-board-last-move)' }
-export const selectedStyle: CSSProperties = { backgroundColor: 'var(--cn-highlight)' }
+export const selectedStyle: CSSProperties = { backgroundColor: 'var(--cn-board-selected)' }
 /** An empty square the selected piece can move to. */
 export const targetStyle: CSSProperties = {
   backgroundImage: 'radial-gradient(circle, var(--cn-board-target) 0 16%, transparent 17%)',

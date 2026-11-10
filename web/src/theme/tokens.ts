@@ -16,19 +16,21 @@ export const colorTokens = {
   dashed: '#A99C7E',
   accent: '#8A2E24',
   avatar: '#D6C8A6',
-  boardLight: '#EDE2C8',
-  boardDark: '#B9A47C',
-  // The last move's from and to squares on the board.
-  boardLastMove: '#DDB87A',
+  // The board's own look (docs/adr/0007): a warm brown that sits on `paper`.
+  boardLight: '#ECDAB6',
+  boardDark: '#AD855C',
+  // The board has no border; this lifts it off the page.
+  boardShadow: '0 2px 10px rgba(42, 38, 32, .28)',
+  // The last move's from and to squares, and the selected piece's square.
+  // Translucent, so each reads on both square colours.
+  boardLastMove: 'rgba(222, 160, 50, .5)',
+  boardSelected: 'rgba(138, 46, 36, .38)',
   // A legal target square: a dot when empty, a ring when it holds a piece to capture.
   boardTarget: 'rgba(42, 38, 32, .35)',
   // The square under a piece being dragged.
   boardDragOver: 'rgba(42, 38, 32, .2)',
   // The glow on the square of a king in check.
   boardCheck: '#D9402B',
-  // Piece glyph fills; white pieces also get an `ink` outline.
-  pieceLight: '#FFFDF6',
-  pieceDark: '#1F1B16',
   overlay: 'rgba(42, 38, 32, .45)',
   // The lift under a dialog that floats over the page (QuickFind.dc.html).
   dialogShadow: '0 24px 60px rgba(42, 38, 32, .28)',
@@ -50,8 +52,6 @@ export const fontTokens = {
   serif: "'Newsreader', Georgia, serif",
   // UI chrome: buttons, inputs, labels, nav.
   sans: "'Hanken Grotesk', system-ui, sans-serif",
-  // Chess piece glyphs; append U+FE0E to force the text presentation.
-  symbols: "'Noto Sans Symbols 2', 'Hanken Grotesk', system-ui, sans-serif",
 } as const
 
 export const radiusTokens = {

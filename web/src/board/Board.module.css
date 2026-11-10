@@ -1,6 +1,7 @@
-/* The board, its coordinates and move controls: design/screens/Note.dc.html,
- * Note-tablet.dc.html and Note-mobile.dc.html. The board fills its
- * container; the coordinates sit outside it in a 22px gutter. */
+/* The board, its coordinates and move controls. The layout follows
+ * design/screens/Note.dc.html, Note-tablet.dc.html and Note-mobile.dc.html;
+ * the board itself has its own look (docs/adr/0007). It fills its container,
+ * with the coordinates drawn on the edge squares. */
 .board {
   width: 100%;
   border-radius: var(--cn-radius-button);
@@ -11,24 +12,8 @@
   outline-offset: 4px;
 }
 
-.surface {
-  display: grid;
-  grid-template-columns: 22px minmax(0, 1fr);
-  grid-template-rows: auto 22px;
-  font-family: var(--cn-font-sans);
-  font-size: 12px;
-  color: var(--cn-muted);
-}
-
-.ranks {
-  display: grid;
-  grid-template-rows: repeat(8, 1fr);
-  align-items: center;
-}
-
 .squares {
   position: relative;
-  min-width: 0;
   /* Pressing a piece that can't move would otherwise start selecting its
    * glyph, since react-chessboard leaves that press to the browser. */
   user-select: none;
@@ -77,18 +62,39 @@
   outline-offset: -3px;
 }
 
-.files {
-  grid-column: 2;
-  display: grid;
-  grid-template-columns: repeat(8, 1fr);
-  align-items: end;
-  text-align: center;
+/* Over the squares, so it doesn't catch the pointer, and sized as a container
+ * so the coordinates scale with the board as Lichess's do. */
+.coordinates {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  container-type: size;
+  font-family: var(--cn-font-sans);
+  font-weight: 700;
+}
+
+.file,
+.rank {
+  position: absolute;
+  font-size: clamp(10px, 3.2cqw, 14px);
+  line-height: 1;
+}
+
+.file {
+  bottom: 0;
+  width: 12.5%;
+  padding: 0 0 2px 3px;
+}
+
+.rank {
+  right: 0;
+  height: 12.5%;
+  padding: 2px 3px 0 0;
 }
 
 .controls,
 .setup {
   margin-top: 24px;
-  margin-left: 22px;
 }
 
 /* The caption drops under the buttons when the board is too narrow for both,

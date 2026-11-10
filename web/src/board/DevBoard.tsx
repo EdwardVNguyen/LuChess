@@ -31,7 +31,7 @@ export function DevBoard() {
           { value: 'setup', label: 'Set up' },
         ]}
       />
-      <Box w={{ base: '100%', sm: 382 }}>
+      <Box w={{ base: '100%', sm: 360 }}>
         {mode === 'view' && <ViewDemo />}
         {mode === 'play' && <PlayDemo startFen={fen ?? START_FEN} />}
         {mode === 'setup' && <SetupDemo />}
@@ -58,7 +58,7 @@ function PlayDemo({ startFen }: { startFen: string }) {
   return (
     <Stack gap="md">
       <Board mode="play" fen={fen} lastMove={moves.at(-1)} onMove={(move) => setMoves([...moves, move])} />
-      <Text size="sm" c="dimmed" ml={22}>
+      <Text size="sm" c="dimmed">
         {plies.length > 1 ? plies.slice(1).map(plyLabel).join(' ') : 'Drag or click a piece to play a move.'}
       </Text>
     </Stack>
