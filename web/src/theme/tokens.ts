@@ -20,6 +20,12 @@ export const colorTokens = {
   boardDark: '#B9A47C',
   // The last move's from and to squares on the board.
   boardLastMove: '#DDB87A',
+  // A legal target square: a dot when empty, a ring when it holds a piece to capture.
+  boardTarget: 'rgba(42, 38, 32, .35)',
+  // The square under a piece being dragged.
+  boardDragOver: 'rgba(42, 38, 32, .2)',
+  // The glow on the square of a king in check.
+  boardCheck: '#D9402B',
   // Piece glyph fills; white pieces also get an `ink` outline.
   pieceLight: '#FFFDF6',
   pieceDark: '#1F1B16',

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  checkedKing,
   editMoves,
   fenAt,
   firstChangedPly,
@@ -83,6 +84,13 @@ describe('play', () => {
     expect(tryMove(START_FEN, 'e2', 'e5')).toBeNull()
     expect(tryMove(START_FEN, 'e7', 'e5')).toBeNull()
     expect(legalTargets(START_FEN, 'g1').sort()).toEqual(['f3', 'h3'])
+  })
+
+  it("finds the king in check, for the side to move only", () => {
+    expect(checkedKing(START_FEN)).toBeNull()
+    // Black is in check after 1.e4 f5 2.Qh5+.
+    expect(checkedKing('rnbqkbnr/ppppp1pp/8/5p1Q/4P3/8/PPPP1PPP/RNB1KBNR b KQkq - 1 2')).toBe('e8')
+    expect(checkedKing('7k/8/8/8/8/8/8/K6R b - - 0 1')).toBe('h8')
   })
 
   it('promotes to a queen', () => {

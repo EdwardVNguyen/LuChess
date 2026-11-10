@@ -271,6 +271,40 @@ export const entries: ShotEntry[] = [
       await page.getByRole('group', { name: 'Promote to' }).waitFor()
     },
   },
+  // Lichess-style highlights (#55). After 1.e4 d5, the e4 pawn selected: a
+  // ring on d5, which it can capture, and a dot on e5.
+  {
+    name: 'DevBoardCapture',
+    route: `/dev/board?mode=play&fen=${encodeURIComponent('rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2')}`,
+    fixtures: 'guest',
+    setup: async (page) => {
+      await page.locator('[id$="-square-e4"]').click()
+    },
+  },
+  // After 1.e4 f5 2.Qh5+: the black king glows, and g7 is selected to block.
+  {
+    name: 'DevBoardCheck',
+    route: `/dev/board?mode=play&fen=${encodeURIComponent('rnbqkbnr/ppppp1pp/8/5p1Q/4P3/8/PPPP1PPP/RNB1KBNR b KQkq - 1 2')}`,
+    fixtures: 'guest',
+    setup: async (page) => {
+      await page.locator('[id$="-square-g7"]').click()
+    },
+  },
+  // Mid-drag: the knight, picked up by its corner, is centred on the pointer
+  // over f3, which is highlighted; g1 is selected and the knight's targets show.
+  {
+    name: 'DevBoardDrag',
+    route: `/dev/board?mode=play&fen=${encodeURIComponent('rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2')}`,
+    fixtures: 'guest',
+    setup: async (page) => {
+      const from = await page.locator('[id$="-square-g1"]').boundingBox()
+      const over = await page.locator('[id$="-square-f3"]').boundingBox()
+      if (!from || !over) throw new Error('board squares not found')
+      await page.mouse.move(from.x + 4, from.y + 4)
+      await page.mouse.down()
+      await page.mouse.move(over.x + over.width * 0.3, over.y + over.height * 0.6, { steps: 12 })
+    },
+  },
   { name: 'DevBoardSetup', route: '/dev/board?mode=setup', fixtures: 'guest' },
   // The Note screen (#6), matching design/screenshots/Note*.png at the same Ply.
   {
