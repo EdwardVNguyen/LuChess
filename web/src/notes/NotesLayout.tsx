@@ -2,11 +2,13 @@ import { Button, Loader, Stack, Text, Title } from '@mantine/core'
 import { Link, Outlet } from '@tanstack/react-router'
 import { useSession } from '../session'
 import { NoteTree } from './NoteTree'
+import { PaneEdge } from './PaneEdge'
 import styles from './Notes.module.css'
 
 // The Notes area: the "Your notes" sidebar on desktop beside the open Note
 // or the New note page. Tablet and mobile have no sidebar; each screen
-// offers the list itself (design/screenshots/Note*.png).
+// offers the list itself (design/screenshots/Note*.png). On desktop the
+// sidebar's edge can be dragged (#51).
 export function NotesLayout() {
   const { state } = useSession()
 
@@ -38,6 +40,7 @@ export function NotesLayout() {
       <nav className={styles.sidebar} aria-label="Notes">
         <NoteTree />
       </nav>
+      <PaneEdge pane="sidebar" />
       <div className={styles.main}>
         <Outlet />
       </div>

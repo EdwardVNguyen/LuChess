@@ -26,7 +26,7 @@
     position: sticky;
     top: 56px;
     align-self: flex-start;
-    width: 248px;
+    width: var(--sidebar-width, 248px);
     height: calc(100dvh - 56px);
     flex: none;
     box-sizing: border-box;
@@ -34,6 +34,50 @@
     overflow-y: auto;
     background: var(--cn-sidebar);
     border-right: 1px solid var(--cn-rule);
+  }
+}
+
+/* The draggable edge between two panes (PaneEdge.tsx), on desktop only: a
+ * strip over the panes' border that takes no room of its own (its negative
+ * margins cancel its width). The border darkens while it is hovered, focused
+ * or dragged. */
+.paneEdge {
+  display: none;
+}
+
+@media (min-width: 64em) {
+  .paneEdge {
+    display: block;
+    position: relative;
+    z-index: 1;
+    flex: none;
+    width: 10px;
+    margin: 0 -5px;
+    outline: none;
+    touch-action: none;
+    cursor: col-resize;
+    /* Focusing this tall strip shouldn't scroll it under the sticky header. */
+    scroll-margin-top: 56px;
+  }
+
+  .paneEdge::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 3.5px;
+    width: 3px;
+    background: transparent;
+    transition: background-color 120ms ease;
+  }
+
+  .paneEdge:hover::after {
+    background: var(--cn-dashed);
+  }
+
+  .paneEdge:focus-visible::after,
+  .paneEdge[data-dragging]::after {
+    background: var(--cn-ink);
   }
 }
 
@@ -312,7 +356,7 @@
 
 @media (min-width: 64em) {
   .boardColumn {
-    flex: 0 0 464px;
+    flex: 0 0 var(--board-width, 464px);
     gap: 24px;
     padding: 36px 36px 28px;
     box-sizing: border-box;
@@ -862,7 +906,7 @@
 
 @media (min-width: 64em) {
   .margin {
-    flex: 0 0 304px;
+    flex: 0 0 var(--margin-width, 304px);
     display: flex;
     gap: 22px;
     padding: 32px 28px 24px;

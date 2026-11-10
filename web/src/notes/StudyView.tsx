@@ -16,6 +16,7 @@ import {
 } from '../chess/chess'
 import { noteDetails } from './details'
 import { MoveList, Written } from './MoveList'
+import { PaneEdge } from './PaneEdge'
 import styles from './Notes.module.css'
 import { PlyEditor } from './PlyEditor'
 import type { PlyChange } from './writing'
@@ -144,9 +145,11 @@ export function StudyView({ name, eyebrow, pgn, actions, children, initialPly, m
           )
         )}
       </section>
+      <PaneEdge pane="board" hasMargin={Boolean(margin)} />
       <section className={styles.movesColumn} aria-label="Writing">
         {children({ game, ply, onPlyChange: setPly, draft: editing ? { firstChangedPly: changedFrom } : null })}
       </section>
+      {margin && <PaneEdge pane="margin" />}
       {margin && (
         <aside className={styles.margin} aria-label="In the margin">
           {margin}

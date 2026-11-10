@@ -320,6 +320,55 @@ export const entries: ShotEntry[] = [
   // No matching design screens below: the Note screen's undesigned states,
   // the list of Notes and the New note page.
   { name: 'NotePosition', route: '/notes/3', fixtures: 'session' },
+  // Resizable panes (#51), desktop only: the edges are hidden on tablet and
+  // mobile, so there those shots match `Note`. A narrower sidebar and a wider
+  // board, then an edge hovered, focused and being dragged.
+  {
+    name: 'NoteResized',
+    route: '/notes/1',
+    fixtures: 'session',
+    setup: async (page) => {
+      const sidebar = page.getByRole('separator', { name: 'Resize the sidebar' })
+      if (!(await sidebar.isVisible())) return
+      await sidebar.focus()
+      await page.keyboard.press('Home')
+      await page.getByRole('separator', { name: 'Resize the board' }).focus()
+      await page.keyboard.press('End')
+      await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
+    },
+  },
+  {
+    name: 'NotePaneEdgeHover',
+    route: '/notes/1',
+    fixtures: 'session',
+    setup: async (page) => {
+      const edge = page.getByRole('separator', { name: 'Resize the board' })
+      if (await edge.isVisible()) await edge.hover()
+    },
+  },
+  {
+    name: 'NotePaneEdgeFocus',
+    route: '/notes/1',
+    fixtures: 'session',
+    setup: async (page) => {
+      const edge = page.getByRole('separator', { name: 'Resize the margin' })
+      if (await edge.isVisible()) await edge.focus()
+    },
+  },
+  {
+    name: 'NotePaneEdgeDragging',
+    route: '/notes/1',
+    fixtures: 'session',
+    setup: async (page) => {
+      const edge = page.getByRole('separator', { name: 'Resize the sidebar' })
+      if (!(await edge.isVisible())) return
+      const box = await edge.boundingBox()
+      if (!box) return
+      await page.mouse.move(box.x, box.y + 300)
+      await page.mouse.down()
+      await page.mouse.move(box.x + 100, box.y + 300, { steps: 8 })
+    },
+  },
   {
     name: 'NoteAllNotes',
     route: '/notes/1',
