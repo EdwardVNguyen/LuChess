@@ -369,6 +369,69 @@ export const entries: ShotEntry[] = [
       await page.mouse.move(box.x + 100, box.y + 300, { steps: 8 })
     },
   },
+  // Collapsible sidebar and margin (#61), desktop only: the buttons are hidden
+  // on tablet and mobile, so there these shots match `Note`. Each pane
+  // collapsed to its rail, both, and a collapse button hovered and an expand
+  // button focused.
+  {
+    name: 'NoteSidebarCollapsed',
+    route: '/notes/1',
+    fixtures: 'session',
+    setup: async (page) => {
+      const button = page.getByRole('button', { name: 'Collapse the sidebar' })
+      if (!(await button.isVisible())) return
+      await button.click()
+      await page.mouse.move(0, 0)
+      await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
+    },
+  },
+  {
+    name: 'NoteMarginCollapsed',
+    route: '/notes/1',
+    fixtures: 'session',
+    setup: async (page) => {
+      const button = page.getByRole('button', { name: 'Collapse the margin' })
+      if (!(await button.isVisible())) return
+      await button.click()
+      await page.mouse.move(0, 0)
+      await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
+    },
+  },
+  {
+    name: 'NoteBothCollapsed',
+    route: '/notes/1',
+    fixtures: 'session',
+    setup: async (page) => {
+      const sidebar = page.getByRole('button', { name: 'Collapse the sidebar' })
+      if (!(await sidebar.isVisible())) return
+      await sidebar.click()
+      await page.getByRole('button', { name: 'Collapse the margin' }).click()
+      await page.mouse.move(0, 0)
+      await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
+    },
+  },
+  {
+    name: 'NotePaneToggleHover',
+    route: '/notes/1',
+    fixtures: 'session',
+    setup: async (page) => {
+      const button = page.getByRole('button', { name: 'Collapse the margin' })
+      if (await button.isVisible()) await button.hover()
+    },
+  },
+  {
+    name: 'NotePaneToggleFocus',
+    route: '/notes/1',
+    fixtures: 'session',
+    setup: async (page) => {
+      const button = page.getByRole('button', { name: 'Collapse the sidebar' })
+      if (!(await button.isVisible())) return
+      // From the keyboard, so focus shows as it does for a keyboard user.
+      await button.focus()
+      await page.keyboard.press('Enter')
+      await page.mouse.move(0, 0)
+    },
+  },
   {
     name: 'NoteAllNotes',
     route: '/notes/1',

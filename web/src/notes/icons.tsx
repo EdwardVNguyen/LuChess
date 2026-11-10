@@ -45,3 +45,13 @@ export function FolderPlusIcon({ size = 16 }: IconProps) {
     </svg>
   )
 }
+
+// A pane's collapse and expand button (#61): a double chevron pointing the
+// way the pane will go.
+export function PaneChevronIcon({ size = 16, pointing }: IconProps & { pointing: 'left' | 'right' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d={pointing === 'left' ? 'M11 6l-6 6 6 6M18 6l-6 6 6 6' : 'M13 6l6 6-6 6M6 6l6 6-6 6'} />
+    </svg>
+  )
+}

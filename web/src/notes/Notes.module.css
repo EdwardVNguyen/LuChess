@@ -35,6 +35,53 @@
     background: var(--cn-sidebar);
     border-right: 1px solid var(--cn-rule);
   }
+
+  /* Collapsed to a rail with its expand button (#61). */
+  .sidebar[data-collapsed] {
+    width: var(--cn-pane-rail);
+    padding: 0;
+    overflow: hidden;
+  }
+}
+
+/* The button at the top of the sidebar or the margin that collapses it, and
+ * on the collapsed pane's rail, expands it (PaneToggle.tsx). Desktop only. */
+.paneToggle {
+  display: none;
+}
+
+@media (min-width: 64em) {
+  .paneToggle {
+    position: absolute;
+    z-index: 2;
+    top: 12px;
+    right: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: var(--cn-radius-button);
+    color: var(--cn-muted);
+  }
+
+  .paneToggle:hover {
+    background: var(--cn-highlight);
+    color: var(--cn-ink);
+  }
+
+  .paneToggle:focus-visible {
+    outline: 2px solid var(--cn-ink);
+    outline-offset: -2px;
+  }
+
+  /* Centred on the rail, inside its border. */
+  .sidebar[data-collapsed] > .paneToggle,
+  .margin[data-collapsed] > .paneToggle {
+    left: 0;
+    right: 0;
+    margin: 0 auto;
+  }
 }
 
 /* The draggable edge between two panes (PaneEdge.tsx), on desktop only: a
@@ -78,6 +125,12 @@
   .paneEdge:focus-visible::after,
   .paneEdge[data-dragging]::after {
     background: var(--cn-ink);
+  }
+
+  /* A collapsed pane is opened with its rail's button, not dragged; but the
+   * drag that snapped it shut can still pull it open again. */
+  .paneEdge[data-collapsed]:not([data-dragging]) {
+    display: none;
   }
 }
 
@@ -914,7 +967,29 @@
     background: var(--cn-margin-panel);
     border-top: 0;
     border-left: 1px solid var(--cn-rule);
+    position: relative;
   }
+
+  /* Leaves room for the collapse button beside the first heading. */
+  .margin > .paneToggle {
+    top: 26px;
+    right: 12px;
+  }
+
+  /* Collapsed to a rail with its expand button (#61); the moves take the rest. */
+  .margin[data-collapsed] {
+    flex-basis: var(--cn-pane-rail);
+    padding: 0;
+  }
+
+  .margin[data-collapsed] > .marginBody {
+    display: none;
+  }
+}
+
+/* The margin's sections, laid out as the margin's own items. */
+.marginBody {
+  display: contents;
 }
 
 .marginSection {

@@ -8,6 +8,7 @@ import {
   type Ref,
 } from 'react'
 import styles from './Notes.module.css'
+import { collapseBeyond, isCollapsible, paneCollapse, railWidth, type Collapsed, type PaneCollapseStore } from './paneCollapse'
 import { fitNote, fitSidebar, paneWidths, type ChosenWidths, type Pane, type PaneFit, type PaneWidthStore } from './paneWidths'
 
 const labels: Record<Pane, string> = {
@@ -25,14 +26,25 @@ type PaneEdgeProps = {
   /** For the board and the margin: whether the Note has a margin beside the moves. */
   hasMargin?: boolean
   store?: PaneWidthStore
+  collapseStore?: PaneCollapseStore
+  /** For the sidebar and the margin: called when a drag has snapped the pane shut. */
+  onCollapsed?: () => void
 }
 
 // The draggable edge of a pane, on desktop only (#51). It sits between two
 // columns of a flex row and sets its pane's width on that row, as
-// `--sidebar-width`, `--board-width` or `--margin-width`.
-export function PaneEdge({ pane, hasMargin = false, store = paneWidths }: PaneEdgeProps) {
+// `--sidebar-width`, `--board-width` or `--margin-width`. Dragging the
+// sidebar's or the margin's edge well past its minimum collapses it (#61).
+export function PaneEdge({
+  pane,
+  hasMargin = false,
+  store = paneWidths,
+  collapseStore = paneCollapse,
+  onCollapsed,
+}: PaneEdgeProps) {
   const ref = useRef<HTMLDivElement>(null)
   const chosen = useSyncExternalStore(store.subscribe, store.get)
+  const collapsed = useSyncExternalStore(collapseStore.subscribe, collapseStore.get)
   const [space, setSpace] = useState<number | null>(null)
 
   // The row's width, so the panes leave the moves room as the window narrows.
@@ -44,7 +56,8 @@ export function PaneEdge({ pane, hasMargin = false, store = paneWidths }: PaneEd
     return () => observer.disconnect()
   }, [])
 
-  const fit = fitFor(pane, chosen, space, hasMargin)
+  const fit = fitFor(pane, chosen, space, hasMargin, collapsed)
+  const collapsible = isCollapsible(pane)
 
   useLayoutEffect(() => {
     const row = ref.current?.parentElement
@@ -64,16 +77,31 @@ export function PaneEdge({ pane, hasMargin = false, store = paneWidths }: PaneEd
       // The sidebar and the board grow to the right; the margin, to the left.
       grows={pane === 'margin' ? 'left' : 'right'}
       onResize={(width) => store.set(pane, width)}
-      onCommit={store.save}
+      onCommit={() => {
+        store.save()
+        if (!collapsible) return
+        collapseStore.save()
+        if (collapseStore.get()[pane]) onCollapsed?.()
+      }}
       onReset={() => store.reset(pane)}
+      collapsed={collapsible ? Boolean(collapsed[pane]) : undefined}
+      onCollapse={collapsible ? (shut) => collapseStore.set(pane, shut) : undefined}
     />
   )
 }
 
-function fitFor(pane: Pane, chosen: ChosenWidths, space: number | null, hasMargin: boolean): PaneFit {
+function fitFor(
+  pane: Pane,
+  chosen: ChosenWidths,
+  space: number | null,
+  hasMargin: boolean,
+  collapsed: Collapsed,
+): PaneFit {
   if (pane === 'sidebar') return fitSidebar(chosen, space)
-  const note = fitNote(chosen, space, hasMargin || pane === 'margin')
-  return pane === 'board' ? note.board : (note.margin as PaneFit)
+  if (pane === 'margin') return fitNote(chosen, space, true).margin as PaneFit
+  // A collapsed margin leaves only its rail beside the moves.
+  if (hasMargin && collapsed.margin) return fitNote(chosen, space === null ? null : space - railWidth, false).board
+  return fitNote(chosen, space, hasMargin).board
 }
 
 type ResizeHandleProps = {
@@ -86,12 +114,28 @@ type ResizeHandleProps = {
   /** At the end of a drag and after an arrow key: the width to remember. */
   onCommit: () => void
   onReset: () => void
+  /** Whether the pane is collapsed; only for a pane that can collapse. */
+  collapsed?: boolean
+  /** Snaps the pane shut, or open again, as a drag goes past its minimum and back. */
+  onCollapse?: (collapsed: boolean) => void
 }
 
 // A window splitter (WAI-ARIA `separator`): drag it, move it with the arrow
 // keys (Shift for bigger steps), Home and End for the narrowest and widest,
-// and double-click or Enter to go back to the initial width.
-export function ResizeHandle({ ref, label, fit, grows, onResize, onCommit, onReset }: ResizeHandleProps) {
+// and double-click or Enter to go back to the initial width. Given
+// `onCollapse`, dragging well past the narrowest snaps the pane shut, keeping
+// the width it had when the drag began; dragging back opens it again.
+export function ResizeHandle({
+  ref,
+  label,
+  fit,
+  grows,
+  onResize,
+  onCommit,
+  onReset,
+  collapsed,
+  onCollapse,
+}: ResizeHandleProps) {
   const drag = useRef<{ x: number; width: number } | null>(null)
   const [dragging, setDragging] = useState(false)
   const direction = grows === 'right' ? 1 : -1
@@ -109,7 +153,17 @@ export function ResizeHandle({ ref, label, fit, grows, onResize, onCommit, onRes
 
   function onPointerMove(event: PointerEvent<HTMLDivElement>) {
     if (!drag.current) return
-    onResize(limit(drag.current.width + (event.clientX - drag.current.x) * direction))
+    const width = drag.current.width + (event.clientX - drag.current.x) * direction
+    if (onCollapse) {
+      const shut = width < fit.min - collapseBeyond
+      if (shut) {
+        onResize(drag.current.width)
+        if (!collapsed) onCollapse(true)
+        return
+      }
+      if (collapsed) onCollapse(false)
+    }
+    onResize(limit(width))
   }
 
   function endDrag() {
@@ -159,6 +213,7 @@ export function ResizeHandle({ ref, label, fit, grows, onResize, onCommit, onRes
       aria-valuemax={fit.max}
       tabIndex={0}
       data-dragging={dragging || undefined}
+      data-collapsed={collapsed || undefined}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={endDrag}
