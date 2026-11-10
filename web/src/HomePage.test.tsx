@@ -12,10 +12,6 @@ import type { Session, SessionState } from './session'
 import { SessionProvider } from './session'
 import { theme } from './theme'
 
-vi.mock('./apiClient', () => ({
-  api: { health: () => Promise.resolve({ status: 'ok' }) },
-}))
-
 beforeEach(() => {
   // react-chessboard measures a square to animate a move; jsdom has no layout.
   vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 40, 40))
@@ -69,7 +65,6 @@ describe('HomePage', () => {
     expect(await screen.findByRole('heading', { level: 1, ...landingTitle })).toBeInTheDocument()
     expect(screen.getAllByRole('link', { name: 'Try as a Guest' })[0]).toHaveAttribute('href', '/try')
     expect(screen.getAllByRole('link', { name: 'Sign up free' })[0]).toHaveAttribute('href', '/signup')
-    expect(screen.queryByText(/Welcome back/)).not.toBeInTheDocument()
   })
 
   it('links the header to How it works and the FAQ on the page', async () => {
@@ -110,12 +105,11 @@ describe('HomePage', () => {
     expect(first).toHaveAttribute('aria-expanded', 'false')
   })
 
-  it('shows someone logged in the home page, not the landing page', async () => {
+  it('sends someone logged in straight to their notes, not the landing page', async () => {
     renderAt({ status: 'authenticated', user: { id: 1, email: 'ada@example.com', name: 'Ada' } })
 
-    expect(await screen.findByRole('heading', { name: 'Welcome back, Ada' })).toBeInTheDocument()
+    expect(await screen.findByText('/notes page')).toBeInTheDocument()
     expect(screen.queryByRole('heading', landingTitle)).not.toBeInTheDocument()
-    expect(screen.queryByRole('navigation', { name: 'Main' })).not.toBeInTheDocument()
   })
 
   it('shows neither page while the Session is being restored', async () => {
@@ -123,7 +117,7 @@ describe('HomePage', () => {
 
     expect(await screen.findByLabelText('Loading')).toBeInTheDocument()
     expect(screen.queryByRole('heading', landingTitle)).not.toBeInTheDocument()
-    expect(screen.queryByText(/Welcome back/)).not.toBeInTheDocument()
+    expect(screen.queryByText('/notes page')).not.toBeInTheDocument()
   })
 
   it('shows only the retry alert when restoring the Session failed', async () => {
@@ -132,7 +126,7 @@ describe('HomePage', () => {
     expect(await screen.findByText('Could not check your session')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', landingTitle)).not.toBeInTheDocument()
-    expect(screen.queryByText(/Welcome back/)).not.toBeInTheDocument()
+    expect(screen.queryByText('/notes page')).not.toBeInTheDocument()
   })
 
   it('keeps the section links out of the header on other pages', async () => {
