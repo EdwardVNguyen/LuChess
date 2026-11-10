@@ -68,6 +68,8 @@ export const radiusTokens = {
 export const spacingTokens = {
   // How far each level of the Folder tree is indented (Note.dc.html's sidebar).
   treeIndent: '22px',
+  // How wide a collapsed sidebar or margin is: a rail with its expand button (#61).
+  paneRail: '32px',
 } as const
 
 // Chosen so 390px (mobile), 834px (tablet) and 1440px (desktop) each land in

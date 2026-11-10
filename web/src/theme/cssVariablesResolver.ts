@@ -43,6 +43,7 @@ export const cssVariablesResolver: CSSVariablesResolver = () => ({
     '--cn-radius-dialog': radiusTokens.lg,
     '--cn-radius-pill': radiusTokens.xl,
     '--cn-tree-indent': spacingTokens.treeIndent,
+    '--cn-pane-rail': spacingTokens.paneRail,
   },
   light: {},
   dark: {},

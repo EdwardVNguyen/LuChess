@@ -1,5 +1,5 @@
 import { Alert, Button, Group, Text } from '@mantine/core'
-import { useState, type ReactNode } from 'react'
+import { useId, useState, type ReactNode } from 'react'
 import type { PlyWriting } from '../api'
 import { Board } from '../board'
 import {
@@ -17,6 +17,8 @@ import {
 import { noteDetails } from './details'
 import { MoveList, Written } from './MoveList'
 import { PaneEdge } from './PaneEdge'
+import { PaneToggle } from './PaneToggle'
+import { useCollapsible } from './useCollapsible'
 import styles from './Notes.module.css'
 import { PlyEditor } from './PlyEditor'
 import type { PlyChange } from './writing'
@@ -72,6 +74,9 @@ export function StudyView({ name, eyebrow, pgn, actions, children, initialPly, m
     parsed.ok ? clampPly(parsed.value, initialPly ?? parsed.value.plies.length - 1) : 0,
   )
   const details = parsed.ok ? noteDetails(parsed.value.tags) : null
+  // On desktop the margin can be collapsed to a rail (#61); below, it is always open.
+  const marginPane = useCollapsible('margin')
+  const marginId = useId()
 
   // The moves as edited so far; null until the first change. Each time
   // editing starts or ends, the draft starts again from the saved moves.
@@ -149,10 +154,23 @@ export function StudyView({ name, eyebrow, pgn, actions, children, initialPly, m
       <section className={styles.movesColumn} aria-label="Writing">
         {children({ game, ply, onPlyChange: setPly, draft: editing ? { firstChangedPly: changedFrom } : null })}
       </section>
-      {margin && <PaneEdge pane="margin" />}
+      {margin && <PaneEdge pane="margin" onCollapsed={marginPane.focusToggle} />}
       {margin && (
-        <aside className={styles.margin} aria-label="In the margin">
-          {margin}
+        <aside
+          id={marginId}
+          className={styles.margin}
+          aria-label="In the margin"
+          data-collapsed={marginPane.collapsed || undefined}
+        >
+          <PaneToggle
+            pane="margin"
+            collapsed={marginPane.collapsed}
+            onToggle={marginPane.toggle}
+            focusRequests={marginPane.focusRequests}
+            controls={marginId}
+          />
+          {/* Not laid out on its own (display: contents), so the margin's sections stay its grid or flex items. */}
+          <div className={styles.marginBody}>{margin}</div>
         </aside>
       )}
     </div>
