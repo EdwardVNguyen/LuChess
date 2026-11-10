@@ -409,7 +409,7 @@
 
 @media (min-width: 64em) {
   .boardColumn {
-    flex: 0 0 var(--board-width, 464px);
+    flex: 0 0 var(--board-width, 720px);
     gap: 24px;
     padding: 36px 36px 28px;
     box-sizing: border-box;

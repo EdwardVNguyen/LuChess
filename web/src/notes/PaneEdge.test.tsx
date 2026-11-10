@@ -36,11 +36,11 @@ describe('PaneEdge', () => {
     const { edge, width } = renderEdge('board')
     expect(edge).toHaveAccessibleName('Resize the board')
     expect(edge).toHaveAttribute('aria-orientation', 'vertical')
-    expect(edge).toHaveAttribute('aria-valuenow', '464')
+    expect(edge).toHaveAttribute('aria-valuenow', '720')
     expect(edge).toHaveAttribute('aria-valuemin', '360')
     expect(edge).toHaveAttribute('aria-valuemax', '720')
     expect(edge).toHaveAttribute('tabindex', '0')
-    expect(width()).toBe('464px')
+    expect(width()).toBe('720px')
   })
 
   it('starts at the width remembered on this device', () => {
@@ -51,7 +51,7 @@ describe('PaneEdge', () => {
 
   it('moves with the arrow keys, further with Shift, and remembers it', async () => {
     const user = userEvent.setup()
-    const { edge, width, remembered } = renderEdge('board')
+    const { edge, width, remembered } = renderEdge('board', { board: 464 })
     edge.focus()
     await user.keyboard('{ArrowRight}')
     expect(width()).toBe('472px')
@@ -83,21 +83,21 @@ describe('PaneEdge', () => {
     const { edge, width, remembered } = renderEdge('board', { board: 600 })
     edge.focus()
     await user.keyboard('{Enter}')
-    expect(width()).toBe('464px')
+    expect(width()).toBe('720px')
     expect(remembered()).toEqual({})
 
-    await user.keyboard('{End}')
+    await user.keyboard('{Home}')
     await user.dblClick(edge)
-    expect(width()).toBe('464px')
+    expect(width()).toBe('720px')
   })
 
   it('follows a drag, within its limits, and remembers it when the drag ends', () => {
-    const { edge, width, remembered } = renderEdge('board')
+    const { edge, width, remembered } = renderEdge('board', { board: 464 })
     fireEvent.pointerDown(edge, { button: 0, pointerId: 1, clientX: 500 })
     fireEvent.pointerMove(edge, { pointerId: 1, clientX: 560 })
     expect(width()).toBe('524px')
     expect(edge).toHaveAttribute('data-dragging')
-    expect(remembered()).toEqual({})
+    expect(remembered()).toEqual({ board: 464 })
 
     fireEvent.pointerMove(edge, { pointerId: 1, clientX: 2000 })
     expect(width()).toBe('720px')

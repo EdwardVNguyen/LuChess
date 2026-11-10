@@ -308,7 +308,8 @@ export const entries: ShotEntry[] = [
   },
   { name: 'DevBoardSetup', route: '/dev/board?mode=setup', fixtures: 'guest' },
   // The Note screen (#6), matching design/screenshots/Note*.png at the same Ply,
-  // except for the board (docs/adr/0007).
+  // except for the board (docs/adr/0007) and, on desktop, the column widths:
+  // the board column opens at its widest (#62).
   {
     name: 'Note',
     route: '/notes/1',
@@ -321,8 +322,8 @@ export const entries: ShotEntry[] = [
   // the list of Notes and the New note page.
   { name: 'NotePosition', route: '/notes/3', fixtures: 'session' },
   // Resizable panes (#51), desktop only: the edges are hidden on tablet and
-  // mobile, so there those shots match `Note`. A narrower sidebar and a wider
-  // board, then an edge hovered, focused and being dragged.
+  // mobile, so there those shots match `Note`. A narrower sidebar and board
+  // (which opens at its widest), then an edge hovered, focused and being dragged.
   {
     name: 'NoteResized',
     route: '/notes/1',
@@ -333,7 +334,7 @@ export const entries: ShotEntry[] = [
       await sidebar.focus()
       await page.keyboard.press('Home')
       await page.getByRole('separator', { name: 'Resize the board' }).focus()
-      await page.keyboard.press('End')
+      await page.keyboard.press('Home')
       await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
     },
   },
