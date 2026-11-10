@@ -1,13 +1,19 @@
 import { useId, type CSSProperties, type ReactNode } from 'react'
 import { Chessboard, type ChessboardOptions } from 'react-chessboard'
+import type { Color } from '../chess/chess'
 import styles from './Board.module.css'
 import { glyphPieces } from './pieces'
 
 export type Orientation = 'white' | 'black'
 
+/** Which pieces can be moved: one side's, every piece (set-up), or none. */
+export type Movable = Color | 'all' | 'none'
+
 type BoardSurfaceProps = {
   fen: string
   orientation: Orientation
+  /** Pieces that can't move do nothing when pressed: no cursor, no text selection. */
+  movable?: Movable
   /** Per-square backgrounds, e.g. the last move or a selected piece. */
   squareStyles?: Record<string, CSSProperties>
   options?: Omit<ChessboardOptions, 'id' | 'position' | 'pieces' | 'boardOrientation' | 'squareStyles'>
@@ -20,7 +26,14 @@ const RANKS = ['8', '7', '6', '5', '4', '3', '2', '1']
 
 // The squares and pieces (react-chessboard, docs/adr/0006), with the
 // coordinates drawn outside the board as in design/screens/Note.dc.html.
-export function BoardSurface({ fen, orientation, squareStyles, options, children }: BoardSurfaceProps) {
+export function BoardSurface({
+  fen,
+  orientation,
+  movable = 'none',
+  squareStyles,
+  options,
+  children,
+}: BoardSurfaceProps) {
   // react-chessboard uses the id in CSS selectors, so keep it to letters and digits.
   const id = `board${useId().replace(/[^a-zA-Z0-9]/g, '')}`
   const files = orientation === 'white' ? FILES : [...FILES].reverse()
@@ -33,7 +46,7 @@ export function BoardSurface({ fen, orientation, squareStyles, options, children
           <span key={rank}>{rank}</span>
         ))}
       </div>
-      <div className={styles.squares}>
+      <div className={styles.squares} data-movable={movable}>
         <Chessboard
           options={{
             allowDragging: false,

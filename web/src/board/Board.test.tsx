@@ -13,6 +13,12 @@ function square(container: HTMLElement, name: string): HTMLElement {
   return element
 }
 
+// Which pieces the board lets be pressed; Board.module.css turns off text
+// selection over the board and the cursor on the pieces that can't move.
+function movable(container: HTMLElement): string | null {
+  return container.querySelector('[data-movable]')?.getAttribute('data-movable') ?? null
+}
+
 const game = (() => {
   const result = parsePgn(fischerSpassky1972Game6)
   if (!result.ok) throw new Error(result.error)
@@ -35,6 +41,11 @@ describe('Board in view mode', () => {
     expect(onPlyChange).toHaveBeenLastCalledWith(19)
     fireEvent.keyDown(board, { key: 'End' })
     expect(onPlyChange).toHaveBeenLastCalledWith(81)
+  })
+
+  it('lets no piece be moved', () => {
+    const { container } = renderWithTheme(<Board mode="view" game={game} ply={20} onPlyChange={() => {}} />)
+    expect(movable(container)).toBe('none')
   })
 
   it('disables going back at the Position', () => {
@@ -77,6 +88,15 @@ describe('Board in play mode', () => {
     await userEvent.click(square(container, 'e7'))
     await userEvent.click(square(container, 'e5'))
     expect(onMove).not.toHaveBeenCalled()
+  })
+
+  it("lets only the side to move's pieces be moved", () => {
+    const white = renderWithTheme(<Board mode="play" fen={START_FEN} onMove={() => {}} />)
+    expect(movable(white.container)).toBe('w')
+    const black = renderWithTheme(
+      <Board mode="play" fen="rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1" onMove={() => {}} />,
+    )
+    expect(movable(black.container)).toBe('b')
   })
 
   const promotionFen = '7k/P7/8/8/8/8/8/K7 w - - 0 1'
