@@ -52,11 +52,6 @@
   background: var(--cn-board-dark);
 }
 
-.glyphs {
-  font-family: var(--cn-font-symbols);
-  font-size: 32px;
-}
-
 .overlayDemo {
   position: relative;
   height: 80px;

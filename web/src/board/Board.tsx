@@ -21,7 +21,7 @@ import {
 import styles from './Board.module.css'
 import { BoardSurface, type Movable, type Orientation } from './BoardSurface'
 import { FirstIcon, LastIcon, NextIcon, PreviousIcon } from './icons'
-import { PieceGlyph } from './PieceGlyph'
+import { Piece } from './Piece'
 import { ALL_PIECES, pieceName } from './pieces'
 import {
   captureStyle,
@@ -332,7 +332,7 @@ function PromotionPicker({
               aria-label={name}
               onClick={() => onPick(promotion)}
             >
-              <PieceGlyph piece={piece} />
+              <Piece piece={piece} />
             </UnstyledButton>
           )
         })}
@@ -392,7 +392,7 @@ function SetupBoard({ fen, onFenChange, orientation }: SetupProps & { orientatio
               className={styles.paletteItem}
               onClick={() => setTool(piece)}
             >
-              <PieceGlyph piece={piece} />
+              <Piece piece={piece} />
             </UnstyledButton>
           ))}
           <UnstyledButton

@@ -792,11 +792,10 @@
 
 .newBoard {
   width: 100%;
-  max-width: 404px;
+  max-width: 382px;
 }
 
 .playedMoves {
-  margin-left: 22px;
   font-family: var(--cn-font-serif);
   font-size: 16px;
   color: var(--cn-muted);

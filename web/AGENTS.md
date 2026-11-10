@@ -22,6 +22,8 @@ The designs show intent and possible layouts. `GLOSSARY.md` and `docs/adr/` deci
 | Study / Read toggle, Settings article view | Articles | no |
 | Folder "Who can see it" | Notes are private | no |
 
+The board is the one deliberate exception to following the designs' look: its pieces, squares, frame, coordinates and highlights are our own (docs/adr/0007), so boards won't match `design/screenshots/`.
+
 ## Not in v1 (ADR 0001)
 
 Don't build Library, All studies, Articles, Play, following, saving or bookmarks, even when a screen shows them.

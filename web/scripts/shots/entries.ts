@@ -202,7 +202,8 @@ export const entries: ShotEntry[] = [
     setup: async (page) => {
       await deleteAccount(page, 'correct horse battery')
       await page.getByRole('dialog').getByRole('button', { name: 'Delete account' }).click()
-      await page.getByRole('link', { name: 'Sign up' }).waitFor()
+      // The header's: the landing page behind it has more Sign up links.
+      await page.getByRole('banner').getByRole('link', { name: 'Sign up' }).waitFor()
     },
   },
   { name: 'SettingsLoading', route: '/settings', fixtures: 'restoring', waitUntil: 'load' },
@@ -247,8 +248,8 @@ export const entries: ShotEntry[] = [
     },
   },
   // No matching design screen: the shared Board (web/src/board) in each of
-  // its three modes at all three sizes (#24). View mode matches the board in
-  // design/screenshots/Note*.png; play shows a move just played.
+  // its three modes at all three sizes (#24), in the board's own look rather
+  // than the design's (docs/adr/0007); play shows a move just played.
   { name: 'DevBoardView', route: '/dev/board?mode=view', fixtures: 'guest' },
   {
     name: 'DevBoardPlay',
@@ -306,7 +307,8 @@ export const entries: ShotEntry[] = [
     },
   },
   { name: 'DevBoardSetup', route: '/dev/board?mode=setup', fixtures: 'guest' },
-  // The Note screen (#6), matching design/screenshots/Note*.png at the same Ply.
+  // The Note screen (#6), matching design/screenshots/Note*.png at the same Ply,
+  // except for the board (docs/adr/0007).
   {
     name: 'Note',
     route: '/notes/1',

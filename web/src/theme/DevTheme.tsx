@@ -67,7 +67,6 @@ export function DevTheme() {
         <Text fz={16} style={{ fontFamily: 'var(--cn-font-sans)' }}>
           Hanken Grotesk: FOLDER NAME, Sign up, Only you
         </Text>
-        <div className={styles.glyphs}>♔♕♖♗♘♙﹎♚♛♜♝♞♟</div>
       </Stack>
 
       <Stack gap="sm">
