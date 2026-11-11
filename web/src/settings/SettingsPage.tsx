@@ -1,4 +1,4 @@
-import { Button, Loader, PasswordInput, Stack, Text, Title } from '@mantine/core'
+import { Button, Group, Loader, PasswordInput, Text } from '@mantine/core'
 import { useMutation } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
@@ -8,39 +8,38 @@ import { errorMessage } from '../errors'
 import { ConfirmDialog, useOverlaySize } from '../overlay'
 import { useSession } from '../session'
 import styles from './Settings.module.css'
+import { ThemePicker } from './ThemePicker'
 
-// Settings (design/screenshots/Settings*.png). v1 has a single section:
-// deleting the account (#12).
+// Settings (design/screenshots/Settings*.png). v1 has the theme, for
+// everyone (docs/adr/0008), and deleting the account (#12).
 export function SettingsPage() {
   const { state } = useSession()
-
-  if (state.status === 'restoring') {
-    return (
-      <div className={styles.centered}>
-        <Loader aria-label="Loading" />
-      </div>
-    )
-  }
-  // The shell already shows the restore error with a Retry button.
-  if (state.status === 'restore-failed') return null
-  if (state.status === 'guest') {
-    return (
-      <div className={styles.centered}>
-        <Stack align="center" gap="md" maw={360} ta="center">
-          <Title order={2}>Settings are for your account</Title>
-          <Text>Log in to change your settings.</Text>
-          <Button component={Link} to="/login">
-            Log in
-          </Button>
-        </Stack>
-      </div>
-    )
-  }
 
   return (
     <div className={styles.page}>
       <h1 className={styles.title}>Settings</h1>
-      <DeleteAccountSection />
+      {/* The theme is saved on the device, so Guests can choose one too. */}
+      <ThemePicker />
+      {state.status === 'restoring' && (
+        <div className={styles.centered}>
+          <Loader aria-label="Loading" />
+        </div>
+      )}
+      {/* The shell already shows the restore error with a Retry button. */}
+      {state.status === 'authenticated' && <DeleteAccountSection />}
+      {state.status === 'guest' && (
+        <section className={styles.section} aria-labelledby="account">
+          <h2 id="account" className={styles.heading}>
+            Account
+          </h2>
+          <p className={styles.explanation}>Log in to manage your account.</p>
+          <Group>
+            <Button component={Link} to="/login">
+              Log in
+            </Button>
+          </Group>
+        </section>
+      )}
     </div>
   )
 }

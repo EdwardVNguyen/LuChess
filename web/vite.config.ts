@@ -1,10 +1,25 @@
 /// <reference types="vitest/config" />
 import react from '@vitejs/plugin-react'
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
+import { themeCss } from './src/theme/themeCss.ts'
+import { bootScript } from './src/theme/themeBoot.ts'
+
+// Puts every theme's colours and the saved-theme script in index.html's
+// <head>, so a returning visitor's first paint is already in their theme
+// (docs/adr/0008).
+function themes(): Plugin {
+  return {
+    name: 'chessnotes-themes',
+    transformIndexHtml: () => [
+      { tag: 'style', attrs: { id: 'cn-themes' }, children: themeCss(), injectTo: 'head-prepend' },
+      { tag: 'script', children: bootScript, injectTo: 'head-prepend' },
+    ],
+  }
+}
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), themes()],
   // The API only allows CORS from this origin, so the port must not drift
   server: { port: 5173, strictPort: true },
   test: {

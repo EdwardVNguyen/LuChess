@@ -135,7 +135,7 @@
 }
 
 .eyebrow {
-  font-family: var(--cn-font-sans);
+  font-family: var(--cn-font);
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.09em;
@@ -182,7 +182,7 @@
   padding: 0 12px 0 calc(12px + var(--depth, 0) * var(--cn-tree-indent));
   border-radius: var(--cn-radius-button);
   color: var(--cn-ink);
-  font-family: var(--cn-font-sans);
+  font-family: var(--cn-font);
   font-size: 14.5px;
   text-decoration: none;
 }
@@ -267,8 +267,8 @@
   align-items: center;
   height: 32px;
   padding-left: calc(12px + 24px + var(--depth, 0) * var(--cn-tree-indent));
-  font-family: var(--cn-font-serif);
-  font-size: 14.5px;
+  font-family: var(--cn-font);
+  font-size: 13.5px;
   font-style: italic;
   color: var(--cn-muted);
 }
@@ -281,7 +281,7 @@
   height: 40px;
   padding: 0 12px;
   border-radius: var(--cn-radius-button);
-  font-family: var(--cn-font-sans);
+  font-family: var(--cn-font);
   font-size: 14.5px;
   color: var(--cn-muted);
 }
@@ -353,7 +353,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-family: var(--cn-font-sans);
+  font-family: var(--cn-font);
   font-size: 14px;
   font-weight: 500;
   color: var(--cn-ink);
@@ -463,8 +463,8 @@
   margin: 0;
   min-width: 0;
   overflow-wrap: anywhere;
-  font-family: var(--cn-font-serif);
-  font-size: 30px;
+  font-family: var(--cn-font);
+  font-size: 27px;
   font-weight: 500;
   line-height: 1.08;
   letter-spacing: -0.01em;
@@ -473,18 +473,18 @@
 
 @media (min-width: 48em) {
   .title {
-    font-size: 38px;
+    font-size: 34px;
   }
 }
 
 @media (min-width: 64em) {
   .title {
-    font-size: 40px;
+    font-size: 36px;
   }
 }
 
 .details {
-  font-family: var(--cn-font-sans);
+  font-family: var(--cn-font);
   font-size: 14px;
   line-height: 1.5;
   color: var(--cn-muted);
@@ -517,8 +517,8 @@
 /* The move list, as running text (Note.dc.html "Line of thought"). */
 .moves {
   margin: 0;
-  font-family: var(--cn-font-serif);
-  font-size: 17px;
+  font-family: var(--cn-font);
+  font-size: 15.5px;
   line-height: 1.8;
 }
 
@@ -529,7 +529,7 @@
 .moveNumber {
   margin-right: 2px;
   margin-left: 4px;
-  font-family: var(--cn-font-sans);
+  font-family: var(--cn-font);
   font-size: 13px;
   color: var(--cn-muted);
 }
@@ -572,8 +572,8 @@
 .bigIdea {
   margin: 0;
   padding: 2px 0;
-  font-family: var(--cn-font-serif);
-  font-size: 20px;
+  font-family: var(--cn-font);
+  font-size: 18px;
   font-style: italic;
   line-height: 1.3;
   white-space: pre-wrap;
@@ -584,7 +584,7 @@
 
 @media (min-width: 64em) {
   .bigIdea {
-    font-size: 22px;
+    font-size: 20px;
   }
 }
 
@@ -624,7 +624,7 @@
   margin: 0 6px 0 2px;
   padding: 2px 0;
   border-radius: 4px;
-  font-size: 16px;
+  font-size: 15px;
   line-height: 1.5;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -642,7 +642,7 @@
 }
 
 .more {
-  font-family: var(--cn-font-sans);
+  font-family: var(--cn-font);
   font-size: 13px;
   font-weight: 600;
   color: var(--cn-accent);
@@ -661,8 +661,8 @@
   margin: 0;
   padding-left: 4px;
   border-radius: 4px;
-  font-family: var(--cn-font-serif);
-  font-size: 16px;
+  font-family: var(--cn-font);
+  font-size: 15px;
   line-height: 1.5;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -698,7 +698,7 @@
 
 .glyphPickerLabel {
   margin-right: 4px;
-  font-family: var(--cn-font-sans);
+  font-family: var(--cn-font);
   font-size: 13px;
   color: var(--cn-muted);
 }
@@ -710,8 +710,8 @@
   box-sizing: border-box;
   border: 1px solid var(--cn-edge);
   border-radius: var(--cn-radius-button);
-  font-family: var(--cn-font-serif);
-  font-size: 16px;
+  font-family: var(--cn-font);
+  font-size: 15px;
   font-weight: 600;
   text-align: center;
   color: var(--cn-ink);
@@ -752,8 +752,8 @@
   background: transparent;
   border: 1px dashed var(--cn-dashed);
   border-radius: var(--cn-radius-button);
-  font-family: var(--cn-font-serif);
-  font-size: 17px;
+  font-family: var(--cn-font);
+  font-size: 16px;
   line-height: 1.45;
   color: var(--cn-ink);
 }
@@ -768,7 +768,7 @@
 }
 
 .editorDelete {
-  font-family: var(--cn-font-sans);
+  font-family: var(--cn-font);
   font-size: 12px;
   color: var(--cn-muted);
 }
@@ -784,15 +784,15 @@
 }
 
 .saving {
-  font-family: var(--cn-font-sans);
+  font-family: var(--cn-font);
   font-size: 12px;
   color: var(--cn-muted);
 }
 
 .noMoves {
   margin: 0;
-  font-family: var(--cn-font-serif);
-  font-size: 17px;
+  font-family: var(--cn-font);
+  font-size: 15.5px;
   font-style: italic;
   color: var(--cn-muted);
 }
@@ -893,8 +893,8 @@
 }
 
 .playedMoves {
-  font-family: var(--cn-font-serif);
-  font-size: 16px;
+  font-family: var(--cn-font);
+  font-size: 15px;
   color: var(--cn-muted);
 }
 
@@ -1027,22 +1027,22 @@
 }
 
 .marginLink {
-  font-family: var(--cn-font-serif);
-  font-size: 17px;
+  font-family: var(--cn-font);
+  font-size: 15.5px;
   line-height: 1.35;
   overflow-wrap: anywhere;
 }
 
 .marginDetails {
-  font-family: var(--cn-font-sans);
+  font-family: var(--cn-font);
   font-size: 13px;
   color: var(--cn-muted);
 }
 
 .marginEmpty {
   margin: 0;
-  font-family: var(--cn-font-serif);
-  font-size: 15px;
+  font-family: var(--cn-font);
+  font-size: 13.5px;
   font-style: italic;
   line-height: 1.45;
   color: var(--cn-muted);
@@ -1067,7 +1067,7 @@
 }
 
 .editHint {
-  font-family: var(--cn-font-sans);
+  font-family: var(--cn-font);
   font-size: 13px;
   line-height: 1.45;
   color: var(--cn-muted);

@@ -70,6 +70,9 @@ async function shootOne(browser: Browser, baseUrl: string, entry: ShotEntry, siz
   const page = await context.newPage()
   try {
     await installApiMocks(page, entry.fixtures, entry.notes, entry.search, entry.plies, entry.links, entry.moves)
+    if (entry.theme) {
+      await page.addInitScript((theme) => window.localStorage.setItem('chessnotes:theme', theme), entry.theme)
+    }
     await page.goto(`${baseUrl.replace(/\/$/, '')}${entry.route}`, { waitUntil: entry.waitUntil ?? 'networkidle' })
     await page.evaluate(() => document.fonts.ready)
     // Belt and braces on top of reducedMotion: stop anything still animating
