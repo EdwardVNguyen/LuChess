@@ -22,7 +22,7 @@ The designs show intent and possible layouts. `GLOSSARY.md` and `docs/adr/` deci
 | Study / Read toggle, Settings article view | Articles | no |
 | Folder "Who can see it" | Notes are private | no |
 
-The board is the one deliberate exception to following the designs' look: its pieces, squares, frame, coordinates and highlights are our own (docs/adr/0007), so boards won't match `design/screenshots/`.
+The site's colours and fonts depart from the designs too: it has three themes (Night by default, Cool paper, Warm paper) and uses Inter for all text (docs/adr/0008), so colours and fonts won't match `design/screenshots/`. Layout, spacing and radii still follow the designs. The board also has its own look: its pieces, squares, frame, coordinates and highlights are our own and stay the same in every theme (docs/adr/0007), so boards won't match `design/screenshots/` either.
 
 ## Not in v1 (ADR 0001)
 
