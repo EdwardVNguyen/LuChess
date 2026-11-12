@@ -12,21 +12,37 @@ _Avoid_: Game, chess note, study, file, page
 The starting point of a Note: the standard start or a custom setup. A Note with no moves is a study of a position alone.
 _Avoid_: Setup, board state
 
+**Move**:
+A single move by one side, played from the Position or from another Move. A Move can be followed by several Moves, so a Note's Moves form a tree. Writing hangs on a Move or on the Position.
+_Avoid_: Ply, node, half-move
+
+**Main line**:
+The line of Moves that follows the first continuation of each Move, from the Position.
+_Avoid_: Mainline, game, main variation
+
+**Variation**:
+A line that branches off another line, starting from any continuation other than the first. Variations can hold Variations of their own.
+_Avoid_: Side-line, sub-variation, branch
+
 **Ply**:
-A single move by one side. Counting from 0 at the Position, ply 1 is White's first move and ply 2 is Black's first reply.
+How far a Move is from the Position, counting each side's move: White's first Move is at ply 1 and Black's reply at ply 2. A depth, not a Move: Moves in different lines can share a ply.
 _Avoid_: Half-move, move number
 
 **Glyph**:
-A symbol judging the move at one Ply (such as ! or ??) or the position that move leads to (such as ± or =). A Ply has at most one Glyph of each kind, and Ply 0 can only have one about the position.
+A symbol judging a Move (such as ! or ??) or the position it leads to (such as ± or =). A Move has at most one Glyph of each kind, and the Position can only have one about the position.
 _Avoid_: Annotation, NAG, symbol
 
 **Comment**:
-A user's writing about the move at one Ply, shown with that move.
+A user's writing about a Move, shown with that Move.
 _Avoid_: Annotation, remark, caption
 
 **Body**:
-The long-form writing after a Ply that carries the reader to the next move. The Body at Ply 0 opens the Note, before the first move.
+The long-form writing after a Move that carries the reader to the next one. The Body on the Position opens the Note, before the first Move.
 _Avoid_: Annotation, description, essay, big idea
+
+**Drawing**:
+An arrow or a circle on the board, saved on a Move or the Position.
+_Avoid_: Shape, mark, highlight, annotation
 
 **Link**:
 A reference from a Comment or Body to another Note, optionally shown with a custom label instead of the target's name. Points at the Note itself, so renaming or duplicate names never break it.
