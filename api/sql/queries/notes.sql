@@ -1,8 +1,8 @@
 -- Every query is scoped to the owner, so another user's Note is simply not found.
 
 -- name: CreateNote :one
-INSERT INTO notes(user_id, name, pgn, start_fen, created_at, updated_at)
-VALUES (sqlc.arg(user_id), sqlc.arg(name), sqlc.arg(pgn), sqlc.narg(start_fen), sqlc.arg(now), sqlc.arg(now))
+INSERT INTO notes(user_id, name, pgn, start_fen, folder_id, created_at, updated_at)
+VALUES (sqlc.arg(user_id), sqlc.arg(name), sqlc.arg(pgn), sqlc.narg(start_fen), sqlc.narg(folder_id), sqlc.arg(now), sqlc.arg(now))
 RETURNING *;
 
 -- name: GetNote :one

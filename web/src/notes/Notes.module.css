@@ -148,6 +148,12 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+  /* Fill the sidebar, so its empty space below the tree opens the right-click
+   * menu too. A long-press opens that menu, not a text selection or the
+   * browser's callout. */
+  min-height: 100%;
+  -webkit-touch-callout: none;
+  user-select: none;
 }
 
 .list > .eyebrow {
@@ -187,7 +193,8 @@
   text-decoration: none;
 }
 
-.item:hover {
+.item:hover,
+.folderRow[data-menu-open] > .item {
   background: var(--cn-highlight);
 }
 

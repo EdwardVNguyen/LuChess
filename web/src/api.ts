@@ -72,8 +72,8 @@ export type PlyWritingInput = Pick<PlyWriting, 'comment' | 'body' | 'moveGlyph' 
 export type SignUpInput = { email: string; name: string; password: string }
 export type LoginInput = { email: string; password: string }
 export type ResetPasswordInput = { token: string; password: string }
-/** startFen is null for the standard start. */
-export type NewNoteInput = { name: string; pgn: string; startFen: string | null }
+/** startFen is null for the standard start; folderId null or absent files the Note at the root. */
+export type NewNoteInput = { name: string; pgn: string; startFen: string | null; folderId?: number | null }
 
 /** Editing moves: the new PGN and the first Ply that changed (ADR 0003). */
 export type MovesEditInput = { pgn: string; firstChangedPly: number; confirm: boolean }

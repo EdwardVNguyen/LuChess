@@ -244,6 +244,37 @@ func TestFilingANoteNeedsAFolderID(t *testing.T) {
 	}
 }
 
+func TestCreatingANoteInAFolder(t *testing.T) {
+	a := newApp(t)
+	s := loggedInAs(t, a, "ada@example.com", "Ada")
+	endgames := a.mustCreateFolder(s, "Endgames", nil)
+
+	body := fmt.Sprintf(`{"name":"Lucena","pgn":%q,"folderId":%d}`, samplePGN, endgames.ID)
+	rec := a.createNote(s, body)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status = %d (body %s)", rec.Code, rec.Body)
+	}
+	var created noteWithFolder
+	decodeInto(t, rec, &created)
+	if !eqID(created.FolderID, &endgames.ID) {
+		t.Fatalf("response folder = %v, want %d", created.FolderID, endgames.ID)
+	}
+	if got := a.notesWithFolders(s)["Lucena"]; !eqID(got, &endgames.ID) {
+		t.Fatalf("folder = %v, want %d", got, endgames.ID)
+	}
+
+	// Another user's Folder answers like a missing one, and no Note is made
+	other := loggedInAs(t, a, "bob@example.com", "Bob")
+	theirs := a.mustCreateFolder(other, "Theirs", nil)
+	body = fmt.Sprintf(`{"name":"Elsewhere","pgn":%q,"folderId":%d}`, samplePGN, theirs.ID)
+	if rec := a.createNote(s, body); rec.Code != http.StatusNotFound {
+		t.Fatalf("another user's folder: status = %d, want 404", rec.Code)
+	}
+	if _, ok := a.notesWithFolders(s)["Elsewhere"]; ok {
+		t.Fatal("a note was made in another user's folder")
+	}
+}
+
 func TestDeletingAnEmptyFolderNeedsNoConfirmation(t *testing.T) {
 	a := newApp(t)
 	s := loggedInAs(t, a, "ada@example.com", "Ada")

@@ -125,6 +125,8 @@ func (cfg *ApiConfig) HandleCreateNote(w http.ResponseWriter, r *http.Request) {
 		Name     string  `json:"name"`
 		PGN      string  `json:"pgn"`
 		StartFEN *string `json:"startFen"`
+		// The Folder to file the Note in; the root when absent or null.
+		FolderID *int64 `json:"folderId"`
 	}
 	if !utils.DecodeJSONLimit(w, r, &p, maxNoteBodyBytes) {
 		return
@@ -133,6 +135,10 @@ func (cfg *ApiConfig) HandleCreateNote(w http.ResponseWriter, r *http.Request) {
 	startFEN := sql.NullString{}
 	if p.StartFEN != nil {
 		startFEN = sql.NullString{String: strings.TrimSpace(*p.StartFEN), Valid: true}
+	}
+	folder := sql.NullInt64{}
+	if p.FolderID != nil {
+		folder = sql.NullInt64{Int64: *p.FolderID, Valid: true}
 	}
 	errs := []error{validateNoteName(name), validatePGN(p.PGN)}
 	if startFEN.Valid {
@@ -150,8 +156,14 @@ func (cfg *ApiConfig) HandleCreateNote(w http.ResponseWriter, r *http.Request) {
 		Name:     name,
 		Pgn:      p.PGN,
 		StartFen: startFEN,
+		FolderID: folder,
 		Now:      cfg.now(),
 	})
+	// The Folder must be one of the user's; the foreign key checks that.
+	if isForeignKeyViolation(err) {
+		folderNotFound(w)
+		return
+	}
 	if err != nil {
 		utils.RespondError(w, http.StatusInternalServerError, "Could not create note", err)
 		return

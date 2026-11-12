@@ -498,6 +498,30 @@ export const entries: ShotEntry[] = [
       await page.getByRole('menuitem', { name: 'New subfolder' }).waitFor()
     },
   },
+  // The right-click menu (#74): on a Folder, and on the empty space of the
+  // sidebar (or the "All notes" overlay). No design; it is the "…" menu's look.
+  {
+    name: 'FolderContextMenu',
+    route: '/notes/1',
+    fixtures: 'session',
+    setup: async (page) => {
+      await openTree(page)
+      await page.getByRole('button', { name: 'Openings', exact: true }).click({ button: 'right', position: { x: 60, y: 20 } })
+      await page.getByRole('menuitem', { name: 'New note here' }).waitFor()
+    },
+  },
+  {
+    name: 'NoteTreeContextMenu',
+    route: '/notes/1',
+    fixtures: 'session',
+    setup: async (page) => {
+      await openTree(page)
+      const space = page.getByRole('button', { name: 'New folder' }).locator('..')
+      const box = (await space.boundingBox())!
+      await space.click({ button: 'right', position: { x: 60, y: box.height - 8 } })
+      await page.getByRole('menuitem', { name: 'New note', exact: true }).waitFor()
+    },
+  },
   {
     name: 'FolderRename',
     route: '/notes/1',
@@ -638,6 +662,8 @@ export const entries: ShotEntry[] = [
   { name: 'NotesEmpty', route: '/notes', fixtures: 'session', notes: 'empty' },
   { name: 'NotesGuest', route: '/notes', fixtures: 'guest' },
   { name: 'NewNote', route: '/notes/new', fixtures: 'session' },
+  // From a Folder's "New note here" (#74), with that Folder chosen.
+  { name: 'NewNoteInFolder', route: '/notes/new?folder=6', fixtures: 'session' },
   {
     name: 'NewNotePasted',
     route: '/notes/new',

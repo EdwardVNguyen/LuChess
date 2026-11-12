@@ -17,12 +17,14 @@ type Props = {
   pending?: boolean
   /** Why the last submit failed, shown above the button. */
   error?: ReactNode
+  /** More fields, after the name. */
+  children?: ReactNode
 }
 
 // Starting a Note has no design (#6): a page in the house style with three
 // ways to start. The client validates the PGN; the API checks only its size.
 // Shared by the New note page and a Guest's start (#13), so both start alike.
-export function NoteStartForm({ title, submitLabel, onSubmit, pending = false, error }: Props) {
+export function NoteStartForm({ title, submitLabel, onSubmit, pending = false, error, children }: Props) {
   const [source, setSource] = useState<Source>('pgn')
   const [name, setName] = useState('')
   const [pgn, setPgn] = useState('')
@@ -123,6 +125,8 @@ export function NoteStartForm({ title, submitLabel, onSubmit, pending = false, e
             maxLength={MAX_NAME_LENGTH}
             error={nameError}
           />
+
+          {children}
 
           {error}
 

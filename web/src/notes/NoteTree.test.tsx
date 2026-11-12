@@ -1,12 +1,13 @@
 import { MantineProvider } from '@mantine/core'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMemoryHistory, createRootRoute, createRoute, createRouter, RouterProvider } from '@tanstack/react-router'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Folder, FolderDeleteResult, FolderUpdate, Note, NoteSummary } from '../api'
 import type { Session } from '../session'
 import { SessionProvider } from '../session'
+import { LONG_PRESS_MS } from '../overlay'
 import { theme } from '../theme'
 import { MoveNoteDialog } from './FolderDialogs'
 import { NoteTree } from './NoteTree'
@@ -55,7 +56,9 @@ const notes = [summary(1, 'Tartakower', 2), summary(2, 'Lucena', 3), summary(3, 
 
 function renderWithRouter(component: () => React.ReactNode, path = '/notes/1') {
   const root = createRootRoute()
-  const routes = ['/notes', '/notes/$noteId'].map((p) => createRoute({ getParentRoute: () => root, path: p, component }))
+  const routes = ['/notes', '/notes/new', '/notes/$noteId'].map((p) =>
+    createRoute({ getParentRoute: () => root, path: p, component }),
+  )
   const router = createRouter({
     routeTree: root.addChildren(routes),
     history: createMemoryHistory({ initialEntries: [path] }),
@@ -70,6 +73,7 @@ function renderWithRouter(component: () => React.ReactNode, path = '/notes/1') {
       </QueryClientProvider>
     </MantineProvider>,
   )
+  return router
 }
 
 beforeEach(() => {
@@ -198,6 +202,93 @@ describe('NoteTree', () => {
 
     await userEvent.click(await screen.findByRole('button', { name: 'Try again' }))
     expect(await screen.findByRole('button', { name: 'Openings' })).toBeInTheDocument()
+  })
+})
+
+describe('NoteTree right-click menu', () => {
+  it('offers a new Note or Folder on the empty space', async () => {
+    const router = renderWithRouter(() => <NoteTree />, '/notes')
+    await screen.findByRole('button', { name: 'Openings' })
+
+    // The browser's own menu is held back
+    expect(fireEvent.contextMenu(screen.getByRole('button', { name: 'New folder' }).parentElement!)).toBe(false)
+    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['New note', 'New folder'])
+
+    await userEvent.click(screen.getByRole('menuitem', { name: 'New folder' }))
+    expect(await screen.findByRole('dialog', { name: 'New folder' })).toBeInTheDocument()
+    await userEvent.keyboard('{Escape}')
+
+    fireEvent.contextMenu(screen.getByRole('button', { name: 'New folder' }).parentElement!)
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'New note' }))
+    await waitFor(() => expect(router.state.location.pathname).toBe('/notes/new'))
+    expect(router.state.location.search).toEqual({})
+  })
+
+  it('offers a Folder’s actions on the Folder, and a new Note in it', async () => {
+    const router = renderWithRouter(() => <NoteTree />, '/notes')
+
+    fireEvent.contextMenu(await screen.findByRole('button', { name: 'Endgames' }))
+    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
+      'New note here',
+      'New subfolder',
+      'Rename',
+      'Move',
+      'Delete',
+    ])
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Rename' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Rename folder' })
+    expect(within(dialog).getByLabelText(/Folder name/)).toHaveValue('Endgames')
+    await userEvent.keyboard('{Escape}')
+
+    fireEvent.contextMenu(screen.getByRole('button', { name: 'Endgames' }))
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'New note here' }))
+    await waitFor(() => expect(router.state.location.pathname).toBe('/notes/new'))
+    expect(router.state.location.search).toEqual({ folder: 3 })
+  })
+
+  it('leaves a Note the browser’s own menu', async () => {
+    renderWithRouter(() => <NoteTree />, '/notes')
+
+    expect(fireEvent.contextMenu(await screen.findByRole('link', { name: 'At the root' }))).toBe(true)
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  })
+
+  it('opens on a long-press, and the lifted finger isn’t a tap', async () => {
+    renderWithRouter(() => <NoteTree />, '/notes')
+    const endgames = await screen.findByRole('button', { name: 'Endgames' })
+    vi.useFakeTimers()
+    try {
+      // A tap toggles the Folder as usual
+      fireEvent.touchStart(endgames, { touches: [{ clientX: 40, clientY: 40 }] })
+      vi.advanceTimersByTime(100)
+      expect(fireEvent.touchEnd(endgames)).toBe(true)
+
+      // A scroll is not a long-press
+      fireEvent.touchStart(endgames, { touches: [{ clientX: 40, clientY: 40 }] })
+      fireEvent.touchMove(endgames, { touches: [{ clientX: 40, clientY: 80 }] })
+      vi.advanceTimersByTime(LONG_PRESS_MS)
+      fireEvent.touchEnd(endgames)
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+
+      fireEvent.touchStart(endgames, { touches: [{ clientX: 40, clientY: 40 }] })
+      vi.advanceTimersByTime(LONG_PRESS_MS)
+      expect(fireEvent.touchEnd(endgames)).toBe(false)
+    } finally {
+      vi.useRealTimers()
+    }
+    expect(await screen.findByRole('menuitem', { name: 'New note here' })).toBeInTheDocument()
+  })
+
+  it('keeps the “…” menu', async () => {
+    renderWithRouter(() => <NoteTree />, '/notes')
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Folder actions: Endgames' }))
+    expect((await screen.findAllByRole('menuitem')).map((item) => item.textContent)).toEqual([
+      'New subfolder',
+      'Rename',
+      'Move',
+      'Delete',
+    ])
   })
 })
 
