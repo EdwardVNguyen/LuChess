@@ -1,3 +1,4 @@
+import { useReducedMotion } from '@mantine/hooks'
 import { useId, useState, type ReactNode } from 'react'
 import { Chessboard, type ChessboardOptions } from 'react-chessboard'
 import type { Color } from '../chess/chess'
@@ -39,6 +40,10 @@ export function BoardSurface({
   // The square under a dragged piece. react-chessboard's own dropSquareStyle
   // is drawn beneath squareStyles, so a highlighted square would hide it.
   const [drag, setDrag] = useState<{ over: string | null } | null>(null)
+  // react-chessboard animates in JavaScript, so CSS can't stop it: honour a
+  // visitor's reduced-motion setting here. Read on the first render, so the
+  // board never slides a piece before the setting is known.
+  const reduceMotion = useReducedMotion(undefined, { getInitialValueInEffect: false })
 
   // react-chessboard uses the id in CSS selectors, so keep it to letters and digits.
   const id = `board${useId().replace(/[^a-zA-Z0-9]/g, '')}`
@@ -53,6 +58,7 @@ export function BoardSurface({
             allowDragging: false,
             allowDrawingArrows: false,
             animationDurationInMs: 150,
+            showAnimations: !reduceMotion,
             showNotation: false,
             ...options,
             onPieceDrag: (args) => {

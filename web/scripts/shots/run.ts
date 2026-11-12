@@ -95,9 +95,6 @@ async function shootOne(browser: Browser, baseUrl: string, entry: ShotEntry, siz
       }`,
     })
     await entry.setup?.(page)
-    // react-chessboard animates moves in JavaScript, which the style above
-    // cannot stop: let a jump between positions finish before the capture.
-    await page.waitForTimeout(400)
 
     const fileName = `${entry.name}${size.suffix}.png`
     await page.screenshot({ path: path.join(outDir, fileName), fullPage: true })
