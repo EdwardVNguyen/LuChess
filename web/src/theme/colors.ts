@@ -71,7 +71,7 @@ export function darkGrays(palette: Palette): MantineColorsTuple {
 
 /**
  * The color part of the Mantine theme for a palette. `theme.ts` builds the
- * app's theme with Night's; `themeCss.ts` builds every theme's variables
+ * app's theme with Warm paper's; `themeCss.ts` builds every theme's variables
  * from each palette's, so switching needs no new theme object.
  */
 export function colorTheme(palette: Palette) {

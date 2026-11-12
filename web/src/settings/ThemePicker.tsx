@@ -3,9 +3,9 @@ import { THEME_CHOICES, useTheme, type ThemeChoice, type ThemeName } from '../th
 import styles from './Settings.module.css'
 
 const LABELS: Record<ThemeChoice, { title: string; description: string }> = {
+  warm: { title: 'Warm paper', description: 'Cream paper with dark ink and oxblood links.' },
   night: { title: 'Night', description: 'Deep navy with pale text and blue links.' },
   cool: { title: 'Cool paper', description: 'An off-white page with slate ink and deep blue links.' },
-  warm: { title: 'Warm paper', description: 'Cream paper with dark ink and oxblood links.' },
   system: { title: 'Match system', description: 'Night when your device is in dark mode, Cool paper when it is light.' },
 }
 

@@ -22,7 +22,7 @@ import { breakpointTokens, fontTokens, palettes, radiusTokens } from './tokens'
 
 // Colours here are CSS variables, never values: each theme sets them
 // (themeCss.ts), so one theme object serves all three and switching needs no
-// re-render. The ramps below are Night's, but only as Mantine's starting
+// re-render. The ramps below are Warm paper's, but only as Mantine's starting
 // point; each theme overrides them.
 
 // Mantine picks a filled button's text colour from the ramp it was given, in
@@ -51,7 +51,7 @@ const uppercaseLabel = {
 export const theme = createTheme({
   fontFamily: fontTokens.sans,
   fontFamilyMonospace: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-  ...colorTheme(palettes.night),
+  ...colorTheme(palettes.warm),
   variantColorResolver,
   defaultRadius: 'sm',
   cursorType: 'pointer',
@@ -134,7 +134,7 @@ export const theme = createTheme({
       defaultProps: { iconColor: 'var(--mantine-primary-color-contrast)' },
     }),
     Radio: Radio.extend({
-      // The dot's colour, which Mantine would otherwise fix from Night's ramp.
+      // The dot's colour, which Mantine would otherwise fix from Warm paper's ramp.
       defaultProps: { iconColor: 'var(--mantine-primary-color-contrast)' },
       styles: { label: { fontFamily: fontTokens.sans, fontSize: '15px' }, radio: { borderColor: 'var(--cn-edge)' } },
     }),

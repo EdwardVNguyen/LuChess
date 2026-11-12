@@ -7,13 +7,13 @@ import type { ThemeName } from './tokens.ts'
 
 export type ThemeChoice = ThemeName | 'system'
 
-export const THEME_CHOICES: readonly ThemeChoice[] = ['night', 'cool', 'warm', 'system']
+export const THEME_CHOICES: readonly ThemeChoice[] = ['warm', 'night', 'cool', 'system']
 
 // readThemeChoice, resolveTheme and applyTheme also run as index.html's boot
 // script, before the app loads (bootScript below). So each stands alone: no
 // imports, no outside constants, no TypeScript-only runtime features.
 
-/** The saved choice, or Night when there is none, it is unknown, or storage is unavailable. */
+/** The saved choice, or Warm paper when there is none, it is unknown, or storage is unavailable. */
 export function readThemeChoice(getStorage: () => Storage): ThemeChoice {
   try {
     const stored = getStorage().getItem('chessnotes:theme')
@@ -21,7 +21,7 @@ export function readThemeChoice(getStorage: () => Storage): ThemeChoice {
   } catch {
     // Storage is blocked or missing: fall back to the default.
   }
-  return 'night'
+  return 'warm'
 }
 
 /** The theme a choice shows, given whether the device is in dark mode. */

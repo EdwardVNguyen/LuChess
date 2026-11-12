@@ -2,7 +2,7 @@
 // read colors from the Mantine theme (`src/theme/theme.ts`) or the CSS
 // variables this theme exposes.
 
-/** The site's themes (docs/adr/0008). Night is the default. */
+/** The site's themes (docs/adr/0008). Warm paper is the default. */
 export type ThemeName = 'night' | 'cool' | 'warm'
 
 // What one theme paints the page with. The board keeps its own colours in

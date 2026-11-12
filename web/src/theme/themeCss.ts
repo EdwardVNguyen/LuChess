@@ -109,13 +109,13 @@ function block(selector: string, declarations: Record<string, string>) {
 /**
  * The stylesheet for every theme. On the page's root the selector needs
  * `html:root` to outrank Mantine's own `:root[data-mantine-color-scheme]`
- * blocks; Night also applies when nothing has chosen a theme yet.
+ * blocks; Warm paper also applies when nothing has chosen a theme yet.
  */
 export function themeCss(): string {
   return (Object.keys(palettes) as ThemeName[])
     .map((name) => {
       const selectors = [`html:root[data-cn-theme='${name}']`, `[data-cn-theme='${name}']`]
-      if (name === 'night') selectors.unshift(`html:root:not([data-cn-theme])`)
+      if (name === 'warm') selectors.unshift(`html:root:not([data-cn-theme])`)
       return block(selectors.join(',\n'), themeDeclarations(name))
     })
     .join('\n\n')

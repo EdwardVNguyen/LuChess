@@ -126,26 +126,26 @@ describe('SettingsPage', () => {
 
 describe('SettingsPage theme', () => {
   afterEach(() => {
-    themeStore().set('night')
+    themeStore().set('warm')
     window.localStorage.clear()
   })
 
-  it('shows Night chosen by default', async () => {
+  it('shows Warm paper chosen by default', async () => {
     renderSettings(await signedInSession())
 
-    expect(await screen.findByRole('radio', { name: 'Night' })).toBeChecked()
+    expect(await screen.findByRole('radio', { name: 'Warm paper' })).toBeChecked()
   })
 
   it('applies a new theme at once and saves it on the device', async () => {
     const user = userEvent.setup()
     renderSettings(await signedInSession())
 
-    await user.click(await screen.findByRole('radio', { name: 'Warm paper' }))
+    await user.click(await screen.findByRole('radio', { name: 'Night' }))
 
-    expect(screen.getByRole('radio', { name: 'Warm paper' })).toBeChecked()
-    expect(document.documentElement.dataset.cnTheme).toBe('warm')
-    expect(document.documentElement.dataset.mantineColorScheme).toBe('light')
-    expect(window.localStorage.getItem('chessnotes:theme')).toBe('warm')
+    expect(screen.getByRole('radio', { name: 'Night' })).toBeChecked()
+    expect(document.documentElement.dataset.cnTheme).toBe('night')
+    expect(document.documentElement.dataset.mantineColorScheme).toBe('dark')
+    expect(window.localStorage.getItem('chessnotes:theme')).toBe('night')
   })
 
   it('lets a Guest choose a theme too', async () => {

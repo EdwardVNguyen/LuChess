@@ -26,8 +26,8 @@ For each entry this writes three PNGs to `web/shots/` (gitignored), named like t
 - `<Screen>-tablet.png` — tablet, 834px wide, full page
 - `<Screen>-mobile.png` — mobile, 390px wide, full page
 
-Entries render in Night, the default theme. An entry with `theme: 'cool'` or `theme: 'warm'` saves that
-theme on the device before the page loads; the `-CoolPaper` and `-WarmPaper` entries use it.
+Entries render in Warm paper, the default theme. An entry with `theme: 'night'` or `theme: 'cool'` saves that
+theme on the device before the page loads; the `-Night` and `-CoolPaper` entries use it.
 
 When `design/screenshots/<Screen>.png` exists, it also writes `web/shots/compare/<Screen>.png` with the design
 on the left and the build on the right, for a quick side-by-side diff.

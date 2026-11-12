@@ -44,26 +44,26 @@ function setup({ storage = memoryStorage(), dark = false, getStorage = () => sto
 }
 
 describe('theme store', () => {
-  it('is Night by default, and puts the page in it', () => {
+  it('is Warm paper by default, and puts the page in it', () => {
     const { store, root } = setup()
-
-    expect(store.get()).toEqual({ choice: 'night', theme: 'night' })
-    expect(root.dataset.cnTheme).toBe('night')
-    expect(root.dataset.mantineColorScheme).toBe('dark')
-  })
-
-  it('starts from the saved choice', () => {
-    const { store, root } = setup({ storage: memoryStorage({ 'chessnotes:theme': 'warm' }) })
 
     expect(store.get()).toEqual({ choice: 'warm', theme: 'warm' })
     expect(root.dataset.cnTheme).toBe('warm')
     expect(root.dataset.mantineColorScheme).toBe('light')
   })
 
+  it('starts from the saved choice', () => {
+    const { store, root } = setup({ storage: memoryStorage({ 'chessnotes:theme': 'night' }) })
+
+    expect(store.get()).toEqual({ choice: 'night', theme: 'night' })
+    expect(root.dataset.cnTheme).toBe('night')
+    expect(root.dataset.mantineColorScheme).toBe('dark')
+  })
+
   it('ignores a saved value that is not a theme', () => {
     const { store } = setup({ storage: memoryStorage({ 'chessnotes:theme': 'sepia' }) })
 
-    expect(store.get().choice).toBe('night')
+    expect(store.get().choice).toBe('warm')
   })
 
   it('saves a new choice and applies it at once', () => {
@@ -100,14 +100,14 @@ describe('theme store', () => {
     expect(store.get()).toEqual({ choice: 'warm', theme: 'warm' })
   })
 
-  it('falls back to Night when storage is unavailable, and still switches for this visit', () => {
+  it('falls back to Warm paper when storage is unavailable, and still switches for this visit', () => {
     const { store, root } = setup({ getStorage: blocked })
-    expect(store.get()).toEqual({ choice: 'night', theme: 'night' })
+    expect(store.get()).toEqual({ choice: 'warm', theme: 'warm' })
 
-    store.set('warm')
+    store.set('night')
 
-    expect(store.get().theme).toBe('warm')
-    expect(root.dataset.cnTheme).toBe('warm')
+    expect(store.get().theme).toBe('night')
+    expect(root.dataset.cnTheme).toBe('night')
   })
 })
 
@@ -127,9 +127,9 @@ describe('boot script', () => {
     return document.documentElement
   }
 
-  it('applies Night when nothing is saved', () => {
-    expect(boot({}).dataset.cnTheme).toBe('night')
-    expect(document.documentElement.dataset.mantineColorScheme).toBe('dark')
+  it('applies Warm paper when nothing is saved', () => {
+    expect(boot({}).dataset.cnTheme).toBe('warm')
+    expect(document.documentElement.dataset.mantineColorScheme).toBe('light')
   })
 
   it('applies the saved theme', () => {
