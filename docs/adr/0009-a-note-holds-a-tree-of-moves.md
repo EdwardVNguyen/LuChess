@@ -6,7 +6,7 @@ The tree lives in the database as one row per Move (its parent, its place among 
 
 The server still does not know chess. Edits arrive as small operations: add a Move by SAN under a parent, delete a subtree, promote, and import a whole tree when a Note is created. The server trusts the SAN, which is acceptable while Notes are private, but it keeps one child per SAN under a parent, so replaying a Move that exists reuses it. A Note holds at most 5,000 Moves, and an imported PGN at most 64 KB. PGN is read only when a Note is created. Afterwards the PGN shown under the board is generated from the tree, and it can be copied but not edited.
 
-PGN is parsed on the client with **@mliebelt/pgn-parser** (Apache-2.0), and chess.js still checks every move and stays for rules. This amends ADR 0006: chess.js reads only a PGN's main line, and the licence rule for dependencies widens from MIT or BSD to MIT, BSD or Apache-2.0, all of which fit this repo's MIT licence. Lichess's chessops reads variations too, but it is GPL-3.0, so it was rejected for the same reason as chessground.
+PGN is parsed on the client with **@mliebelt/pgn-parser** (Apache-2.0), and chess.js still checks every move and stays for rules. This amends ADR 0006: chess.js reads only a PGN's main line, and the licence rule for dependencies widens from MIT or BSD to MIT, BSD or Apache-2.0, all of which fit this repo's MIT licence. chessops reads variations too, but it is GPL-3.0, so it was rejected for the same reason as chessground.
 
 An import keeps everything it can:
 - Variations become Variations, and NAGs become Glyphs where one exists.
@@ -18,7 +18,7 @@ Export reverses this as `SAN {Comment} {Body}`, so our own PGNs round-trip. Link
 ## Considered options
 
 - **One PGN with variations on the Note, with writing keyed by a move path** (such as `3.1.0`). The server would stay unaware of the tree, but every promote or delete would shift the paths of all writing beneath it, and the client would have to report those rewrites.
-- **Promote one level at a time**, as Lichess's "Promote variation" does. We kept the single "Promote to main line" from #69.
+- **Promote one level at a time**, as a separate "Promote variation" action. We kept the single "Promote to main line" from #69.
 - **Moving existing writing to main-line Moves.** Unnecessary, because nothing was in production when the tree arrived. The migration drops the old per-Ply writing and the stored PGN, and development databases are reset.
 
 ## Consequences

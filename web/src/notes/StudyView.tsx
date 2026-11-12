@@ -188,7 +188,7 @@ export function StudyView({
   )
 }
 
-// Under the board, as in a Lichess Study: the editor for the current Move,
+// Under the board: the editor for the current Move,
 // then the current position's FEN and the Note's PGN to copy. The PGN is
 // written from the tree; it can be copied but not edited (ADR 0009).
 function BoardTools({ fen, pgn, children }: { fen: string; pgn: string; children: ReactNode }) {

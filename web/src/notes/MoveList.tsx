@@ -26,7 +26,7 @@ type Run = { moves: ReactNode[]; variations: TreeMove[]; body: { move: MoveId; t
 // The Main line as running text: a move number before each White move, each
 // move a button that jumps the board there, its Glyphs after it and its
 // Comment inline. After a move come the Variations that replace it, greyed,
-// smaller and indented as on Lichess, with deeper ones nested in parentheses.
+// smaller and indented, with deeper ones nested in parentheses.
 // A Body breaks the moves into a paragraph of its own. Black's move after a
 // break gets its number again ("10…exd5"). The Body on the Position is not
 // here: it opens the Note above the list.

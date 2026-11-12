@@ -28,7 +28,7 @@ const (
 	maxWritingTextLen = 20_000
 	// Far beyond any annotated game; a Note holds at most this many Moves.
 	maxMoves = 5_000
-	// Lichess draws at most a few dozen; this only stops abuse.
+	// A position rarely needs more than a few dozen; this only stops abuse.
 	maxDrawings     = 100
 	maxSANLen       = 10
 	maxWritingBytes = 2*maxWritingTextLen*4 + 16*1024

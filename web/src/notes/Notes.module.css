@@ -664,8 +664,8 @@
   outline-offset: 1px;
 }
 
-/* Variations: greyed, smaller and indented under the move they replace, as
-   on Lichess. Deeper Variations run inline, in parentheses. */
+/* Variations: greyed, smaller and indented under the move they replace.
+   Deeper Variations run inline, in parentheses. */
 .variations {
   display: flex;
   flex-direction: column;
@@ -1117,7 +1117,7 @@
 }
 
 /* Under the board (#72): the editor for the current Ply, then the FEN and the
- * PGN to copy, as in a Lichess Study. */
+ * PGN to copy. */
 .boardTools {
   display: flex;
   flex-direction: column;
