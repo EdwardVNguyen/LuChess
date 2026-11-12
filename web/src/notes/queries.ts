@@ -1,17 +1,9 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
-import {
-  ApiError,
-  type Folder,
-  type FolderUpdate,
-  type MovesEditInput,
-  type NewNoteInput,
-  type Note,
-  type NoteSummary,
-  type PlyWriting,
-} from '../api'
+import { ApiError, type Folder, type FolderUpdate, type MoveRow, type NewNoteInput, type Note, type NoteSummary } from '../api'
 import { api } from '../apiClient'
+import type { MoveId } from '../chess/tree'
 import { useSession } from '../session'
-import { mergeWriting, replaceWriting, type PlyChange } from './writing'
+import { mergeWriting, writingOf, type WritingChange } from './writing'
 
 // Every Note call goes through the Session, so an expired access token is
 // refreshed once instead of failing. Cached Notes are cleared when the
@@ -21,7 +13,7 @@ const keys = {
   searches: ['notes', 'search'] as const,
   search: (query: string) => ['notes', 'search', query] as const,
   note: (id: number) => ['notes', id] as const,
-  plies: (id: number) => ['notes', id, 'plies'] as const,
+  moves: (id: number) => ['notes', id, 'moves'] as const,
   links: (id: number) => ['notes', id, 'links'] as const,
   folders: ['folders'] as const,
 }
@@ -113,29 +105,82 @@ export function useDeleteNote(id: number) {
   })
 }
 
-export function usePlies(noteId: number) {
+/** A Note's tree of Moves with their writing, as rows: the root first, siblings in order. */
+export function useMoves(noteId: number) {
   const { state, authorized } = useSession()
   return useQuery({
-    queryKey: keys.plies(noteId),
-    queryFn: () => authorized((token) => api.listPlies(token, noteId)),
+    queryKey: keys.moves(noteId),
+    queryFn: () => authorized((token) => api.listMoves(token, noteId)),
     enabled: state.status === 'authenticated',
     retry: (failures, error) => !(error instanceof ApiError && error.status === 404) && failures < 2,
   })
 }
 
-export function useSavePly(noteId: number) {
+// Edits to one Note's tree and writing run one at a time, in order, so a save
+// cannot land on a Move a delete has just removed.
+const movesScope = (noteId: number) => ({ id: `moves-${noteId}` })
+
+// Any edit touches the Note, which moves it to the top of the list.
+function touched(queryClient: QueryClient) {
+  void queryClient.invalidateQueries({ queryKey: keys.list, exact: true })
+}
+
+export function useSaveWriting(noteId: number) {
   const { authorized } = useSession()
   const queryClient = useQueryClient()
   return useMutation({
-    scope: { id: `plies-${noteId}` },
-    mutationFn: ({ ply, ...change }: PlyChange) => {
-      const saved = queryClient.getQueryData<PlyWriting[]>(keys.plies(noteId))?.find((p) => p.ply === ply)
-      return authorized((token) => api.putPly(token, noteId, ply, mergeWriting(saved, change)))
+    scope: movesScope(noteId),
+    mutationFn: ({ move, ...change }: WritingChange) => {
+      const saved = queryClient.getQueryData<MoveRow[]>(keys.moves(noteId))?.find((row) => row.id === move)
+      return authorized((token) => api.putWriting(token, noteId, move, mergeWriting(saved && writingOf(saved), change)))
     },
     onSuccess: (written) => {
-      queryClient.setQueryData<PlyWriting[]>(keys.plies(noteId), (plies) => replaceWriting(plies, written))
-      // Writing touches the Note, which moves it to the top of the list.
-      void queryClient.invalidateQueries({ queryKey: keys.list, exact: true })
+      queryClient.setQueryData<MoveRow[]>(keys.moves(noteId), (rows) => rows?.map((row) => (row.id === written.id ? written : row)))
+      touched(queryClient)
+      invalidateLinks(queryClient)
+    },
+  })
+}
+
+/** Plays a Move after a Move or the Position; the API answers the existing Move for a SAN already played there. */
+export function useAddMove(noteId: number) {
+  const { authorized } = useSession()
+  const queryClient = useQueryClient()
+  return useMutation({
+    scope: movesScope(noteId),
+    mutationFn: ({ parentId, san }: { parentId: MoveId; san: string }) =>
+      authorized((token) => api.addMove(token, noteId, parentId, san)),
+    onSuccess: (move) => {
+      queryClient.setQueryData<MoveRow[]>(keys.moves(noteId), (rows) =>
+        rows && !rows.some((row) => row.id === move.id) ? [...rows, move] : rows,
+      )
+      touched(queryClient)
+    },
+  })
+}
+
+/** The rows left when a Move and everything after it are gone. Parents are listed before their children. */
+function withoutSubtree(rows: readonly MoveRow[], moveId: MoveId): MoveRow[] {
+  const gone = new Set([moveId])
+  for (const row of rows) if (row.parentId !== null && gone.has(row.parentId)) gone.add(row.id)
+  return rows.filter((row) => !gone.has(row.id))
+}
+
+/**
+ * Deletes a Move and its subtree. A refused delete changes nothing; a done
+ * one may have deleted writing, and the Links in it.
+ */
+export function useDeleteMove(noteId: number) {
+  const { authorized } = useSession()
+  const queryClient = useQueryClient()
+  return useMutation({
+    scope: movesScope(noteId),
+    mutationFn: ({ moveId, confirm }: { moveId: MoveId; confirm: boolean }) =>
+      authorized((token) => api.deleteMove(token, noteId, moveId, confirm)),
+    onSuccess: (result, { moveId }) => {
+      if (result.status !== 'deleted') return
+      queryClient.setQueryData<MoveRow[]>(keys.moves(noteId), (rows) => rows && withoutSubtree(rows, moveId))
+      touched(queryClient)
       invalidateLinks(queryClient)
     },
   })
@@ -148,29 +193,6 @@ export function useNoteLinks(noteId: number) {
     queryFn: () => authorized((token) => api.getLinks(token, noteId)),
     enabled: state.status === 'authenticated',
     retry: (failures, error) => !(error instanceof ApiError && error.status === 404) && failures < 2,
-  })
-}
-
-/**
- * Replaces the Note's moves. A refused edit changes nothing; a saved one may
- * have deleted writing, and the Links in it, at and after the changed Ply.
- */
-export function useEditMoves(noteId: number) {
-  const { authorized } = useSession()
-  const queryClient = useQueryClient()
-  return useMutation({
-    // After any pending writing, so a save cannot land on a Ply the edit just cleared.
-    scope: { id: `plies-${noteId}` },
-    mutationFn: (input: MovesEditInput) => authorized((token) => api.editMoves(token, noteId, input)),
-    onSuccess: (result) => {
-      if (result.status !== 'saved') return
-      const { note } = result
-      queryClient.setQueryData(keys.note(note.id), note)
-      queryClient.setQueryData<NoteSummary[]>(keys.list, (list) => putFirst(list, note))
-      void queryClient.invalidateQueries({ queryKey: keys.plies(note.id) })
-      void queryClient.invalidateQueries({ queryKey: keys.searches })
-      invalidateLinks(queryClient)
-    },
   })
 }
 

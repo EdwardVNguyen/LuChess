@@ -78,8 +78,8 @@ beforeEach(() => {
     id: 7,
     name: input.name,
     folderId: input.folderId ?? null,
-    pgn: input.pgn,
-    startFen: null,
+    tags: input.tags,
+    startFen: input.startFen,
     createdAt: '',
     updatedAt: '',
   }))
@@ -95,7 +95,14 @@ describe('NewNotePage', () => {
     await createWithPgn()
 
     await waitFor(() => expect(createNote).toHaveBeenCalled())
-    expect(createNote.mock.calls[0][1]).toMatchObject({ name: 'Open game', folderId: 2 })
+    expect(createNote.mock.calls[0][1]).toMatchObject({
+      name: 'Open game',
+      folderId: 2,
+      moves: [
+        { parent: null, san: 'e4' },
+        { parent: 0, san: 'e5' },
+      ],
+    })
   })
 
   it('files the Note at the root otherwise', async () => {

@@ -3,6 +3,7 @@ import { useNavigate, useSearch } from '@tanstack/react-router'
 import { useState } from 'react'
 import { errorMessage } from '../errors'
 import { folderChoices, folderPath } from './folders'
+import { newNoteInput } from './newNote'
 import { NoteStartForm } from './NoteStartForm'
 import { useCreateNote, useFolders } from './queries'
 
@@ -35,7 +36,7 @@ export function NewNotePage() {
       }
       onSubmit={(input) =>
         create.mutate(
-          { ...input, folderId },
+          newNoteInput(input, folderId),
           { onSuccess: (note) => void navigate({ to: '/notes/$noteId', params: { noteId: String(note.id) } }) },
         )
       }

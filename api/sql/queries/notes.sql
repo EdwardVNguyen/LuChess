@@ -1,8 +1,8 @@
 -- Every query is scoped to the owner, so another user's Note is simply not found.
 
 -- name: CreateNote :one
-INSERT INTO notes(user_id, name, pgn, start_fen, folder_id, created_at, updated_at)
-VALUES (sqlc.arg(user_id), sqlc.arg(name), sqlc.arg(pgn), sqlc.narg(start_fen), sqlc.narg(folder_id), sqlc.arg(now), sqlc.arg(now))
+INSERT INTO notes(user_id, name, tags, start_fen, folder_id, created_at, updated_at)
+VALUES (sqlc.arg(user_id), sqlc.arg(name), sqlc.arg(tags), sqlc.narg(start_fen), sqlc.narg(folder_id), sqlc.arg(now), sqlc.arg(now))
 RETURNING *;
 
 -- name: GetNote :one
@@ -75,16 +75,14 @@ WHERE id = sqlc.arg(id) AND user_id = sqlc.arg(user_id)
 RETURNING *;
 
 -- name: LockNote :one
--- Holds the Note while its moves are edited, so writing saved meanwhile waits
--- (saving a Ply touches the Note) and the confirmation counts what is deleted.
+-- Holds the Note while its Moves are changed, so edits to its tree are
+-- serialized and a confirmation counts exactly what is deleted.
 SELECT id
 FROM notes
 WHERE id = sqlc.arg(id) AND user_id = sqlc.arg(user_id)
 FOR UPDATE;
 
--- name: ReplaceNoteMoves :one
+-- name: TouchNote :exec
 UPDATE notes
-SET pgn = sqlc.arg(pgn),
-    updated_at = sqlc.arg(now)
-WHERE id = sqlc.arg(id) AND user_id = sqlc.arg(user_id)
-RETURNING *;
+SET updated_at = sqlc.arg(now)
+WHERE id = sqlc.arg(id);

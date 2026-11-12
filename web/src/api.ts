@@ -21,13 +21,24 @@ const noteSearchResultSchema = z.object({
   date: z.string().nullable(),
   folderPath: z.array(z.string()),
 })
-const noteSchema = noteSummarySchema.extend({ pgn: z.string(), startFen: z.string().nullable() })
-const plyWritingSchema = z.object({
-  ply: z.number(),
+const noteSchema = noteSummarySchema.extend({
+  tags: z.array(z.tuple([z.string(), z.string()])),
+  startFen: z.string().nullable(),
+})
+const drawingSchema = z.object({
+  from: z.string(),
+  to: z.string().optional(),
+  brush: z.enum(['green', 'red', 'blue', 'yellow']),
+})
+const moveRowSchema = z.object({
+  id: z.number(),
+  parentId: z.number().nullable(),
+  san: z.string().nullable(),
   comment: z.string().nullable(),
   body: z.string().nullable(),
   moveGlyph: z.string().nullable(),
   positionGlyph: z.string().nullable(),
+  drawings: z.array(drawingSchema),
   updatedAt: z.string(),
 })
 const noteLinksSchema = z.object({
@@ -37,6 +48,8 @@ const noteLinksSchema = z.object({
       noteId: z.number(),
       name: z.string(),
       startFen: z.string().nullable(),
+      moveId: z.number(),
+      san: z.string().nullable(),
       ply: z.number(),
       part: z.enum(['comment', 'body']),
     }),
@@ -50,14 +63,18 @@ export type SessionResponse = z.infer<typeof sessionResponseSchema>
 export type NoteSummary = z.infer<typeof noteSummarySchema>
 /** A Folder; parentId is null at the root. */
 export type Folder = z.infer<typeof folderSchema>
+/** tags are the PGN tag pairs in order; the moves are the Note's tree, from listMoves. */
 export type Note = z.infer<typeof noteSchema>
 /**
  * white, black and date come from the PGN headers, and are null when it has
  * none. folderPath names the Folders the Note is filed in, root first.
  */
 export type NoteSearchResult = z.infer<typeof noteSearchResultSchema>
-/** The writing on one Ply; a field is null when the Ply has none of it. */
-export type PlyWriting = z.infer<typeof plyWritingSchema>
+/**
+ * One row of a Note's tree: a Move, or the root (the Position) when parentId
+ * and san are null, with its writing. Rows list the root first and siblings in order.
+ */
+export type MoveRow = z.infer<typeof moveRowSchema>
 /**
  * A Note's Links: `targets` are the Notes its Comments and Bodies link to that
  * still exist (a Link to any other is unresolved), and `backlinks` the
@@ -66,25 +83,41 @@ export type PlyWriting = z.infer<typeof plyWritingSchema>
 export type NoteLinks = z.infer<typeof noteLinksSchema>
 export type LinkTarget = NoteLinks['targets'][number]
 export type Backlink = NoteLinks['backlinks'][number]
-/** Everything written on a Ply. Null or blank clears a field. */
-export type PlyWritingInput = Pick<PlyWriting, 'comment' | 'body' | 'moveGlyph' | 'positionGlyph'>
 
 export type SignUpInput = { email: string; name: string; password: string }
 export type LoginInput = { email: string; password: string }
 export type ResetPasswordInput = { token: string; password: string }
-/** startFen is null for the standard start; folderId null or absent files the Note at the root. */
-export type NewNoteInput = { name: string; pgn: string; startFen: string | null; folderId?: number | null }
+/** The writing on a Move or the Position, as the API takes it. Null or blank clears a field. */
+export type WritingInput = Pick<MoveRow, 'comment' | 'body' | 'moveGlyph' | 'positionGlyph' | 'drawings'>
 
-/** Editing moves: the new PGN and the first Ply that changed (ADR 0003). */
-export type MovesEditInput = { pgn: string; firstChangedPly: number; confirm: boolean }
 /**
- * An edit either saved, or was refused until confirmed because it would
- * delete the Glyphs, Comments or Bodies on `plies` Plies.
+ * A new Note: its Position (startFen null for the standard start), its PGN
+ * tag pairs, the writing on the Position, and the Moves after it. Each Move
+ * names its parent by its index in the list, or null for the Position, so a
+ * parent comes before its children; siblings keep their order. folderId null
+ * or absent files the Note at the root.
  */
-export type MovesEditResult =
-  { status: 'saved'; note: Note } | { status: 'needsConfirmation'; plies: number; message: string }
+export type NewNoteInput = {
+  name: string
+  startFen: string | null
+  tags: [string, string][]
+  folderId?: number | null
+  position: Partial<WritingInput>
+  moves: ({ parent: number | null; san: string } & Partial<WritingInput>)[]
+}
 
-const movesConflictSchema = z.object({ error: z.string(), plies: z.number().int().positive() })
+/** What deleting a Move and its subtree would delete, by kind. */
+export type WritingCounts = { comments: number; bodies: number; glyphs: number; drawings: number }
+/** A delete either happened, or was refused until confirmed because it would delete writing. */
+export type MoveDeleteResult = { status: 'deleted' } | ({ status: 'needsConfirmation'; message: string } & WritingCounts)
+
+const deleteConflictSchema = z.object({
+  error: z.string(),
+  comments: z.number().int().nonnegative(),
+  bodies: z.number().int().nonnegative(),
+  glyphs: z.number().int().nonnegative(),
+  drawings: z.number().int().nonnegative(),
+})
 
 /** A Folder's new name, parent (null for the root), or both. */
 export type FolderUpdate = { name?: string; parentId?: number | null }
@@ -222,6 +255,7 @@ export function createApiClient(baseUrl: string, fetchFn: typeof fetch = fetch) 
       return noteSchema.parse(await res.json())
     },
 
+    /** Creates a Note with its whole tree of Moves and their writing, in one request. */
     async createNote(accessToken: string, input: NewNoteInput): Promise<Note> {
       const res = await request('/api/notes', { body: input, accessToken })
       return noteSchema.parse(await res.json())
@@ -236,32 +270,48 @@ export function createApiClient(baseUrl: string, fetchFn: typeof fetch = fetch) 
       await request(`/api/notes/${id}`, { method: 'DELETE', accessToken })
     },
 
+    /** A Note's tree: the root (the Position) first, then every Move after its parent, siblings in order. */
+    async listMoves(accessToken: string, noteId: number): Promise<MoveRow[]> {
+      const res = await request(`/api/notes/${noteId}/moves`, { accessToken })
+      return z.array(moveRowSchema).parse(await res.json())
+    },
+
     /**
-     * Replaces a Note's moves, deleting the writing at and after the first
-     * changed Ply. Without `confirm`, an edit that would delete any is refused.
+     * Plays a Move by SAN after a Move or the Position, as its last child. If
+     * that parent already has a Move with the SAN, that Move is answered.
      */
-    async editMoves(accessToken: string, noteId: number, input: MovesEditInput): Promise<MovesEditResult> {
+    async addMove(accessToken: string, noteId: number, parentId: number, san: string): Promise<MoveRow> {
+      const res = await request(`/api/notes/${noteId}/moves`, { body: { parentId, san }, accessToken })
+      return moveRowSchema.parse(await res.json())
+    },
+
+    /** Replaces all the writing on a Move or the Position; sending every field empty deletes it. */
+    async putWriting(accessToken: string, noteId: number, moveId: number, writing: WritingInput): Promise<MoveRow> {
+      const res = await request(`/api/notes/${noteId}/moves/${moveId}/writing`, { method: 'PUT', body: writing, accessToken })
+      return moveRowSchema.parse(await res.json())
+    },
+
+    /**
+     * Deletes a Move and its whole subtree. Without `confirm`, a delete that
+     * would delete any writing is refused with what it would delete.
+     */
+    async deleteMove(accessToken: string, noteId: number, moveId: number, confirm: boolean): Promise<MoveDeleteResult> {
       try {
-        const res = await request(`/api/notes/${noteId}/moves`, { method: 'PUT', body: input, accessToken })
-        return { status: 'saved', note: noteSchema.parse(await res.json()) }
+        await request(`/api/notes/${noteId}/moves/${moveId}${confirm ? '?confirm=true' : ''}`, { method: 'DELETE', accessToken })
+        return { status: 'deleted' }
       } catch (error) {
-        const conflict = error instanceof ApiError && error.status === 409 && movesConflictSchema.safeParse(error.body)
+        const conflict = error instanceof ApiError && error.status === 409 && deleteConflictSchema.safeParse(error.body)
         if (conflict && conflict.success) {
-          return { status: 'needsConfirmation', plies: conflict.data.plies, message: conflict.data.error }
+          const { error: message, ...counts } = conflict.data
+          return { status: 'needsConfirmation', message, ...counts }
         }
         throw error
       }
     },
 
-    async listPlies(accessToken: string, noteId: number): Promise<PlyWriting[]> {
-      const res = await request(`/api/notes/${noteId}/plies`, { accessToken })
-      return z.array(plyWritingSchema).parse(await res.json())
-    },
-
-    /** Replaces all the writing on a Ply; sending every field empty deletes it. */
-    async putPly(accessToken: string, noteId: number, ply: number, input: PlyWritingInput): Promise<PlyWriting> {
-      const res = await request(`/api/notes/${noteId}/plies/${ply}`, { method: 'PUT', body: input, accessToken })
-      return plyWritingSchema.parse(await res.json())
+    /** Puts a Move on the Main line: it and each of its ancestors becomes its parent's first child. */
+    async promoteMove(accessToken: string, noteId: number, moveId: number): Promise<void> {
+      await request(`/api/notes/${noteId}/moves/${moveId}/promote`, { method: 'POST', accessToken })
     },
 
     async getLinks(accessToken: string, noteId: number): Promise<NoteLinks> {

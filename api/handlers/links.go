@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"regexp"
@@ -33,12 +34,13 @@ func linkTargets(text string) []int64 {
 
 var errForeignLinkTarget = errors.New("A Link can only point at one of your own notes")
 
-// indexPlyLinks rebuilds the Link index for one saved Ply from its text. A
-// target must be one of the user's Notes, or already linked from this Ply:
+// indexMoveLinks rebuilds the Link index for one Move's saved writing. A
+// target must be one of the user's Notes, or already linked from this Move:
 // a deleted target stays in the text as an Unresolved Link and must not stop
 // the user editing around it. Both failures look the same, so a save reveals
-// nothing about other users' Notes. Run it in the transaction that saved the Ply.
-func indexPlyLinks(ctx context.Context, q *database.Queries, userID int32, noteID int64, ply int32, comment, body sql.NullString) error {
+// nothing about other users' Notes. Run it in the transaction that saved the
+// writing.
+func indexMoveLinks(ctx context.Context, q *database.Queries, userID int32, moveID int64, comment, body sql.NullString) error {
 	parts := map[string][]int64{"comment": linkTargets(comment.String), "body": linkTargets(body.String)}
 	all := slices.Concat(parts["comment"], parts["body"])
 
@@ -47,7 +49,7 @@ func indexPlyLinks(ctx context.Context, q *database.Queries, userID int32, noteI
 		if err != nil {
 			return err
 		}
-		kept, err := q.ListPlyLinkTargets(ctx, database.ListPlyLinkTargetsParams{NoteID: noteID, Ply: ply, UserID: userID})
+		kept, err := q.ListMoveLinkTargets(ctx, moveID)
 		if err != nil {
 			return err
 		}
@@ -58,20 +60,23 @@ func indexPlyLinks(ctx context.Context, q *database.Queries, userID int32, noteI
 		}
 	}
 
-	if err := q.DeletePlyLinks(ctx, database.DeletePlyLinksParams{NoteID: noteID, Ply: ply}); err != nil {
+	if err := q.DeleteMoveLinks(ctx, moveID); err != nil {
 		return err
 	}
+	var rows []linkRow
 	for _, part := range []string{"comment", "body"} {
-		if len(parts[part]) == 0 {
-			continue
-		}
-		if err := q.InsertPlyLinks(ctx, database.InsertPlyLinksParams{
-			NoteID: noteID, Ply: ply, Part: part, TargetIds: parts[part],
-		}); err != nil {
-			return err
+		for _, target := range parts[part] {
+			rows = append(rows, linkRow{MoveID: moveID, Part: part, TargetID: target})
 		}
 	}
-	return nil
+	if len(rows) == 0 {
+		return nil
+	}
+	data, err := json.Marshal(rows)
+	if err != nil {
+		return err
+	}
+	return q.InsertLinks(ctx, data)
 }
 
 // A Note a Link points at, with enough to show and tell apart same-named
@@ -84,12 +89,15 @@ type linkTarget struct {
 	Date  *string `json:"date"`
 }
 
-// A Comment or Body in another Note that links to this one. startFen lets the
-// client name the move at the Ply without the linking Note's PGN.
+// A Comment or Body in another Note that links to this one, on a Move in a
+// Main line or a Variation, or on the Position. The SAN, Ply and startFen let
+// the client name the Move ("10…exd5") without loading the linking Note.
 type backlink struct {
 	NoteID   int64   `json:"noteId"`
 	Name     string  `json:"name"`
 	StartFEN *string `json:"startFen"`
+	MoveID   int64   `json:"moveId"`
+	SAN      *string `json:"san"`
 	Ply      int32   `json:"ply"`
 	Part     string  `json:"part"`
 }
@@ -134,7 +142,8 @@ func (cfg *ApiConfig) HandleNoteLinks(w http.ResponseWriter, r *http.Request) {
 	}
 	for _, b := range backlinks {
 		resp.Backlinks = append(resp.Backlinks, backlink{
-			NoteID: b.NoteID, Name: b.Name, StartFEN: nullable(b.StartFen), Ply: b.Ply, Part: b.Part,
+			NoteID: b.NoteID, Name: b.Name, StartFEN: nullable(b.StartFen),
+			MoveID: b.MoveID, SAN: nullable(b.San), Ply: b.Ply, Part: b.Part,
 		})
 	}
 	utils.RespondJSON(w, http.StatusOK, resp)

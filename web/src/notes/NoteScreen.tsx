@@ -2,8 +2,10 @@ import { Alert, Button, Loader, Stack, Text, Title } from '@mantine/core'
 import { useDisclosure } from '@mantine/hooks'
 import { Link, useParams, useSearch } from '@tanstack/react-router'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ApiError, type Note, type PlyWriting } from '../api'
-import { parsePgn, type Game, type MovesEdit } from '../chess/chess'
+import { ApiError, type MoveRow, type Note } from '../api'
+import { START_FEN, type Game } from '../chess/chess'
+import type { Writing } from '../chess/pgn'
+import { readingOrder, treeFromRows, type MoveId, type MoveTree } from '../chess/tree'
 import { errorMessage } from '../errors'
 import { ConfirmDialog, ResponsivePopover, useOverlaySize } from '../overlay'
 import { FolderIcon } from './icons'
@@ -14,40 +16,33 @@ import { folderPath } from './folders'
 import { NoteTree } from './NoteTree'
 import styles from './Notes.module.css'
 import { NoteMargin } from './NoteMargin'
-import { useEditMoves, useFolders, useNote, useNoteLinks, usePlies, useSavePly } from './queries'
-import { CurrentPlyEditor, StudyView, WritingView, type MovesDraft } from './StudyView'
+import { useAddMove, useDeleteMove, useFolders, useMoves, useNote, useNoteLinks, useSaveWriting } from './queries'
+import { CurrentMoveEditor, StudyView, WritingView } from './StudyView'
+import { writingByMove } from './writing'
 
 export function NoteScreen() {
   const { noteId } = useParams({ from: '/notes/$noteId' })
-  const { ply } = useSearch({ from: '/notes/$noteId' })
+  const { move } = useSearch({ from: '/notes/$noteId' })
   const id = /^\d+$/.test(noteId) ? Number(noteId) : null
-  // Following a Backlink opens the Note afresh at the linking Ply.
-  return id === null ? <NoteMissing /> : <LoadedNote key={`${id}@${ply}`} id={id} initialPly={ply} />
+  // Following a Backlink opens the Note afresh at the linking Move.
+  return id === null ? <NoteMissing /> : <LoadedNote key={`${id}@${move}`} id={id} initialMove={move} />
 }
 
-function LoadedNote({ id, initialPly }: { id: number; initialPly: number | undefined }) {
+function LoadedNote({ id, initialMove }: { id: number; initialMove: number | undefined }) {
   const note = useNote(id)
+  const moves = useMoves(id)
 
-  if (note.isPending) {
+  if (note.isError || moves.isError) {
+    const error = note.error ?? moves.error
+    if (error instanceof ApiError && error.status === 404) return <NoteMissing />
     return (
       <>
-        <Strip name={null} />
-        <div className={styles.centered}>
-          <Loader aria-label="Loading note" />
-        </div>
-      </>
-    )
-  }
-  if (note.isError) {
-    if (note.error instanceof ApiError && note.error.status === 404) return <NoteMissing />
-    return (
-      <>
-        <Strip name={null} />
+        <Strip name={note.data?.name ?? null} />
         <div className={styles.message}>
           <Alert color="red" title="Could not open this note">
             <Stack gap="sm" align="flex-start">
-              <Text size="sm">{errorMessage(note.error)}</Text>
-              <Button variant="light" onClick={() => void note.refetch()}>
+              <Text size="sm">{errorMessage(error)}</Text>
+              <Button variant="light" onClick={() => void (note.isError ? note.refetch() : moves.refetch())}>
                 Try again
               </Button>
             </Stack>
@@ -56,103 +51,163 @@ function LoadedNote({ id, initialPly }: { id: number; initialPly: number | undef
       </>
     )
   }
-  return <NoteView note={note.data} initialPly={initialPly} />
+  if (note.isPending || moves.isPending) {
+    return (
+      <>
+        <Strip name={note.data?.name ?? null} />
+        <div className={styles.centered}>
+          <Loader aria-label="Loading note" />
+        </div>
+      </>
+    )
+  }
+  return <NoteView note={note.data} rows={moves.data} initialMove={initialMove} />
 }
 
-function NoteView({ note, initialPly }: { note: Note; initialPly: number | undefined }) {
+function NoteView({ note, rows, initialMove }: { note: Note; rows: MoveRow[]; initialMove: number | undefined }) {
   const linking = useNoteLinking(note.id)
-  const moves = useMoveEditing(note)
-  const plies = usePlies(note.id)
-  const save = useSavePly(note.id)
+  const editing = useMoveEditing(note.id)
+  const save = useSaveWriting(note.id)
   const folders = useFolders()
   const path = folderPath(folders.data ?? [], note.folderId).map((folder) => folder.name)
+  const tree = useMemo(() => treeFromRows(note.startFen ?? START_FEN, rows), [note.startFen, rows])
+  const writing = useMemo(() => writingByMove(rows), [rows])
+  const inReadingOrder = useMemo(
+    () => (tree.ok ? readingOrder(tree.value).flatMap((id) => writing.get(id) ?? []) : []),
+    [tree, writing],
+  )
+
+  if (!tree.ok) {
+    return (
+      <>
+        <Strip name={note.name} folder={path.at(-1)} />
+        <div className={styles.message}>
+          <Alert color="red" title="This note's moves could not be read">
+            {tree.error}
+          </Alert>
+        </div>
+      </>
+    )
+  }
+
   return (
-    <LinkingContext value={linking}>
+    <LinkingContext value={linking.context}>
       <Strip name={note.name} folder={path.at(-1)} />
       <StudyView
         name={note.name}
         eyebrow={path.length > 0 ? path.join(' / ') : undefined}
-        pgn={note.pgn}
-        actions={<NoteActions note={note} onEditMoves={moves.start} />}
-        initialPly={initialPly}
-        margin={<NoteMargin noteId={note.id} />}
-        moveEditing={moves.editing}
-        tools={(view) => <Editor plies={plies} save={save} {...view} />}
+        tree={tree.value}
+        tags={note.tags}
+        writing={writing}
+        linkName={linking.name}
+        actions={<NoteActions note={note} onEditMoves={editing.start} />}
+        initialMove={initialMove}
+        margin={<NoteMargin noteId={note.id} writing={inReadingOrder} />}
+        moveEditing={editing.editing}
+        tools={(view) => <Editor save={save} writing={writing} {...view} />}
       >
-        {(view) => <Writing plies={plies} scrollToCurrent={initialPly !== undefined} {...view} />}
+        {(view) => <WritingColumn writing={writing} scrollToCurrent={initialMove !== undefined} {...view} />}
       </StudyView>
-      {moves.confirmDialog}
+      {editing.confirmDialog}
     </LinkingContext>
   )
 }
 
-// Editing a Note's moves (ADR 0003): the edit is sent as is, and if the API
-// answers that it would delete writing, the user confirms before it is sent
-// again with the confirmation.
-function useMoveEditing(note: Note) {
-  const [active, setActive] = useState(false)
-  const [confirming, setConfirming] = useState<{ edit: MovesEdit; plies: number } | null>(null)
-  const edit = useEditMoves(note.id)
-  const size = useOverlaySize()
-  const readable = useMemo(() => parsePgn(note.pgn).ok, [note.pgn])
+type Confirming = { move: MoveId; message: string; done: (deleted: boolean) => void }
 
-  function send(moves: MovesEdit, confirm: boolean) {
-    edit.mutate(
-      { ...moves, confirm },
+// Playing moves on a Note's board: each move is added as it is played. Deleting
+// a Move deletes its subtree; if the API answers that writing would go with
+// it, the user confirms before it is sent again with the confirmation.
+function useMoveEditing(noteId: number) {
+  const [active, setActive] = useState(false)
+  const [confirming, setConfirming] = useState<Confirming | null>(null)
+  const add = useAddMove(noteId)
+  const remove = useDeleteMove(noteId)
+  const size = useOverlaySize()
+
+  function onPlay(parentId: MoveId, san: string): Promise<MoveId | null> {
+    remove.reset()
+    return add.mutateAsync({ parentId, san }).then(
+      (move) => move.id,
+      () => null,
+    )
+  }
+
+  function onDelete(move: MoveId): Promise<boolean> {
+    add.reset()
+    return new Promise((done) => {
+      remove.mutate(
+        { moveId: move, confirm: false },
+        {
+          onSuccess: (result) => {
+            if (result.status === 'deleted') done(true)
+            else setConfirming({ move, message: result.message, done })
+          },
+          onError: () => done(false),
+        },
+      )
+    })
+  }
+
+  function closeConfirm() {
+    confirming?.done(false)
+    setConfirming(null)
+    remove.reset()
+  }
+
+  function confirm() {
+    if (!confirming) return
+    remove.mutate(
+      { moveId: confirming.move, confirm: true },
       {
         onSuccess: (result) => {
-          if (result.status === 'saved') {
-            setConfirming(null)
-            setActive(false)
-          } else {
-            setConfirming({ edit: moves, plies: result.plies })
-          }
+          if (result.status !== 'deleted') return
+          confirming.done(true)
+          setConfirming(null)
         },
       },
     )
   }
 
-  const start =
-    readable && !active
-      ? () => {
-          edit.reset()
-          setActive(true)
-        }
-      : undefined
+  const failed = add.isError ? add.error : remove.isError && !confirming ? remove.error : null
 
   return {
-    start,
+    start: active
+      ? undefined
+      : () => {
+          add.reset()
+          remove.reset()
+          setActive(true)
+        },
     editing: active
       ? {
-          onCancel: () => setActive(false),
-          onSave: (moves: MovesEdit) => send(moves, false),
-          saving: edit.isPending,
-          error: edit.isError && !confirming ? errorMessage(edit.error) : null,
+          onPlay,
+          onDelete,
+          onDone: () => setActive(false),
+          saving: add.isPending || remove.isPending,
+          error: failed ? errorMessage(failed) : null,
         }
       : null,
     confirmDialog: confirming && (
       <ConfirmDialog
         size={size}
         opened
-        onClose={() => {
-          setConfirming(null)
-          edit.reset()
-        }}
+        onClose={closeConfirm}
         title="Delete your writing?"
         message={
           <>
-            This will delete your writing on {confirming.plies} {confirming.plies === 1 ? 'move' : 'moves'}: the Glyphs,
-            Comments and Bodies from the changed move on, and the Links in them. This cannot be undone.
-            {edit.isError && (
+            {confirming.message}: everything written from this move on, in every Variation after it, and the Links in
+            them. This cannot be undone.
+            {remove.isError && (
               <Text component="span" display="block" c="accent" size="sm" mt="sm" role="alert">
-                {errorMessage(edit.error)}
+                {errorMessage(remove.error)}
               </Text>
             )}
           </>
         }
-        confirmLabel="Delete and save"
-        onConfirm={() => send(confirming.edit, true)}
-        confirmLoading={edit.isPending}
+        confirmLabel="Delete"
+        onConfirm={confirm}
+        confirmLoading={remove.isPending}
         destructive
       />
     ),
@@ -161,7 +216,7 @@ function useMoveEditing(note: Note) {
 
 // Links show their targets' current names from the Note's links. Until those
 // load, or if they fail, a Link is shown without being called broken.
-function useNoteLinking(noteId: number): Linking {
+function useNoteLinking(noteId: number): { context: Linking; name: (target: number) => string | null } {
   const links = useNoteLinks(noteId)
   const names = useMemo(() => new Map(links.data?.targets.map((t) => [t.id, t.name])), [links.data])
   const loaded = links.isSuccess
@@ -173,104 +228,66 @@ function useNoteLinking(noteId: number): Linking {
     },
     [names, loaded],
   )
-  return useMemo(() => ({ resolve, noteId }), [resolve, noteId])
+  const name = useCallback((target: number) => names.get(target) ?? null, [names])
+  const context = useMemo(() => ({ resolve, noteId }), [resolve, noteId])
+  return { context, name }
 }
 
-type Plies = ReturnType<typeof usePlies>
-type SavePly = ReturnType<typeof useSavePly>
+type SaveWriting = ReturnType<typeof useSaveWriting>
 
-// The Note's writing by Ply. While the moves are edited, the writing from the
-// first changed Ply on is not shown, as saving deletes it.
-function useShownWriting(plies: Plies, draft: MovesDraft | null) {
-  const cut = draft?.firstChangedPly ?? null
-  return useMemo(() => {
-    const kept = (plies.data ?? []).filter((p: PlyWriting) => cut === null || p.ply < cut)
-    return new Map(kept.map((p) => [p.ply, p]))
-  }, [plies.data, cut])
-}
-
-// The Note's writing, loaded from the API.
-function Writing({
-  plies,
+// The Note's writing column.
+function WritingColumn({
+  writing,
   scrollToCurrent,
-  game,
-  ply,
-  onPlyChange,
-  draft,
+  tree,
+  current,
+  onMoveChange,
 }: {
-  plies: Plies
-  /** Bring the current Ply's writing into view once it loads, as when arriving by a Backlink. */
+  writing: ReadonlyMap<MoveId, Writing>
+  /** Bring the current Move's writing into view, as when arriving by a Backlink. */
   scrollToCurrent: boolean
-  game: Game | null
-  ply: number
-  onPlyChange: (ply: number) => void
-  /** While the moves are edited: the writing from the first changed Ply on is not shown, as saving deletes it. */
-  draft: MovesDraft | null
+  tree: MoveTree
+  current: MoveId
+  onMoveChange: (move: MoveId) => void
 }) {
-  const writing = useShownWriting(plies, draft)
   const anchor = useRef<HTMLDivElement>(null)
-  const scrolled = useRef(!scrollToCurrent)
 
+  // Once, on arriving: the Note opens afresh for each Backlink followed.
   useEffect(() => {
-    if (scrolled.current || !plies.isSuccess) return
-    scrolled.current = true
+    if (!scrollToCurrent) return
     const column = anchor.current?.parentElement
     column?.querySelector('[data-current]')?.scrollIntoView({ block: 'center' })
-  }, [plies.isSuccess])
+  }, [scrollToCurrent])
 
   return (
     <>
       <div ref={anchor} hidden />
-      <WritingView
-        game={game}
-        ply={ply}
-        onPlyChange={onPlyChange}
-        writing={writing}
-        aboveMoves={
-          plies.isError && (
-            <Alert color="red" title="Could not load your writing">
-              <Stack gap="sm" align="flex-start">
-                <Text size="sm">{errorMessage(plies.error)}</Text>
-                <Button variant="light" onClick={() => void plies.refetch()}>
-                  Try again
-                </Button>
-              </Stack>
-            </Alert>
-          )
-        }
-        belowMoves={
-          plies.isPending && (
-            <div className={styles.writingLoading}>
-              <Loader size="sm" aria-label="Loading your writing" />
-            </div>
-          )
-        }
-      />
+      <WritingView tree={tree} current={current} onMoveChange={onMoveChange} writing={writing} />
     </>
   )
 }
 
-// The editor for the current Ply, under the board, saving to the API.
+// The editor for the current Move, under the board, saving to the API.
 function Editor({
-  plies,
   save,
-  game,
-  ply,
-  draft,
+  writing,
+  tree,
+  line,
+  current,
 }: {
-  plies: Plies
-  save: SavePly
-  game: Game | null
-  ply: number
-  draft: MovesDraft | null
+  save: SaveWriting
+  writing: ReadonlyMap<MoveId, Writing>
+  tree: MoveTree
+  line: Game
+  current: MoveId
 }) {
-  const writing = useShownWriting(plies, draft)
   return (
-    <CurrentPlyEditor
-      game={game}
-      ply={ply}
+    <CurrentMoveEditor
+      tree={tree}
+      line={line}
+      current={current}
       writing={writing}
-      editable={plies.isSuccess && draft === null}
+      editable
       onSave={(change) => save.mutate(change)}
       belowEditor={
         <>

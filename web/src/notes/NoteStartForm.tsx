@@ -1,9 +1,11 @@
 import { Box, Button, Group, SegmentedControl, Stack, Text, Textarea, TextInput, Title } from '@mantine/core'
 import { useState, type ReactNode } from 'react'
-import type { NewNoteInput } from '../api'
 import { Board } from '../board'
-import { gameFromMoves, parsePgn, pgnFromMoves, plyLabel, START_FEN, validateFen, type LegalMove } from '../chess/chess'
+import { gameFromMoves, plyLabel, START_FEN, validateFen, type LegalMove, type Result } from '../chess/chess'
+import { importPgn, tagRecord, type TagPair } from '../chess/pgn'
+import { addMove, newTree, type MoveId, type MoveTree } from '../chess/tree'
 import { suggestedName } from './details'
+import type { NoteStart } from './newNote'
 import styles from './Notes.module.css'
 
 type Source = 'pgn' | 'play' | 'position'
@@ -13,7 +15,7 @@ const MAX_NAME_LENGTH = 200
 type Props = {
   title: string
   submitLabel: string
-  onSubmit: (input: NewNoteInput) => void
+  onSubmit: (input: NoteStart) => void
   pending?: boolean
   /** Why the last submit failed, shown above the button. */
   error?: ReactNode
@@ -22,7 +24,8 @@ type Props = {
 }
 
 // Starting a Note has no design (#6): a page in the house style with three
-// ways to start. The client validates the PGN; the API checks only its size.
+// ways to start. The client reads the PGN, with its Variations and writing,
+// into a tree of Moves; the API trusts it (ADR 0009).
 // Shared by the New note page and a Guest's start (#13), so both start alike.
 export function NoteStartForm({ title, submitLabel, onSubmit, pending = false, error, children }: Props) {
   const [source, setSource] = useState<Source>('pgn')
@@ -32,32 +35,29 @@ export function NoteStartForm({ title, submitLabel, onSubmit, pending = false, e
   const [fen, setFen] = useState(START_FEN)
   const [submitted, setSubmitted] = useState(false)
 
-  const pasted = pgn.trim() === '' ? null : parsePgn(pgn)
-  const placeholderName = source === 'pgn' && pasted?.ok ? suggestedName(pasted.value.tags) : null
+  const pasted = pgn.trim() === '' ? null : importPgn(pgn)
+  const placeholderName = source === 'pgn' && pasted?.ok ? suggestedName(tagRecord(pasted.value.tags)) : null
   const finalName = name.trim() || placeholderName || ''
   const nameError = submitted && finalName === '' ? 'Give the note a name' : undefined
 
   // What would be saved, or why it can't be.
-  function draft(): { ok: true; pgn: string; startFen: string | null } | { ok: false; error: string } {
+  function draft(): Result<Omit<NoteStart, 'name'>> {
     switch (source) {
       case 'pgn': {
         if (!pasted) return { ok: false, error: 'Paste a game in PGN.' }
         if (!pasted.ok) return pasted
-        const startFen = pasted.value.startFen === START_FEN ? null : pasted.value.startFen
-        return { ok: true, pgn, startFen }
+        const { startFen, tags, tree, writing } = pasted.value
+        return { ok: true, value: { startFen: startFen === START_FEN ? null : startFen, tags, tree, writing } }
       }
       case 'play': {
-        const result = pgnFromMoves(
-          START_FEN,
-          moves.map((move) => move.san),
-        )
-        return result.ok ? { ok: true, pgn: result.value, startFen: null } : result
+        const tree = playedTree(moves.map((move) => move.san))
+        return tree.ok ? { ok: true, value: { startFen: null, tags: [], tree: tree.value, writing: new Map() } } : tree
       }
       case 'position': {
         const valid = validateFen(fen)
         if (!valid.ok) return { ok: false, error: 'Set up a legal position first.' }
-        const result = pgnFromMoves(fen, [])
-        return result.ok ? { ok: true, pgn: result.value, startFen: fen === START_FEN ? null : fen } : result
+        const tags: TagPair[] = fen === START_FEN ? [] : [['SetUp', '1'], ['FEN', fen]]
+        return { ok: true, value: { startFen: fen === START_FEN ? null : fen, tags, tree: newTree(fen, 0), writing: new Map() } }
       }
     }
   }
@@ -67,7 +67,7 @@ export function NoteStartForm({ title, submitLabel, onSubmit, pending = false, e
   function submit() {
     setSubmitted(true)
     if (!current.ok || finalName === '') return
-    onSubmit({ name: finalName, pgn: current.pgn, startFen: current.startFen })
+    onSubmit({ name: finalName, ...current.value })
   }
 
   return (
@@ -184,4 +184,17 @@ function PlayMoves({
       )}
     </Stack>
   )
+}
+
+/** The Main line of moves played from the start. */
+function playedTree(sans: readonly string[]): Result<MoveTree> {
+  let tree = newTree(START_FEN, 0)
+  let parent: MoveId = 0
+  for (const san of sans) {
+    const added = addMove(tree, parent, san, parent + 1)
+    if (!added.ok) return added
+    tree = added.value.tree
+    parent = added.value.id
+  }
+  return { ok: true, value: tree }
 }

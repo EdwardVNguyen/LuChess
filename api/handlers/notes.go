@@ -2,8 +2,11 @@ package handler
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -16,13 +19,18 @@ import (
 
 const (
 	maxNoteNameLen = 200
-	// A long annotated game is a few kilobytes; this leaves plenty of room
-	maxPGNBytes      = 64 * 1024
-	maxFENBytes      = 100
-	maxNoteBodyBytes = maxPGNBytes + 16*1024
+	maxFENBytes    = 100
+	// A new Note's tree comes from a PGN of at most 64 KB (the client checks
+	// that); as JSON, with every Move's fields named, it is a few times larger.
+	maxNoteBodyBytes = 1024 * 1024
+	maxTags          = 100
+	maxTagValueLen   = 1000
 	maxSearchLen     = 100
 	maxSearchResults = 20
 )
+
+// A PGN tag name, such as White or ECO.
+var tagName = regexp.MustCompile(`^[A-Za-z0-9_]{1,64}$`)
 
 type noteSummary struct {
 	ID   int64  `json:"id"`
@@ -35,15 +43,20 @@ type noteSummary struct {
 
 type noteResponse struct {
 	noteSummary
-	PGN string `json:"pgn"`
+	// The PGN tag pairs, in order, as [name, value]; the moves are the Note's tree.
+	Tags json.RawMessage `json:"tags"`
 	// Nil for the standard start
 	StartFEN *string `json:"startFen"`
 }
 
 func toNoteResponse(n database.Note) noteResponse {
+	tags := n.Tags
+	if len(tags) == 0 {
+		tags = json.RawMessage("[]")
+	}
 	resp := noteResponse{
 		noteSummary: noteSummary{ID: n.ID, Name: n.Name, FolderID: nullableID(n.FolderID), CreatedAt: n.CreatedAt, UpdatedAt: n.UpdatedAt},
-		PGN:         n.Pgn,
+		Tags:        tags,
 	}
 	if n.StartFen.Valid {
 		resp.StartFEN = &n.StartFen.String
@@ -119,14 +132,20 @@ func nullable(s sql.NullString) *string {
 	return &s.String
 }
 
+// HandleCreateNote creates a Note from its Position, its PGN tags and its
+// tree of Moves with their writing, all in one transaction. The client reads
+// the PGN and checks every move; the server trusts the SAN (ADR 0009).
 func (cfg *ApiConfig) HandleCreateNote(w http.ResponseWriter, r *http.Request) {
 	user := userFrom(r.Context())
 	var p struct {
-		Name     string  `json:"name"`
-		PGN      string  `json:"pgn"`
-		StartFEN *string `json:"startFen"`
+		Name     string     `json:"name"`
+		StartFEN *string    `json:"startFen"`
+		Tags     [][]string `json:"tags"`
 		// The Folder to file the Note in; the root when absent or null.
 		FolderID *int64 `json:"folderId"`
+		// The writing on the Position, and the Moves after it.
+		Position writingInput   `json:"position"`
+		Moves    []importedMove `json:"moves"`
 	}
 	if !utils.DecodeJSONLimit(w, r, &p, maxNoteBodyBytes) {
 		return
@@ -140,21 +159,31 @@ func (cfg *ApiConfig) HandleCreateNote(w http.ResponseWriter, r *http.Request) {
 	if p.FolderID != nil {
 		folder = sql.NullInt64{Int64: *p.FolderID, Valid: true}
 	}
-	errs := []error{validateNoteName(name), validatePGN(p.PGN)}
+	errs := []error{validateNoteName(name), validateTags(p.Tags)}
 	if startFEN.Valid {
 		errs = append(errs, validateFEN(startFEN.String))
 	}
-	for _, err := range errs {
-		if err != nil {
-			utils.RespondError(w, http.StatusBadRequest, err.Error(), nil)
-			return
-		}
+	if err := firstError(errs); err != nil {
+		utils.RespondError(w, http.StatusBadRequest, err.Error(), nil)
+		return
 	}
+	if p.Tags == nil {
+		p.Tags = [][]string{}
+	}
+	tags, _ := json.Marshal(p.Tags)
 
-	note, err := cfg.Db.CreateNote(r.Context(), database.CreateNoteParams{
+	tx, err := cfg.SQL.BeginTx(r.Context(), nil)
+	if err != nil {
+		utils.RespondError(w, http.StatusInternalServerError, "Could not create note", err)
+		return
+	}
+	defer tx.Rollback()
+	q := cfg.Db.WithTx(tx)
+
+	note, err := q.CreateNote(r.Context(), database.CreateNoteParams{
 		UserID:   user.ID,
 		Name:     name,
-		Pgn:      p.PGN,
+		Tags:     tags,
 		StartFen: startFEN,
 		FolderID: folder,
 		Now:      cfg.now(),
@@ -165,6 +194,18 @@ func (cfg *ApiConfig) HandleCreateNote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
+		utils.RespondError(w, http.StatusInternalServerError, "Could not create note", err)
+		return
+	}
+	var bad errBadImport
+	if err := importTree(r.Context(), q, user.ID, note.ID, cfg.now(), p.Position, p.Moves); errors.As(err, &bad) {
+		utils.RespondError(w, http.StatusBadRequest, bad.Error(), nil)
+		return
+	} else if err != nil {
+		utils.RespondError(w, http.StatusInternalServerError, "Could not create note", err)
+		return
+	}
+	if err := tx.Commit(); err != nil {
 		utils.RespondError(w, http.StatusInternalServerError, "Could not create note", err)
 		return
 	}
@@ -262,16 +303,19 @@ func validateNoteName(name string) error {
 	return nil
 }
 
-// validatePGN checks only size and encoding; the client parses and validates the moves.
-func validatePGN(pgn string) error {
-	if strings.TrimSpace(pgn) == "" {
-		return errors.New("PGN must not be empty")
+// validateTags checks the PGN tag pairs: each a name and a value.
+func validateTags(tags [][]string) error {
+	if len(tags) > maxTags {
+		return fmt.Errorf("A note can have at most %d PGN tags", maxTags)
 	}
-	if len(pgn) > maxPGNBytes {
-		return errors.New("PGN must be at most 64 KB")
-	}
-	if !utf8.ValidString(pgn) {
-		return errors.New("PGN must be valid UTF-8")
+	for _, pair := range tags {
+		if len(pair) != 2 || !tagName.MatchString(pair[0]) {
+			return errors.New("Each PGN tag must be a name, such as White, and a value")
+		}
+		if !utf8.ValidString(pair[1]) || utf8.RuneCountInString(pair[1]) > maxTagValueLen ||
+			strings.IndexFunc(pair[1], unicode.IsControl) >= 0 {
+			return fmt.Errorf("The %s tag must be at most %d characters with no control characters", pair[0], maxTagValueLen)
+		}
 	}
 	return nil
 }

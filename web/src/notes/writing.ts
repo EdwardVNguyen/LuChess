@@ -1,27 +1,34 @@
-import type { PlyWriting, PlyWritingInput } from '../api'
+import type { MoveRow } from '../api'
+import { NO_WRITING, hasWriting, type Writing } from '../chess/pgn'
+import type { MoveId } from '../chess/tree'
 
-/** One change to a Ply's writing: a Comment, a Body or a Glyph, leaving the rest as it was. */
-export type PlyChange = { ply: number } & Partial<PlyWritingInput>
+/** One change to a Move's writing: a Comment, a Body, a Glyph or the Drawings, leaving the rest as it was. */
+export type WritingChange = { move: MoveId } & Partial<Writing>
 
-const empty: PlyWritingInput = { comment: null, body: null, moveGlyph: null, positionGlyph: null }
+/** The whole writing on a Move after applying `change` to what is already there. */
+export function mergeWriting(saved: Writing | undefined, change: Partial<Writing>): Writing {
+  return { ...NO_WRITING, ...saved, ...change }
+}
 
-/** The whole writing on a Ply after applying `change` to what is already there. */
-export function mergeWriting(saved: PlyWritingInput | undefined, change: Partial<PlyWritingInput>): PlyWritingInput {
-  return {
-    comment: saved?.comment ?? empty.comment,
-    body: saved?.body ?? empty.body,
-    moveGlyph: saved?.moveGlyph ?? empty.moveGlyph,
-    positionGlyph: saved?.positionGlyph ?? empty.positionGlyph,
-    ...change,
+/** The writing in a row of the tree, without the rest of the row. */
+export function writingOf({ comment, body, moveGlyph, positionGlyph, drawings }: MoveRow): Writing {
+  return { comment, body, moveGlyph, positionGlyph, drawings }
+}
+
+/** The writing on each row that has some, by Move. */
+export function writingByMove(rows: readonly MoveRow[]): Map<MoveId, Writing> {
+  const writing = new Map<MoveId, Writing>()
+  for (const row of rows) {
+    const written = writingOf(row)
+    if (hasWriting(written)) writing.set(row.id, written)
   }
+  return writing
 }
 
-export function hasWriting(writing: PlyWritingInput): boolean {
-  return Boolean(writing.comment || writing.body || writing.moveGlyph || writing.positionGlyph)
-}
-
-/** The list of written Plies with `written` in place of its Ply's entry, dropped when it is now empty. */
-export function replaceWriting(plies: readonly PlyWriting[] | undefined, written: PlyWriting): PlyWriting[] {
-  const others = (plies ?? []).filter((p) => p.ply !== written.ply)
-  return hasWriting(written) ? [...others, written].sort((a, b) => a.ply - b.ply) : others
+/** `writing` with a Move's entry replaced, or dropped when it is now empty. */
+export function withWriting(writing: ReadonlyMap<MoveId, Writing>, move: MoveId, written: Writing): Map<MoveId, Writing> {
+  const next = new Map(writing)
+  if (hasWriting(written)) next.set(move, written)
+  else next.delete(move)
+  return next
 }

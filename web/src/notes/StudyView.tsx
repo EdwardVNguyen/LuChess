@@ -1,20 +1,9 @@
-import { ActionIcon, Alert, Button, CopyButton, Group, Text, Tooltip } from '@mantine/core'
-import { useId, useState, type ReactNode } from 'react'
-import type { PlyWriting } from '../api'
+import { ActionIcon, Button, CopyButton, Group, Text, Tooltip } from '@mantine/core'
+import { useId, useMemo, useState, type ReactNode } from 'react'
 import { Board } from '../board'
-import {
-  clampPly,
-  editMoves,
-  fenAt,
-  firstChangedPly,
-  gameFromMoves,
-  parsePgn,
-  plyLabel,
-  sansOf,
-  type Game,
-  type LegalMove,
-  type MovesEdit,
-} from '../chess/chess'
+import { plyLabel, type Game, type LegalMove } from '../chess/chess'
+import { exportPgn, tagRecord, type TagPair, type Writing } from '../chess/pgn'
+import { lineAsGame, lineThrough, mainLine, moveOf, type MoveId, type MoveTree } from '../chess/tree'
 import { noteDetails } from './details'
 import { CheckIcon, CopyIcon } from './icons'
 import { MoveList, Written } from './MoveList'
@@ -23,125 +12,111 @@ import { PaneToggle } from './PaneToggle'
 import { useCollapsible } from './useCollapsible'
 import styles from './Notes.module.css'
 import { PlyEditor } from './PlyEditor'
-import type { PlyChange } from './writing'
+import type { WritingChange } from './writing'
 
-/** Editing the moves is on while the caller passes this. */
+/** Playing moves on the board is on while the caller passes this. */
 export type MoveEditing = {
-  onCancel: () => void
-  /** Called with the edit to save; the caller confirms it and ends editing once saved. */
-  onSave: (edit: MovesEdit) => void
+  /**
+   * Adds a move after `parent`, and answers the Move it became (an existing
+   * one when that move was already played there), or null if it was not saved.
+   */
+  onPlay: (parent: MoveId, san: string) => Promise<MoveId | null> | MoveId | null
+  /** Deletes a Move and its subtree, confirming first if writing would go; true once deleted. */
+  onDelete: (move: MoveId) => Promise<boolean> | boolean
+  onDone: () => void
   saving: boolean
-  /** Why the last save failed. */
+  /** Why the last change failed. */
   error: string | null
-}
-
-/** What the writing column needs to know while the moves are edited. */
-export type MovesDraft = {
-  /** The first Ply that differs from the saved moves, or null while none does. */
-  firstChangedPly: number | null
 }
 
 /** What the board shows, for the writing column and the tools under the board. */
 export type StudyViewState = {
-  game: Game | null
-  ply: number
-  onPlyChange: (ply: number) => void
-  draft: MovesDraft | null
+  tree: MoveTree
+  /** The line through the current Move, as a Game for the Board: plies[n] is the Move at ply n. */
+  line: Game
+  current: MoveId
+  onMoveChange: (move: MoveId) => void
 }
 
 type StudyViewProps = {
   name: string
   /** Above the title: the Folders the Note is filed in. */
   eyebrow?: ReactNode
-  pgn: string
+  tree: MoveTree
+  /** The PGN tag pairs, for the details under the title and the PGN under the board. */
+  tags: readonly TagPair[]
+  /** The writing on each Move that has some, for the PGN under the board. */
+  writing: ReadonlyMap<MoveId, Writing>
+  /** How a Link reads in the PGN: its target's name, or null when unknown. */
+  linkName?: (target: number) => string | null
   /** Beside the title: the Note's menu, or a Guest's Save button. */
   actions: ReactNode
-  /**
-   * The writing column, given the game and the Ply the board is on. While the
-   * moves are edited, the game is the draft and `draft` says where it differs.
-   */
+  /** The writing column, given the tree and the Move the board is on. */
   children: (view: StudyViewState) => ReactNode
-  /** Under the board, above the FEN and PGN: the editor for the current Ply. */
+  /** Under the board, above the FEN and PGN: the editor for the current Move. */
   tools?: (view: StudyViewState) => ReactNode
-  /** The Ply to open at, e.g. where a Backlink points; the end of the game when absent. */
-  initialPly?: number
+  /** The Move to open at, e.g. where a Backlink points; the end of the Main line when absent. */
+  initialMove?: MoveId
   /** The margin: beside the writing on desktop, below it on tablet and mobile. */
   margin?: ReactNode
-  /** While set, the board plays moves into a draft of the Note's moves. */
+  /** While set, moves played on the board are added to the tree. */
   moveEditing?: MoveEditing | null
 }
 
+const noLinkNames = () => null
+
 // The study view shared by a saved Note and a Guest's unsaved one: the title,
 // the board and the writing column (design/screenshots/Note*.png), so the two
-// behave the same. Where the writing comes from and goes to is the caller's.
+// behave the same. Where the tree and writing come from and go to is the caller's.
 export function StudyView({
   name,
   eyebrow,
-  pgn,
+  tree,
+  tags,
+  writing,
+  linkName = noLinkNames,
   actions,
   children,
   tools,
-  initialPly,
+  initialMove,
   margin,
   moveEditing,
 }: StudyViewProps) {
-  const parsed = parsePgn(pgn)
-  // Open at the end of the game, so a pasted game shows its final position.
-  const [ply, setPly] = useState(() =>
-    parsed.ok ? clampPly(parsed.value, initialPly ?? parsed.value.plies.length - 1) : 0,
+  // Open at the end of the Main line, so a pasted game shows its final position.
+  const [chosen, setChosen] = useState<MoveId>(() =>
+    initialMove !== undefined && tree.moves.has(initialMove) ? initialMove : (mainLine(tree).at(-1)?.id ?? tree.root),
   )
-  const details = parsed.ok ? noteDetails(parsed.value.tags) : null
+  // A Move deleted from under the board leaves it at the Position.
+  const current = tree.moves.has(chosen) ? chosen : tree.root
+  const details = noteDetails(tagRecord(tags))
+  const line = useMemo(() => lineAsGame(lineThrough(tree, current), tagRecord(tags)), [tree, current, tags])
+  const ply = moveOf(tree, current).ply
+  const pgn = useMemo(() => exportPgn({ tree, tags, writing, linkName }).trimEnd(), [tree, tags, writing, linkName])
   // On desktop the margin can be collapsed to a rail (#61); below, it is always open.
   const marginPane = useCollapsible('margin')
   const marginId = useId()
 
-  // The moves as edited so far; null until the first change. Each time
-  // editing starts or ends, the draft starts again from the saved moves.
-  const editing = Boolean(moveEditing) && parsed.ok
-  const [draft, setDraft] = useState<string[] | null>(null)
-  const [wasEditing, setWasEditing] = useState(editing)
-  if (editing !== wasEditing) {
-    setWasEditing(editing)
-    setDraft(null)
-  }
-  const saved = parsed.ok ? parsed.value : null
-  const savedSans = saved ? sansOf(saved) : []
-  const drafted = editing && saved && draft ? gameFromMoves(saved.startFen, draft) : null
-  const game = drafted?.ok ? drafted.value : saved
-  const sans = editing && draft ? draft : savedSans
-  const changedFrom = editing && draft ? firstChangedPly(savedSans, draft) : null
-
-  // A move played from a Ply replaces the rest of the game, unless it is the
-  // move already there, which only steps forward.
-  function play(move: LegalMove) {
-    if (!game) return
-    const from = clampPly(game, ply)
-    if (sans[from] !== move.san) setDraft([...sans.slice(0, from), move.san])
-    setPly(from + 1)
+  // A move already played after the current Move steps onto it; any other
+  // is added after it, extending the line or starting a Variation.
+  async function play(move: LegalMove) {
+    if (!moveEditing) return
+    const existing = moveOf(tree, current).children.find((child) => moveOf(tree, child).san === move.san)
+    if (existing !== undefined) return setChosen(existing)
+    const added = await moveEditing.onPlay(current, move.san)
+    if (added !== null) setChosen(added)
   }
 
-  // Deleting a move deletes the moves after it, which no longer follow.
-  function deleteMove() {
-    if (!game) return
-    const at = clampPly(game, ply)
-    if (at === 0) return
-    setDraft(sans.slice(0, at - 1))
-    setPly(at - 1)
-  }
-
-  // The moves as they would be saved: the draft while there is one.
-  const edit = editing && draft ? editMoves(pgn, sans) : null
-  const shownPgn = edit?.ok && edit.value ? edit.value.pgn : pgn
-
-  function save() {
-    if (edit?.ok && edit.value) moveEditing?.onSave(edit.value)
+  async function deleteMove() {
+    const parent = moveOf(tree, current).parent
+    if (!moveEditing || parent === null) return
+    if (await moveEditing.onDelete(current)) setChosen(parent)
   }
 
   const view: StudyViewState = {
-    game,
-    ply,
-    onPlyChange: setPly,
-    draft: editing ? { firstChangedPly: changedFrom } : null,
+    tree,
+    line,
+    current,
+    onMoveChange: setChosen,
   }
 
   return (
@@ -155,30 +130,17 @@ export function StudyView({
           </div>
           {details && <div className={styles.details}>{details}</div>}
         </div>
-        {!parsed.ok ? (
-          <Alert color="red" title="This note's moves could not be read">
-            {parsed.error}
-          </Alert>
-        ) : (
-          game && (
-            <>
-              <Board mode="view" game={game} ply={ply} onPlyChange={setPly} onMove={editing ? play : undefined} />
-              {editing && moveEditing && (
-                <MoveEditBar
-                  game={game}
-                  ply={clampPly(game, ply)}
-                  changed={changedFrom !== null}
-                  editing={moveEditing}
-                  onDelete={deleteMove}
-                  onSave={save}
-                />
-              )}
-              <BoardTools fen={fenAt(game, ply)} pgn={shownPgn}>
-                {tools?.(view)}
-              </BoardTools>
-            </>
-          )
-        )}
+        <Board
+          mode="view"
+          game={line}
+          ply={ply}
+          onPlyChange={(next) => setChosen(line.plies[Math.min(Math.max(next, 0), line.plies.length - 1)].id ?? tree.root)}
+          onMove={moveEditing ? (move) => void play(move) : undefined}
+        />
+        {moveEditing && <MoveEditBar game={line} ply={ply} editing={moveEditing} onDelete={() => void deleteMove()} />}
+        <BoardTools fen={line.plies[ply].fen} pgn={pgn}>
+          {tools?.(view)}
+        </BoardTools>
       </section>
       <PaneEdge pane="board" hasMargin={Boolean(margin)} />
       <section className={styles.movesColumn} aria-label="Writing">
@@ -207,41 +169,33 @@ export function StudyView({
   )
 }
 
-// Under the board while the moves are edited: what playing a move does, and
-// Delete, Cancel and Save. Nothing is saved until Save.
+// Under the board while moves are played: what playing a move does, Delete
+// from the current Move, and Done. Each move is saved as it is played.
 function MoveEditBar({
   game,
   ply,
-  changed,
   editing,
   onDelete,
-  onSave,
 }: {
   game: Game
   ply: number
-  changed: boolean
   editing: MoveEditing
   onDelete: () => void
-  onSave: () => void
 }) {
   const label = plyLabel(game.plies[ply])
   return (
     <div className={styles.editBar} role="region" aria-label="Editing moves">
       <Text className={styles.editHint}>
-        Play a move on the board to replace the game from there. Deleting a move deletes the moves after it.
+        Play a move on the board to add it. A move other than the next one starts a Variation. Deleting a move deletes
+        the moves after it.
       </Text>
       <Group gap="xs" justify="space-between">
         <Button variant="default" size="xs" disabled={label === null || editing.saving} onClick={onDelete}>
           {label === null ? 'Delete move' : `Delete ${label}`}
         </Button>
-        <Group gap="xs">
-          <Button variant="default" size="xs" disabled={editing.saving} onClick={editing.onCancel}>
-            Cancel
-          </Button>
-          <Button size="xs" disabled={!changed} loading={editing.saving} onClick={onSave}>
-            Save moves
-          </Button>
-        </Group>
+        <Button size="xs" loading={editing.saving} onClick={editing.onDone}>
+          Done
+        </Button>
       </Group>
       {editing.error && (
         <Text c="accent" size="sm" role="alert">
@@ -252,9 +206,9 @@ function MoveEditBar({
   )
 }
 
-// Under the board, as in a Lichess Study: the editor for the current Ply, then
-// the current Position's FEN and the Note's PGN to copy. Both are read only:
-// changing the moves goes through editing them (ADR 0003).
+// Under the board, as in a Lichess Study: the editor for the current Move,
+// then the current position's FEN and the Note's PGN to copy. The PGN is
+// written from the tree; it can be copied but not edited (ADR 0009).
 function BoardTools({ fen, pgn, children }: { fen: string; pgn: string; children: ReactNode }) {
   const fenId = useId()
   const pgnId = useId()
@@ -300,21 +254,21 @@ function CopyValue({ value, label }: { value: string; label: string }) {
 }
 
 type WritingViewProps = {
-  game: Game | null
-  ply: number
-  onPlyChange: (ply: number) => void
-  /** The writing on each Ply that has some, by Ply. */
-  writing: ReadonlyMap<number, PlyWriting>
+  tree: MoveTree
+  current: MoveId
+  onMoveChange: (move: MoveId) => void
+  /** The writing on each Move that has some, by Move. */
+  writing: ReadonlyMap<MoveId, Writing>
   /** Shown above the moves, e.g. why the writing could not be loaded. */
   aboveMoves?: ReactNode
   /** Shown below the moves, e.g. loading. */
   belowMoves?: ReactNode
 }
 
-// The big idea (the Body at ply 0) and the line of thought (the moves with
-// their Glyphs, Comments and Bodies). The editors are under the board.
-export function WritingView({ game, ply, onPlyChange, writing, aboveMoves, belowMoves }: WritingViewProps) {
-  const bigIdea = writing.get(0)?.body
+// The big idea (the Body on the Position) and the line of thought (the moves
+// with their Variations, Glyphs, Comments and Bodies). The editors are under the board.
+export function WritingView({ tree, current, onMoveChange, writing, aboveMoves, belowMoves }: WritingViewProps) {
+  const bigIdea = writing.get(tree.root)?.body
 
   return (
     <>
@@ -322,7 +276,7 @@ export function WritingView({ game, ply, onPlyChange, writing, aboveMoves, below
         <>
           <div className={styles.bigIdeaBlock}>
             <div className={styles.eyebrow}>The big idea</div>
-            <p className={styles.bigIdea} data-current={ply === 0 || undefined}>
+            <p className={styles.bigIdea} data-current={current === tree.root || undefined}>
               <Written text={bigIdea} />
             </p>
           </div>
@@ -332,36 +286,37 @@ export function WritingView({ game, ply, onPlyChange, writing, aboveMoves, below
       <div className={styles.lineBlock}>
         <div className={styles.eyebrow}>Line of thought</div>
         {aboveMoves}
-        {game && <MoveList game={game} ply={ply} onPlyChange={onPlyChange} writing={writing} />}
+        <MoveList tree={tree} current={current} onMoveChange={onMoveChange} writing={writing} />
         {belowMoves}
       </div>
     </>
   )
 }
 
-type CurrentPlyEditorProps = {
-  game: Game | null
-  ply: number
-  /** The writing on each Ply that has some, by Ply. */
-  writing: ReadonlyMap<number, PlyWriting>
+type CurrentMoveEditorProps = {
+  line: Game
+  current: MoveId
+  tree: MoveTree
+  /** The writing on each Move that has some, by Move. */
+  writing: ReadonlyMap<MoveId, Writing>
   /** False while the writing is loading or could not be loaded: there is nothing to edit yet. */
   editable: boolean
-  onSave: (change: PlyChange) => void
+  onSave: (change: WritingChange) => void
   /** Shown under the editor, e.g. "Saving…", or why a save failed. */
   belowEditor?: ReactNode
 }
 
-// The editors for the current Ply, for the tools under the board.
-export function CurrentPlyEditor({ game, ply, writing, editable, onSave, belowEditor }: CurrentPlyEditorProps) {
-  const current = game?.plies[clampPly(game, ply)]
+// The editors for the current Move, for the tools under the board.
+export function CurrentMoveEditor({ line, current, tree, writing, editable, onSave, belowEditor }: CurrentMoveEditorProps) {
+  const ply = line.plies[moveOf(tree, current).ply]
   return (
     <>
-      {editable && current && (
+      {editable && ply && (
         <PlyEditor
-          key={current.index}
-          ply={current}
-          writing={writing.get(current.index)}
-          onSave={(change) => onSave({ ply: current.index, ...change })}
+          key={current}
+          ply={ply}
+          writing={writing.get(current)}
+          onSave={(change) => onSave({ move: current, ...change })}
         />
       )}
       {belowEditor}

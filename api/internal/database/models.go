@@ -7,6 +7,7 @@ package database
 import (
 	"database/sql"
 	"database/sql/driver"
+	"encoding/json"
 	"fmt"
 	"time"
 )
@@ -115,35 +116,38 @@ type Folder struct {
 }
 
 type Link struct {
-	NoteID   int64
-	Ply      int32
+	MoveID   int64
 	Part     string
 	TargetID int64
+}
+
+type Move struct {
+	ID            int64
+	NoteID        int64
+	ParentID      sql.NullInt64
+	Ord           int32
+	San           sql.NullString
+	Comment       sql.NullString
+	Body          sql.NullString
+	MoveGlyph     sql.NullString
+	PositionGlyph sql.NullString
+	Drawings      json.RawMessage
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
 }
 
 type Note struct {
 	ID        int64
 	UserID    int32
 	Name      string
-	Pgn       string
 	StartFen  sql.NullString
 	CreatedAt time.Time
 	UpdatedAt time.Time
+	FolderID  sql.NullInt64
+	Tags      json.RawMessage
 	White     sql.NullString
 	Black     sql.NullString
 	GameDate  sql.NullString
-	FolderID  sql.NullInt64
-}
-
-type Ply struct {
-	NoteID        int64
-	Ply           int32
-	Comment       sql.NullString
-	Body          sql.NullString
-	MoveGlyph     sql.NullString
-	PositionGlyph sql.NullString
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
 }
 
 type RefreshToken struct {

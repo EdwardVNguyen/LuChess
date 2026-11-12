@@ -664,6 +664,60 @@
   outline-offset: 1px;
 }
 
+/* Variations: greyed, smaller and indented under the move they replace, as
+   on Lichess. Deeper Variations run inline, in parentheses. */
+.variations {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-left: 6px;
+  padding-left: 10px;
+  border-left: 2px solid var(--cn-rule);
+}
+
+.variation {
+  margin: 0;
+  font-family: var(--cn-font);
+  font-size: 13.5px;
+  line-height: 1.7;
+  color: var(--cn-muted);
+}
+
+.variation .move {
+  font-weight: 400;
+  color: var(--cn-muted);
+}
+
+.variation .move:hover,
+.variation .move[aria-current='step'] {
+  color: var(--cn-ink);
+}
+
+.variation .move[aria-current='step'] {
+  font-weight: 600;
+}
+
+.variation .moveNumber {
+  font-size: 12px;
+}
+
+.variation .comment {
+  font-size: 13.5px;
+}
+
+.nestedVariation .moveGroup:first-child .moveNumber {
+  margin-left: 0;
+}
+
+/* The last move's padding would leave a gap before the closing parenthesis. */
+.nestedVariation > .moveGroup:last-child {
+  margin-right: -4px;
+}
+
+.inlineBody {
+  font-style: italic;
+}
+
 .body {
   margin: 0;
   padding-left: 4px;

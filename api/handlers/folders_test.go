@@ -200,7 +200,7 @@ func TestMoveANoteBetweenFoldersAndToTheRoot(t *testing.T) {
 	s := loggedInAs(t, a, "ada@example.com", "Ada")
 	openings := a.mustCreateFolder(s, "Openings", nil)
 	endgames := a.mustCreateFolder(s, "Endgames", nil)
-	n := a.mustCreateNote(s, "Lucena", samplePGN, nil)
+	n := a.mustCreateNote(s, "Lucena", sampleTags, nil)
 	before := a.getNote(s, n.ID)
 	a.clock.Advance(1)
 
@@ -234,7 +234,7 @@ func TestMoveANoteBetweenFoldersAndToTheRoot(t *testing.T) {
 func TestFilingANoteNeedsAFolderID(t *testing.T) {
 	a := newApp(t)
 	s := loggedInAs(t, a, "ada@example.com", "Ada")
-	n := a.mustCreateNote(s, "Lucena", samplePGN, nil)
+	n := a.mustCreateNote(s, "Lucena", sampleTags, nil)
 
 	if rec := a.send(http.MethodPut, notePath(n.ID)+"/folder", `{}`, withBearer(s.AccessToken)); rec.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, want 400", rec.Code)
@@ -249,7 +249,7 @@ func TestCreatingANoteInAFolder(t *testing.T) {
 	s := loggedInAs(t, a, "ada@example.com", "Ada")
 	endgames := a.mustCreateFolder(s, "Endgames", nil)
 
-	body := fmt.Sprintf(`{"name":"Lucena","pgn":%q,"folderId":%d}`, samplePGN, endgames.ID)
+	body := fmt.Sprintf(`{"name":"Lucena","folderId":%d}`, endgames.ID)
 	rec := a.createNote(s, body)
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("status = %d (body %s)", rec.Code, rec.Body)
@@ -266,7 +266,7 @@ func TestCreatingANoteInAFolder(t *testing.T) {
 	// Another user's Folder answers like a missing one, and no Note is made
 	other := loggedInAs(t, a, "bob@example.com", "Bob")
 	theirs := a.mustCreateFolder(other, "Theirs", nil)
-	body = fmt.Sprintf(`{"name":"Elsewhere","pgn":%q,"folderId":%d}`, samplePGN, theirs.ID)
+	body = fmt.Sprintf(`{"name":"Elsewhere","folderId":%d}`, theirs.ID)
 	if rec := a.createNote(s, body); rec.Code != http.StatusNotFound {
 		t.Fatalf("another user's folder: status = %d, want 404", rec.Code)
 	}
@@ -300,11 +300,11 @@ func TestDeletingAFolderWithContentsIsConfirmedAndKeepsEveryNote(t *testing.T) {
 	a.mustCreateFolder(s, "Sicilian", &openings.ID)
 	endgames := a.mustCreateFolder(s, "Endgames", nil)
 
-	inOpenings := a.mustCreateNote(s, "In openings", samplePGN, nil)
-	inQGD := a.mustCreateNote(s, "In QGD", samplePGN, nil)
-	inTartakower := a.mustCreateNote(s, "In Tartakower", samplePGN, nil)
-	inEndgames := a.mustCreateNote(s, "In endgames", samplePGN, nil)
-	a.mustCreateNote(s, "At the root", samplePGN, nil)
+	inOpenings := a.mustCreateNote(s, "In openings", sampleTags, nil)
+	inQGD := a.mustCreateNote(s, "In QGD", sampleTags, nil)
+	inTartakower := a.mustCreateNote(s, "In Tartakower", sampleTags, nil)
+	inEndgames := a.mustCreateNote(s, "In endgames", sampleTags, nil)
+	a.mustCreateNote(s, "At the root", sampleTags, nil)
 	a.mustFileNote(s, inOpenings.ID, &openings.ID)
 	a.mustFileNote(s, inQGD.ID, &qgd.ID)
 	a.mustFileNote(s, inTartakower.ID, &tartakower.ID)
@@ -354,7 +354,7 @@ func TestDeletingASubfolderLeavesItsParent(t *testing.T) {
 	s := loggedInAs(t, a, "ada@example.com", "Ada")
 	openings := a.mustCreateFolder(s, "Openings", nil)
 	qgd := a.mustCreateFolder(s, "QGD", &openings.ID)
-	n := a.mustCreateNote(s, "In QGD", samplePGN, nil)
+	n := a.mustCreateNote(s, "In QGD", sampleTags, nil)
 	a.mustFileNote(s, n.ID, &qgd.ID)
 
 	rec := a.deleteFolder(s, qgd.ID, false)
@@ -383,8 +383,8 @@ func TestAnotherUsersFoldersAreNotFound(t *testing.T) {
 	bob := loggedInAs(t, a, "bob@example.com", "Bob")
 	adas := a.mustCreateFolder(ada, "Private", nil)
 	bobsFolder := a.mustCreateFolder(bob, "Bob's", nil)
-	adasNote := a.mustCreateNote(ada, "Ada's note", samplePGN, nil)
-	bobsNote := a.mustCreateNote(bob, "Bob's note", samplePGN, nil)
+	adasNote := a.mustCreateNote(ada, "Ada's note", sampleTags, nil)
+	bobsNote := a.mustCreateNote(bob, "Bob's note", sampleTags, nil)
 
 	requests := map[string]*httptest.ResponseRecorder{
 		"rename":                  a.send(http.MethodPatch, folderPath(adas.ID), `{"name":"Mine now"}`, withBearer(bob.AccessToken)),
@@ -441,9 +441,9 @@ func TestSearchMatchesFolderNamesAndShowsTheFolderPath(t *testing.T) {
 	s := loggedInAs(t, a, "ada@example.com", "Ada")
 	masters := a.mustCreateFolder(s, "Masters", nil)
 	spassky := a.mustCreateFolder(s, "Spassky", &masters.ID)
-	inFolder := a.mustCreateNote(s, "Game 6", samplePGN, nil)
+	inFolder := a.mustCreateNote(s, "Game 6", sampleTags, nil)
 	a.mustFileNote(s, inFolder.ID, &spassky.ID)
-	a.mustCreateNote(s, "Rook endings", samplePGN, nil)
+	a.mustCreateNote(s, "Rook endings", sampleTags, nil)
 
 	got := a.searchWithPaths(s, "masters")
 
@@ -464,8 +464,8 @@ func TestSearchTellsSameNamedNotesApartByFolder(t *testing.T) {
 	s := loggedInAs(t, a, "ada@example.com", "Ada")
 	fischer := a.mustCreateFolder(s, "Fischer", nil)
 	club := a.mustCreateFolder(s, "Club games", nil)
-	first := a.mustCreateNote(s, "Game 6", samplePGN, nil)
-	second := a.mustCreateNote(s, "Game 6", samplePGN, nil)
+	first := a.mustCreateNote(s, "Game 6", sampleTags, nil)
+	second := a.mustCreateNote(s, "Game 6", sampleTags, nil)
 	a.mustFileNote(s, first.ID, &fischer.ID)
 	a.mustFileNote(s, second.ID, &club.ID)
 
@@ -482,10 +482,10 @@ func TestSearchRanksNameMatchesAboveFolderMatches(t *testing.T) {
 	a := newApp(t)
 	s := loggedInAs(t, a, "ada@example.com", "Ada")
 	endgames := a.mustCreateFolder(s, "Endgames", nil)
-	byFolder := a.mustCreateNote(s, "Lucena", samplePGN, nil)
+	byFolder := a.mustCreateNote(s, "Lucena", sampleTags, nil)
 	a.mustFileNote(s, byFolder.ID, &endgames.ID)
 	a.clock.Advance(1)
-	a.mustCreateNote(s, "Endgames I lost", samplePGN, nil)
+	a.mustCreateNote(s, "Endgames I lost", sampleTags, nil)
 
 	got := names(a.search(s, "endgames"))
 
@@ -499,7 +499,7 @@ func TestSearchNeverMatchesAnotherUsersFolders(t *testing.T) {
 	ada := loggedInAs(t, a, "ada@example.com", "Ada")
 	bob := loggedInAs(t, a, "bob@example.com", "Bob")
 	a.mustCreateFolder(bob, "Masters", nil)
-	a.mustCreateNote(ada, "Game 6", samplePGN, nil)
+	a.mustCreateNote(ada, "Game 6", sampleTags, nil)
 
 	if got := a.search(ada, "Masters"); len(got) != 0 {
 		t.Fatalf("results = %v", names(got))

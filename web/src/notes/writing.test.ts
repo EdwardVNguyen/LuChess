@@ -1,26 +1,29 @@
 import { describe, expect, it } from 'vitest'
-import type { PlyWriting } from '../api'
-import { hasWriting, mergeWriting, replaceWriting } from './writing'
+import type { MoveRow } from '../api'
+import { NO_WRITING } from '../chess/pgn'
+import { mergeWriting, withWriting, writingByMove } from './writing'
 
-function written(ply: number, fields: Partial<PlyWriting>): PlyWriting {
-  return { ply, comment: null, body: null, moveGlyph: null, positionGlyph: null, updatedAt: '', ...fields }
+function row(id: number, fields: Partial<MoveRow>): MoveRow {
+  return { id, parentId: id === 1 ? null : 1, san: id === 1 ? null : 'e4', updatedAt: '', ...NO_WRITING, ...fields }
 }
 
 describe('writing', () => {
-  it('merges one change onto what a Ply already has', () => {
-    expect(mergeWriting(written(3, { comment: 'Sharp.', moveGlyph: '!' }), { positionGlyph: '±' })).toEqual({
+  it('merges one change onto what a Move already has, keeping its Drawings', () => {
+    const drawings = [{ from: 'e2', to: 'e4', brush: 'green' as const }]
+    expect(mergeWriting({ ...NO_WRITING, comment: 'Sharp.', moveGlyph: '!', drawings }, { positionGlyph: '±' })).toEqual({
       comment: 'Sharp.',
       body: null,
       moveGlyph: '!',
       positionGlyph: '±',
+      drawings,
     })
-    expect(mergeWriting(undefined, { body: 'Then…' })).toEqual({ comment: null, body: 'Then…', moveGlyph: null, positionGlyph: null })
+    expect(mergeWriting(undefined, { body: 'Then…' })).toEqual({ ...NO_WRITING, body: 'Then…' })
   })
 
-  it('keeps written Plies in order and drops one left empty', () => {
-    const plies = [written(1, { comment: 'a' }), written(5, { body: 'b' })]
-    expect(replaceWriting(plies, written(3, { moveGlyph: '?' })).map((p) => p.ply)).toEqual([1, 3, 5])
-    expect(replaceWriting(plies, written(5, {})).map((p) => p.ply)).toEqual([1])
-    expect(hasWriting(written(0, {}))).toBe(false)
+  it('keeps the writing of rows that have some, and drops a Move left empty', () => {
+    const writing = writingByMove([row(1, { body: 'The idea.' }), row(2, {}), row(3, { drawings: [{ from: 'e4', brush: 'red' }] })])
+    expect([...writing.keys()]).toEqual([1, 3])
+    expect([...withWriting(writing, 1, NO_WRITING).keys()]).toEqual([3])
+    expect(withWriting(writing, 2, { ...NO_WRITING, moveGlyph: '?' }).get(2)?.moveGlyph).toBe('?')
   })
 })

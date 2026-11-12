@@ -77,7 +77,7 @@ async function shootOne(browser: Browser, baseUrl: string, entry: ShotEntry, siz
   })
   const page = await context.newPage()
   try {
-    await installApiMocks(page, entry.fixtures, entry.notes, entry.search, entry.plies, entry.links, entry.moves)
+    await installApiMocks(page, entry.fixtures, entry.notes, entry.search, entry.moves, entry.links)
     if (entry.theme) {
       await page.addInitScript((theme) => window.localStorage.setItem('chessnotes:theme', theme), entry.theme)
     }
@@ -95,6 +95,9 @@ async function shootOne(browser: Browser, baseUrl: string, entry: ShotEntry, siz
       }`,
     })
     await entry.setup?.(page)
+    // react-chessboard animates moves in JavaScript, which the style above
+    // cannot stop: let a jump between positions finish before the capture.
+    await page.waitForTimeout(400)
 
     const fileName = `${entry.name}${size.suffix}.png`
     await page.screenshot({ path: path.join(outDir, fileName), fullPage: true })

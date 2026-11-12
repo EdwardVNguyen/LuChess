@@ -2,8 +2,8 @@ import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
-import type { PlyWriting } from '../api'
 import { gameFromMoves, START_FEN } from '../chess/chess'
+import { NO_WRITING, type Writing } from '../chess/pgn'
 import { renderWithTheme } from '../overlay/testUtils'
 import { PlyEditor } from './PlyEditor'
 
@@ -11,8 +11,8 @@ const result = gameFromMoves(START_FEN, ['e4', 'e5'])
 if (!result.ok) throw new Error(result.error)
 const game = result.value
 
-function written(fields: Partial<PlyWriting>): PlyWriting {
-  return { ply: 1, comment: null, body: null, moveGlyph: null, positionGlyph: null, updatedAt: '', ...fields }
+function written(fields: Partial<Writing>): Writing {
+  return { ...NO_WRITING, ...fields }
 }
 
 describe('PlyEditor', () => {
@@ -41,14 +41,14 @@ describe('PlyEditor', () => {
   it('sets, replaces and clears a Glyph', async () => {
     const onSave = vi.fn()
     function Saving() {
-      const [writing, setWriting] = useState<PlyWriting | undefined>(undefined)
+      const [writing, setWriting] = useState<Writing | undefined>(undefined)
       return (
         <PlyEditor
           ply={game.plies[2]}
           writing={writing}
           onSave={(change) => {
             onSave(change)
-            setWriting(written({ ...writing, ...change, ply: 2 }))
+            setWriting(written({ ...writing, ...change }))
           }}
         />
       )
