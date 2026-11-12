@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { START_FEN } from './chess'
 import { fischerSpassky1972Game6 } from './fixtures'
-import { exportPgn, importPgn, MAX_PGN_BYTES, tagRecord, type ImportedNote, type Writing } from './pgn'
+import { exportPgn, MAX_PGN_BYTES, tagRecord, type ImportedNote, type Writing } from './pgn'
+import { importPgn } from './pgnImport'
 import { mainLine, moveOf, type MoveTree } from './tree'
 
 function imported(pgn: string): ImportedNote {
