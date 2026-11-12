@@ -136,4 +136,27 @@ describe('GuestPage', () => {
     renderGuestPage({ status: 'authenticated', user: { id: 1, email: 'ada@example.com', name: 'Ada' } })
     expect(await screen.findByText('New note page')).toBeInTheDocument()
   })
+
+  it('shows the editor, the current FEN and the PGN under the board, to copy', async () => {
+    const user = userEvent.setup()
+    renderGuestPage()
+    await startFromPgn('1. e4 e5 *', 'Open games')
+
+    const tools = await screen.findByRole('region', { name: 'Tools' })
+    expect(within(tools).getByRole('region', { name: 'Writing on 1…e5' })).toBeInTheDocument()
+    const fen = within(tools).getByRole('textbox', { name: 'FEN' })
+    expect(fen).toHaveValue('rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2')
+    expect(fen).toHaveAttribute('readonly')
+    expect(within(tools).getByRole('textbox', { name: 'PGN' })).toHaveValue('1. e4 e5 *')
+
+    // The FEN follows the Ply the board is on.
+    await user.click(screen.getByRole('button', { name: 'First move' }))
+    expect(fen).toHaveValue('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1')
+    expect(within(tools).getByRole('region', { name: 'Writing on the position' })).toBeInTheDocument()
+
+    await user.click(within(tools).getByRole('button', { name: 'Copy FEN' }))
+    expect(await navigator.clipboard.readText()).toBe('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1')
+    await user.click(within(tools).getByRole('button', { name: 'Copy PGN' }))
+    expect(await navigator.clipboard.readText()).toBe('1. e4 e5 *')
+  })
 })

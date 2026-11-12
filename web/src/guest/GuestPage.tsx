@@ -6,7 +6,7 @@ import { ConfirmDialog, ResponsiveDialog, useOverlaySize, type OverlaySize } fro
 import { BookmarkIcon, MoreIcon } from '../notes/icons'
 import noteStyles from '../notes/Notes.module.css'
 import { NoteStartForm } from '../notes/NoteStartForm'
-import { StudyView, WritingView } from '../notes/StudyView'
+import { CurrentPlyEditor, StudyView, WritingView } from '../notes/StudyView'
 import { mergeWriting, replaceWriting, type PlyChange } from '../notes/writing'
 import { useSession } from '../session'
 import styles from './Guest.module.css'
@@ -119,8 +119,9 @@ function GuestNote({ note, size, onSave, onStartOver }: GuestNoteProps) {
             </Menu>
           </div>
         }
+        tools={(view) => <CurrentPlyEditor {...view} writing={writing} editable onSave={write} />}
       >
-        {(view) => <WritingView {...view} writing={writing} editable onSave={write} />}
+        {(view) => <WritingView {...view} writing={writing} />}
       </StudyView>
       <ConfirmDialog
         size={size}

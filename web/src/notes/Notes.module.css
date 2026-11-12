@@ -1079,3 +1079,52 @@
   line-height: 1.45;
   color: var(--cn-muted);
 }
+
+/* Under the board (#72): the editor for the current Ply, then the FEN and the
+ * PGN to copy, as in a Lichess Study. */
+.boardTools {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.copyField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.copyFields {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--cn-rule);
+}
+
+.copyFieldHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* Read only: selectable to copy by hand, but it never changes the Note. */
+.copyInput {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  background: var(--cn-card);
+  border: 1px solid var(--cn-edge);
+  border-radius: var(--cn-radius-button);
+  font-family: var(--cn-font);
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--cn-ink);
+  resize: vertical;
+}
+
+.copyInput:focus-visible {
+  outline: 2px solid var(--cn-ink);
+  outline-offset: 1px;
+}

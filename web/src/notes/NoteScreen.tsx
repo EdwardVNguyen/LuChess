@@ -15,7 +15,7 @@ import { NoteTree } from './NoteTree'
 import styles from './Notes.module.css'
 import { NoteMargin } from './NoteMargin'
 import { useEditMoves, useFolders, useNote, useNoteLinks, usePlies, useSavePly } from './queries'
-import { StudyView, WritingView, type MovesDraft } from './StudyView'
+import { CurrentPlyEditor, StudyView, WritingView, type MovesDraft } from './StudyView'
 
 export function NoteScreen() {
   const { noteId } = useParams({ from: '/notes/$noteId' })
@@ -62,6 +62,8 @@ function LoadedNote({ id, initialPly }: { id: number; initialPly: number | undef
 function NoteView({ note, initialPly }: { note: Note; initialPly: number | undefined }) {
   const linking = useNoteLinking(note.id)
   const moves = useMoveEditing(note)
+  const plies = usePlies(note.id)
+  const save = useSavePly(note.id)
   const folders = useFolders()
   const path = folderPath(folders.data ?? [], note.folderId).map((folder) => folder.name)
   return (
@@ -75,8 +77,9 @@ function NoteView({ note, initialPly }: { note: Note; initialPly: number | undef
         initialPly={initialPly}
         margin={<NoteMargin noteId={note.id} />}
         moveEditing={moves.editing}
+        tools={(view) => <Editor plies={plies} save={save} {...view} />}
       >
-        {(view) => <Writing noteId={note.id} scrollToCurrent={initialPly !== undefined} {...view} />}
+        {(view) => <Writing plies={plies} scrollToCurrent={initialPly !== undefined} {...view} />}
       </StudyView>
       {moves.confirmDialog}
     </LinkingContext>
@@ -173,16 +176,29 @@ function useNoteLinking(noteId: number): Linking {
   return useMemo(() => ({ resolve, noteId }), [resolve, noteId])
 }
 
-// The Note's writing, loaded from and saved to the API.
+type Plies = ReturnType<typeof usePlies>
+type SavePly = ReturnType<typeof useSavePly>
+
+// The Note's writing by Ply. While the moves are edited, the writing from the
+// first changed Ply on is not shown, as saving deletes it.
+function useShownWriting(plies: Plies, draft: MovesDraft | null) {
+  const cut = draft?.firstChangedPly ?? null
+  return useMemo(() => {
+    const kept = (plies.data ?? []).filter((p: PlyWriting) => cut === null || p.ply < cut)
+    return new Map(kept.map((p) => [p.ply, p]))
+  }, [plies.data, cut])
+}
+
+// The Note's writing, loaded from the API.
 function Writing({
-  noteId,
+  plies,
   scrollToCurrent,
   game,
   ply,
   onPlyChange,
   draft,
 }: {
-  noteId: number
+  plies: Plies
   /** Bring the current Ply's writing into view once it loads, as when arriving by a Backlink. */
   scrollToCurrent: boolean
   game: Game | null
@@ -191,13 +207,7 @@ function Writing({
   /** While the moves are edited: the writing from the first changed Ply on is not shown, as saving deletes it. */
   draft: MovesDraft | null
 }) {
-  const plies = usePlies(noteId)
-  const save = useSavePly(noteId)
-  const writing = useMemo(() => {
-    const cut = draft?.firstChangedPly ?? null
-    const kept = (plies.data ?? []).filter((p: PlyWriting) => cut === null || p.ply < cut)
-    return new Map(kept.map((p) => [p.ply, p]))
-  }, [plies.data, draft?.firstChangedPly])
+  const writing = useShownWriting(plies, draft)
   const anchor = useRef<HTMLDivElement>(null)
   const scrolled = useRef(!scrollToCurrent)
 
@@ -216,8 +226,6 @@ function Writing({
         ply={ply}
         onPlyChange={onPlyChange}
         writing={writing}
-        editable={plies.isSuccess && draft === null}
-        onSave={(change) => save.mutate(change)}
         aboveMoves={
           plies.isError && (
             <Alert color="red" title="Could not load your writing">
@@ -231,27 +239,55 @@ function Writing({
           )
         }
         belowMoves={
-          <>
-            {plies.isPending && (
-              <div className={styles.writingLoading}>
-                <Loader size="sm" aria-label="Loading your writing" />
-              </div>
-            )}
-            {save.isError && save.variables && (
-              <Alert color="red" title="Your writing was not saved">
-                <Stack gap="sm" align="flex-start">
-                  <Text size="sm">{errorMessage(save.error)}</Text>
-                  <Button variant="light" onClick={() => save.mutate(save.variables)}>
-                    Try again
-                  </Button>
-                </Stack>
-              </Alert>
-            )}
-          </>
+          plies.isPending && (
+            <div className={styles.writingLoading}>
+              <Loader size="sm" aria-label="Loading your writing" />
+            </div>
+          )
         }
-        belowEditor={save.isPending && <div className={styles.saving}>Saving…</div>}
       />
     </>
+  )
+}
+
+// The editor for the current Ply, under the board, saving to the API.
+function Editor({
+  plies,
+  save,
+  game,
+  ply,
+  draft,
+}: {
+  plies: Plies
+  save: SavePly
+  game: Game | null
+  ply: number
+  draft: MovesDraft | null
+}) {
+  const writing = useShownWriting(plies, draft)
+  return (
+    <CurrentPlyEditor
+      game={game}
+      ply={ply}
+      writing={writing}
+      editable={plies.isSuccess && draft === null}
+      onSave={(change) => save.mutate(change)}
+      belowEditor={
+        <>
+          {save.isError && save.variables && (
+            <Alert color="red" title="Your writing was not saved">
+              <Stack gap="sm" align="flex-start">
+                <Text size="sm">{errorMessage(save.error)}</Text>
+                <Button variant="light" onClick={() => save.mutate(save.variables)}>
+                  Try again
+                </Button>
+              </Stack>
+            </Alert>
+          )}
+          {save.isPending && <div className={styles.saving}>Saving…</div>}
+        </>
+      }
+    />
   )
 }
 
