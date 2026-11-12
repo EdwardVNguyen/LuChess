@@ -1,7 +1,8 @@
-import { UnstyledButton } from '@mantine/core'
+import { Menu, UnstyledButton } from '@mantine/core'
 import { useState, type ReactNode } from 'react'
 import type { Writing } from '../chess/pgn'
-import { moveOf, type MoveId, type MoveTree, type TreeMove } from '../chess/tree'
+import { moveOf, onMainLine, type MoveId, type MoveTree, type TreeMove } from '../chess/tree'
+import { ContextMenu, useContextMenu } from '../overlay'
 import { glyphName } from './glyphs'
 import { LinkedText } from './LinkedText'
 import { useShownText } from './linking'
@@ -15,7 +16,21 @@ type Props = {
   onMoveChange: (move: MoveId) => void
   /** The writing on each Move that has some, by Move. */
   writing?: ReadonlyMap<MoveId, Writing>
+  /** What a Move's right-click menu does; without it, a Move keeps the browser's own menu. */
+  menu?: MoveMenu
 }
+
+/** The actions in a Move's right-click menu (#76). */
+export type MoveMenu = {
+  /** Go to the Move and focus its Comment. */
+  onComment: (move: MoveId) => void
+  /** Put the Move on the Main line, all the way up (ADR 0009). */
+  onPromote: (move: MoveId) => void
+  /** Delete the Move and its whole subtree, confirming first if writing would go. */
+  onDelete: (move: MoveId) => void
+}
+
+type TriggerProps = ReturnType<ReturnType<typeof useContextMenu<MoveId>>['triggerProps']>
 
 const noWriting: ReadonlyMap<MoveId, Writing> = new Map()
 
@@ -30,7 +45,8 @@ type Run = { moves: ReactNode[]; variations: TreeMove[]; body: { move: MoveId; t
 // A Body breaks the moves into a paragraph of its own. Black's move after a
 // break gets its number again ("10…exd5"). The Body on the Position is not
 // here: it opens the Note above the list.
-export function MoveList({ tree, current, onMoveChange, writing = noWriting }: Props) {
+export function MoveList({ tree, current, onMoveChange, writing = noWriting, menu }: Props) {
+  const contextMenu = useContextMenu<MoveId>()
   const root = moveOf(tree, tree.root)
   const start = writing.get(root.id)
   const opening = start && (start.positionGlyph || start.comment) && (
@@ -50,7 +66,16 @@ export function MoveList({ tree, current, onMoveChange, writing = noWriting }: P
   }
 
   const move = (m: TreeMove, numbered: boolean) => (
-    <MoveButton key={m.id} move={m} numbered={numbered} current={m.id === current} written={writing.get(m.id)} onClick={onMoveChange} />
+    <MoveButton
+      key={m.id}
+      move={m}
+      numbered={numbered}
+      current={m.id === current}
+      written={writing.get(m.id)}
+      onClick={onMoveChange}
+      menuTrigger={menu && contextMenu.triggerProps(m.id)}
+      menuOpen={contextMenu.opened?.value === m.id}
+    />
   )
 
   // A Variation as one line of text, from its first move on through first
@@ -132,7 +157,29 @@ export function MoveList({ tree, current, onMoveChange, writing = noWriting }: P
           )}
         </div>
       ))}
+      {menu && (
+        <ContextMenu at={contextMenu.opened} onClose={contextMenu.close}>
+          {contextMenu.opened && tree.moves.has(contextMenu.opened.value) && (
+            <MoveMenuItems tree={tree} move={contextMenu.opened.value} menu={menu} />
+          )}
+        </ContextMenu>
+      )}
     </div>
+  )
+}
+
+// A Move's right-click menu. Promote is there but off for a Move already on the Main line.
+function MoveMenuItems({ tree, move, menu }: { tree: MoveTree; move: MoveId; menu: MoveMenu }) {
+  return (
+    <>
+      <Menu.Item onClick={() => menu.onComment(move)}>Add comment</Menu.Item>
+      <Menu.Item disabled={onMainLine(tree, move)} onClick={() => menu.onPromote(move)}>
+        Promote to main line
+      </Menu.Item>
+      <Menu.Item color="accent.6" onClick={() => menu.onDelete(move)}>
+        Delete from here
+      </Menu.Item>
+    </>
   )
 }
 
@@ -142,6 +189,8 @@ function MoveButton({
   current,
   written,
   onClick,
+  menuTrigger,
+  menuOpen,
 }: {
   move: TreeMove
   /** Black's move gets its number only after a break; White's always has one. */
@@ -149,12 +198,21 @@ function MoveButton({
   current: boolean
   written: Writing | undefined
   onClick: (move: MoveId) => void
+  /** Opens the Move's right-click menu, by right-click, keyboard or long-press. */
+  menuTrigger: TriggerProps | undefined
+  menuOpen: boolean
 }) {
   const number = move.color === 'w' ? `${move.moveNumber}.` : numbered ? `${move.moveNumber}…` : null
   return (
     <span className={styles.moveGroup}>
       {number && <span className={styles.moveNumber}>{number}</span>}
-      <UnstyledButton className={styles.move} aria-current={current ? 'step' : undefined} onClick={() => onClick(move.id)}>
+      <UnstyledButton
+        className={styles.move}
+        aria-current={current ? 'step' : undefined}
+        data-menu-open={menuOpen || undefined}
+        onClick={() => onClick(move.id)}
+        {...menuTrigger}
+      >
         {move.san}
         {written?.moveGlyph && <Glyph glyph={written.moveGlyph} />}
         {written?.positionGlyph && <Glyph glyph={written.positionGlyph} spaced />}

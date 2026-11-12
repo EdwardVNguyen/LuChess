@@ -2,14 +2,15 @@ import { Button, Loader, Menu, Text, UnstyledButton } from '@mantine/core'
 import { Link, Navigate, useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 import type { Writing } from '../chess/pgn'
-import { addMove, nextId, type MoveId, type MoveTree } from '../chess/tree'
+import { addMove, deleteSubtree, nextId, promote, subtree, type MoveId, type MoveTree } from '../chess/tree'
 import { ConfirmDialog, ResponsiveDialog, useOverlaySize, type OverlaySize } from '../overlay'
+import { DeleteWritingDialog } from '../notes/DeleteWritingDialog'
 import { BookmarkIcon, MoreIcon } from '../notes/icons'
 import noteStyles from '../notes/Notes.module.css'
 import type { NoteStart } from '../notes/newNote'
 import { NoteStartForm } from '../notes/NoteStartForm'
 import { CurrentMoveEditor, StudyView, WritingView } from '../notes/StudyView'
-import { mergeWriting, withWriting, type WritingChange } from '../notes/writing'
+import { describeWriting, mergeWriting, withWriting, writingUnder, type WritingChange } from '../notes/writing'
 import { useSession } from '../session'
 import styles from './Guest.module.css'
 
@@ -85,6 +86,7 @@ function GuestNote({ note, size, onSave, onStartOver }: GuestNoteProps) {
   const [tree, setTree] = useState<MoveTree>(note.tree)
   const [writing, setWriting] = useState<ReadonlyMap<MoveId, Writing>>(note.writing)
   const [confirmingStartOver, setConfirmingStartOver] = useState(false)
+  const [confirmingDelete, setConfirmingDelete] = useState<{ move: MoveId; message: string; done: (deleted: boolean) => void } | null>(null)
 
   // The same merge as a saved Note (useSaveWriting), applied in memory.
   function write({ move, ...change }: WritingChange) {
@@ -97,6 +99,23 @@ function GuestNote({ note, size, onSave, onStartOver }: GuestNoteProps) {
     if (!added.ok) return null
     setTree(added.value.tree)
     return added.value.id
+  }
+
+  // Delete from here, as the API does: the Move and its subtree, asking first
+  // when writing would go with them.
+  function deleteNow(move: MoveId) {
+    const gone = new Set(subtree(tree, move))
+    setTree(deleteSubtree(tree, move))
+    setWriting((current) => new Map([...current].filter(([id]) => !gone.has(id))))
+  }
+
+  function deleteFrom(move: MoveId): Promise<boolean> | boolean {
+    const counts = writingUnder(tree, writing, move)
+    if (Object.values(counts).every((n) => n === 0)) {
+      deleteNow(move)
+      return true
+    }
+    return new Promise((done) => setConfirmingDelete({ move, message: `This will delete ${describeWriting(counts)}`, done }))
   }
 
   function startOver() {
@@ -130,6 +149,8 @@ function GuestNote({ note, size, onSave, onStartOver }: GuestNoteProps) {
         }
         onPlay={play}
         onDraw={(move, drawings) => write({ move, drawings })}
+        onPromote={(move) => setTree(promote(tree, move))}
+        onDelete={deleteFrom}
         tools={(view) => <CurrentMoveEditor {...view} writing={writing} editable onSave={write} />}
       >
         {(view) => <WritingView {...view} writing={writing} />}
@@ -143,6 +164,20 @@ function GuestNote({ note, size, onSave, onStartOver }: GuestNoteProps) {
         confirmLabel="Start over"
         onConfirm={onStartOver}
         destructive
+      />
+      <DeleteWritingDialog
+        size={size}
+        message={confirmingDelete?.message ?? null}
+        onClose={() => {
+          confirmingDelete?.done(false)
+          setConfirmingDelete(null)
+        }}
+        onConfirm={() => {
+          if (!confirmingDelete) return
+          deleteNow(confirmingDelete.move)
+          confirmingDelete.done(true)
+          setConfirmingDelete(null)
+        }}
       />
     </>
   )

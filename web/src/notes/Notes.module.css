@@ -553,9 +553,13 @@
   font-weight: 500;
   font-variant-numeric: tabular-nums;
   color: var(--cn-ink);
+  /* A long-press opens the Move's menu, not a text selection or the browser's callout. */
+  -webkit-touch-callout: none;
+  user-select: none;
 }
 
-.move:hover {
+.move:hover,
+.move[data-menu-open] {
   background: var(--cn-highlight);
 }
 
