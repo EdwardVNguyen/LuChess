@@ -336,8 +336,13 @@ func TestWritingRejectsBadInput(t *testing.T) {
 	root, e4 := a.lineMove(s, n.ID, 0), a.lineMove(s, n.ID, 1)
 	long := strings.Repeat("é", 20_001)
 	many := make([]map[string]any, 101)
+	// Each a different Drawing: a circle on every square, then arrows to h8.
 	for i := range many {
-		many[i] = map[string]any{"from": "e4", "brush": "green"}
+		sq := fmt.Sprintf("%c%d", 'a'+i%8, 1+i/8%8)
+		many[i] = map[string]any{"from": sq, "brush": "green"}
+		if i >= 64 {
+			many[i]["to"] = "h8"
+		}
 	}
 
 	cases := map[string]struct {

@@ -21,6 +21,7 @@ import {
   type PieceCode,
   type Promotion,
 } from '../chess/chess'
+import type { Drawing } from '../chess/pgn'
 import styles from './Board.module.css'
 import { BoardSurface, type Movable, type Orientation } from './BoardSurface'
 import { FirstIcon, LastIcon, NextIcon, PreviousIcon } from './icons'
@@ -42,6 +43,10 @@ type ViewProps = {
   onPlyChange: (ply: number) => void
   /** When given, legal moves can be played from the Ply shown, e.g. to edit a Note's moves. */
   onMove?: (move: LegalMove) => void
+  /** The arrows and circles on the Ply shown. */
+  drawings?: readonly Drawing[]
+  /** When given, a right-drag draws an arrow and a right-click a circle (BoardSurface). */
+  onDrawingsChange?: (drawings: Drawing[]) => void
 }
 
 type PlayProps = {
@@ -83,6 +88,8 @@ function ViewBoard({
   ply: requestedPly,
   onPlyChange,
   onMove,
+  drawings,
+  onDrawingsChange,
   orientation,
 }: ViewProps & { orientation: Orientation }) {
   const ply = clampPly(game, requestedPly)
@@ -122,6 +129,8 @@ function ViewBoard({
           [checkedKing(current.fen), checkStyle],
           ...play.highlights,
         ]}
+        drawings={drawings}
+        onDrawingsChange={onDrawingsChange}
         options={play.options}
       >
         {play.picker}

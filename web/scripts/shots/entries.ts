@@ -336,6 +336,28 @@ export const entries: ShotEntry[] = [
     },
   },
   { name: 'DevBoardSetup', route: '/dev/board?mode=setup', fixtures: 'guest' },
+  // Drawings (#77): a right-drag draws an arrow and a right-click a circle,
+  // green, or red with Shift, blue with Alt and yellow with both.
+  {
+    name: 'DevBoardDrawings',
+    route: '/dev/board?mode=view',
+    fixtures: 'guest',
+    setup: async (page) => {
+      await rightDrag(page, 'b1', 'd2')
+      await rightDrag(page, 'd5', 'd5', ['Shift'])
+      await rightDrag(page, 'f3', 'd4', ['Alt'])
+      await rightDrag(page, 'c5', 'c5', ['Shift', 'Alt'])
+    },
+  },
+  // Mid-drag: the arrow follows the pointer in the brush chosen when it began.
+  {
+    name: 'DevBoardDrawing',
+    route: '/dev/board?mode=view',
+    fixtures: 'guest',
+    setup: async (page) => {
+      await rightDrag(page, 'a1', 'a5', ['Shift'], { release: false })
+    },
+  },
   // The Note screen (#6), matching design/screenshots/Note*.png at the same Ply,
   // except for the board (docs/adr/0007) and, on desktop, the column widths:
   // the board column opens at its widest (#62).
@@ -666,6 +688,35 @@ export const entries: ShotEntry[] = [
     fixtures: 'session',
     setup: async (page) => {
       await page.getByRole('button', { name: 'Nxd2', exact: true }).click()
+    },
+  },
+  // Drawings (#77), saved on the Move the board shows and shown again on
+  // returning to it: on a Move inside a Variation, and on the Position.
+  {
+    name: 'NoteDrawings',
+    route: '/notes/1',
+    fixtures: 'session',
+    setup: async (page) => {
+      await page.getByRole('button', { name: /^Qb4\+/ }).click()
+      await rightDrag(page, 'b4', 'e1', ['Shift'])
+      await rightDrag(page, 'd5', 'd5')
+      await rightDrag(page, 'c1', 'd2', ['Alt'])
+      await page.getByText('Saving…').waitFor({ state: 'hidden' })
+      await page.getByRole('button', { name: 'Qd2', exact: true }).click()
+      await page.getByRole('button', { name: /^Qb4\+/ }).click()
+    },
+  },
+  {
+    name: 'NoteDrawingsPosition',
+    route: '/notes/1',
+    fixtures: 'session',
+    setup: async (page) => {
+      await page.getByRole('button', { name: 'First move' }).click()
+      await rightDrag(page, 'c2', 'c4')
+      await rightDrag(page, 'd5', 'd5', ['Shift', 'Alt'])
+      await page.getByText('Saving…').waitFor({ state: 'hidden' })
+      await page.getByRole('button', { name: 'Next move' }).click()
+      await page.getByRole('button', { name: 'Previous move' }).click()
     },
   },
   { name: 'NoteNotFound', route: '/notes/999', fixtures: 'session' },
@@ -1023,4 +1074,30 @@ async function openFolderAction(page: Page, folder: string, action: string, open
   await page.getByRole('button', { name: `Folder actions: ${folder}` }).click()
   await page.getByRole('menuitem', { name: action }).click()
   await page.getByRole('dialog').last().waitFor()
+}
+
+/**
+ * Draws on the board as a mouse does (#77): a right-press on one square and
+ * a release on another for an arrow, or on the same one for a circle, with
+ * modifier keys held for the brush. Without `release`, it stops mid-drag.
+ */
+async function rightDrag(
+  page: Page,
+  from: string,
+  to: string,
+  keys: ('Shift' | 'Alt')[] = [],
+  { release = true }: { release?: boolean } = {},
+) {
+  const start = page.locator(`[id$="-square-${from}"]`)
+  await start.scrollIntoViewIfNeeded()
+  const a = await start.boundingBox()
+  const b = await page.locator(`[id$="-square-${to}"]`).boundingBox()
+  if (!a || !b) throw new Error('board squares not found')
+  for (const key of keys) await page.keyboard.down(key)
+  await page.mouse.move(a.x + a.width / 2, a.y + a.height / 2)
+  await page.mouse.down({ button: 'right' })
+  await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 8 })
+  if (!release) return
+  await page.mouse.up({ button: 'right' })
+  for (const key of keys) await page.keyboard.up(key)
 }

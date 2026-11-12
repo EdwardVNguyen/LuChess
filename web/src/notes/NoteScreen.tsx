@@ -105,6 +105,7 @@ function NoteView({ note, rows, initialMove }: { note: Note; rows: MoveRow[]; in
         margin={<NoteMargin noteId={note.id} writing={inReadingOrder} />}
         onPlay={playing.onPlay}
         playError={playing.error}
+        onDraw={(move, drawings) => save.mutate({ move, drawings })}
         tools={(view) => <Editor save={save} writing={writing} {...view} />}
       >
         {(view) => <WritingColumn writing={writing} scrollToCurrent={initialMove !== undefined} {...view} />}

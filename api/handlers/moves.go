@@ -168,13 +168,26 @@ func validateDrawings(drawings []drawing) error {
 	if len(drawings) > maxDrawings {
 		return fmt.Errorf("A move can have at most %d Drawings", maxDrawings)
 	}
+	// One Drawing per square, or pair of squares: drawing it again removes it (#77).
+	seen := make(map[string]bool, len(drawings))
 	for _, d := range drawings {
 		if !square.MatchString(d.From) || (d.To != nil && !square.MatchString(*d.To)) {
 			return errors.New("A Drawing must go from a square to a square, such as e2 to e4")
 		}
+		if d.To != nil && *d.To == d.From {
+			return errors.New("An arrow must point at another square")
+		}
 		if !slices.Contains(brushes, d.Brush) {
 			return fmt.Errorf("A Drawing's brush must be one of %s", strings.Join(brushes, ", "))
 		}
+		key := d.From
+		if d.To != nil {
+			key += *d.To
+		}
+		if seen[key] {
+			return errors.New("A move can have each Drawing only once")
+		}
+		seen[key] = true
 	}
 	return nil
 }

@@ -3,6 +3,7 @@ import { useNavigate, useSearch } from '@tanstack/react-router'
 import { useState } from 'react'
 import { gameFromMoves, parsePgn, plyLabel, START_FEN, type LegalMove } from '../chess/chess'
 import { fischerSpassky1972Game6 } from '../chess/fixtures'
+import type { Drawing } from '../chess/pgn'
 import { Board } from './Board'
 
 const sample = parsePgn(fischerSpassky1972Game6)
@@ -40,9 +41,25 @@ export function DevBoard() {
   )
 }
 
+// Drawings (#77) are kept per Ply here, as a Note keeps them per Move.
 function ViewDemo() {
   const [ply, setPly] = useState(20)
-  return <Board mode="view" game={game} ply={ply} onPlyChange={setPly} />
+  const [drawings, setDrawings] = useState<ReadonlyMap<number, Drawing[]>>(new Map())
+  return (
+    <Stack gap="md">
+      <Board
+        mode="view"
+        game={game}
+        ply={ply}
+        onPlyChange={setPly}
+        drawings={drawings.get(ply) ?? []}
+        onDrawingsChange={(next) => setDrawings(new Map(drawings).set(ply, next))}
+      />
+      <Text size="sm" c="dimmed">
+        Right-drag to draw an arrow, right-click for a circle. Hold Shift, Alt or both for another colour. Left-click to clear.
+      </Text>
+    </Stack>
+  )
 }
 
 // `?fen=` starts play from another position, e.g. one with a pawn about to promote.
