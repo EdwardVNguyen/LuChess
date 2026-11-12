@@ -16,6 +16,8 @@ type Props = {
   /** What is saved on this Move, if anything. */
   writing: Writing | undefined
   onSave: (change: Change) => void
+  /** An id for the Comment's editor, e.g. for the move list's Add comment to focus it. */
+  commentId?: string
 }
 
 // The editors for the current Move, or the Position: its Glyphs, its Comment and its Body.
@@ -23,7 +25,7 @@ type Props = {
 // moving to another Move saves first) or on Ctrl/⌘+Enter. Escape undoes.
 // Typing [[ in a saved Note opens the picker to link another Note.
 // Render with key={move} so the drafts start over on every Move.
-export function PlyEditor({ ply, writing, onSave }: Props) {
+export function PlyEditor({ ply, writing, onSave, commentId }: Props) {
   const label = plyLabel(ply)
   const atPosition = ply.index === 0
   const canLink = useLinking().noteId !== null
@@ -53,6 +55,7 @@ export function PlyEditor({ ply, writing, onSave }: Props) {
         placeholder={(atPosition ? 'Comment on the position.' : `Comment on ${label}.`) + toLink}
         saved={writing?.comment ?? ''}
         onSave={(comment) => onSave({ comment })}
+        id={commentId}
       />
       <TextEditor
         label={atPosition ? 'Body opening the note' : `Body after ${label}`}
@@ -100,9 +103,10 @@ type TextEditorProps = {
   placeholder: string
   saved: string
   onSave: (text: string | null) => void
+  id?: string
 }
 
-function TextEditor({ label, placeholder, saved, onSave }: TextEditorProps) {
+function TextEditor({ id, label, placeholder, saved, onSave }: TextEditorProps) {
   const { noteId } = useLinking()
   const size = useOverlaySize()
   const [draft, setDraft] = useState(saved)
@@ -158,6 +162,7 @@ function TextEditor({ label, placeholder, saved, onSave }: TextEditorProps) {
   const textarea = (
     <Textarea
       ref={input}
+      id={id}
       aria-label={label}
       placeholder={placeholder}
       value={draft}

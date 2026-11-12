@@ -173,6 +173,36 @@ export function useDeleteMove(noteId: number) {
   })
 }
 
+/**
+ * The rows after promoting a Move: it and each of its ancestors listed before
+ * its siblings, so each becomes its parent's first child. Parents stay before
+ * their children, since a row only moves up to where its first sibling was.
+ */
+function promoted(rows: readonly MoveRow[], moveId: MoveId): MoveRow[] {
+  let next = [...rows]
+  for (let at = next.find((row) => row.id === moveId); at && at.parentId !== null; ) {
+    const row = at
+    const first = next.findIndex((other) => other.parentId === row.parentId)
+    next = [...next.slice(0, first), row, ...next.slice(first).filter((other) => other !== row)]
+    at = next.find((other) => other.id === row.parentId)
+  }
+  return next
+}
+
+/** Puts a Move on the Main line, all the way up (ADR 0009). Writing stays on its Moves. */
+export function usePromoteMove(noteId: number) {
+  const { authorized } = useSession()
+  const queryClient = useQueryClient()
+  return useMutation({
+    scope: movesScope(noteId),
+    mutationFn: (moveId: MoveId) => authorized((token) => api.promoteMove(token, noteId, moveId)),
+    onSuccess: (_, moveId) => {
+      queryClient.setQueryData<MoveRow[]>(keys.moves(noteId), (rows) => rows && promoted(rows, moveId))
+      touched(queryClient)
+    },
+  })
+}
+
 export function useNoteLinks(noteId: number) {
   const { state, authorized } = useSession()
   return useQuery({

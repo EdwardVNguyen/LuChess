@@ -3,10 +3,10 @@ import { useId, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Board } from '../board'
 import type { Game, LegalMove } from '../chess/chess'
 import { exportPgn, tagRecord, type Drawing, type TagPair, type Writing } from '../chess/pgn'
-import { lineAsGame, lineThrough, mainLine, moveOf, type MoveId, type MoveTree } from '../chess/tree'
+import { lineAsGame, lineThrough, mainLine, moveOf, pathTo, type MoveId, type MoveTree } from '../chess/tree'
 import { noteDetails } from './details'
 import { CheckIcon, CopyIcon } from './icons'
-import { MoveList, Written } from './MoveList'
+import { MoveList, Written, type MoveMenu } from './MoveList'
 import { PaneEdge } from './PaneEdge'
 import { PaneToggle } from './PaneToggle'
 import { useCollapsible } from './useCollapsible'
@@ -21,6 +21,10 @@ export type StudyViewState = {
   line: Game
   current: MoveId
   onMoveChange: (move: MoveId) => void
+  /** What a Move's right-click menu in the move list does, when Moves can be promoted and deleted. */
+  menu?: MoveMenu
+  /** The id for the current Move's Comment editor, for the menu's Add comment to focus. */
+  commentId: string
 }
 
 type StudyViewProps = {
@@ -57,6 +61,10 @@ type StudyViewProps = {
    * shows that Move (#77). Without it, the Drawings are only shown.
    */
   onDraw?: (move: MoveId, drawings: Drawing[]) => void
+  /** Puts a Move on the Main line, all the way up. With `onDelete`, the move list gets its right-click menu. */
+  onPromote?: (move: MoveId) => void
+  /** Deletes a Move and its subtree, confirming first if writing would go; true once deleted. */
+  onDelete?: (move: MoveId) => Promise<boolean> | boolean
 }
 
 const noLinkNames = () => null
@@ -80,6 +88,8 @@ export function StudyView({
   onPlay,
   playError,
   onDraw,
+  onPromote,
+  onDelete,
 }: StudyViewProps) {
   // Open at the end of the Main line, so a pasted game shows its final position.
   const [chosen, setChosen] = useState<MoveId>(() =>
@@ -125,11 +135,33 @@ export function StudyView({
     }
   }
 
+  // Add comment: go to the Move, and once its editor is there, into its Comment.
+  const commentId = useId()
+  function addComment(move: MoveId) {
+    goTo(move)
+    requestAnimationFrame(() => document.getElementById(commentId)?.focus())
+  }
+
+  // A board on what was deleted steps back to the Move it was played from.
+  async function deleteFrom(move: MoveId) {
+    const parent = moveOf(tree, move).parent
+    const before = tree
+    if (!onDelete || parent === null || !(await onDelete(move))) return
+    setChosen((chosen) =>
+      before.moves.has(chosen) && pathTo(before, chosen).some((m) => m.id === move) ? parent : chosen,
+    )
+  }
+
   const view: StudyViewState = {
     tree,
     line,
     current,
     onMoveChange: goTo,
+    menu:
+      onPromote && onDelete
+        ? { onComment: addComment, onPromote, onDelete: (move) => void deleteFrom(move) }
+        : undefined,
+    commentId,
   }
 
   return (
@@ -245,11 +277,13 @@ type WritingViewProps = {
   aboveMoves?: ReactNode
   /** Shown below the moves, e.g. loading. */
   belowMoves?: ReactNode
+  /** What a Move's right-click menu does. */
+  menu?: MoveMenu
 }
 
 // The big idea (the Body on the Position) and the line of thought (the moves
 // with their Variations, Glyphs, Comments and Bodies). The editors are under the board.
-export function WritingView({ tree, current, onMoveChange, writing, aboveMoves, belowMoves }: WritingViewProps) {
+export function WritingView({ tree, current, onMoveChange, writing, aboveMoves, belowMoves, menu }: WritingViewProps) {
   const bigIdea = writing.get(tree.root)?.body
 
   return (
@@ -268,7 +302,7 @@ export function WritingView({ tree, current, onMoveChange, writing, aboveMoves, 
       <div className={styles.lineBlock}>
         <div className={styles.eyebrow}>Line of thought</div>
         {aboveMoves}
-        <MoveList tree={tree} current={current} onMoveChange={onMoveChange} writing={writing} />
+        <MoveList tree={tree} current={current} onMoveChange={onMoveChange} writing={writing} menu={menu} />
         {belowMoves}
       </div>
     </>
@@ -286,10 +320,21 @@ type CurrentMoveEditorProps = {
   onSave: (change: WritingChange) => void
   /** Shown under the editor, e.g. "Saving…", or why a save failed. */
   belowEditor?: ReactNode
+  /** The id for the Comment editor, for the move list's Add comment to focus. */
+  commentId?: string
 }
 
 // The editors for the current Move, for the tools under the board.
-export function CurrentMoveEditor({ line, current, tree, writing, editable, onSave, belowEditor }: CurrentMoveEditorProps) {
+export function CurrentMoveEditor({
+  line,
+  current,
+  tree,
+  writing,
+  editable,
+  onSave,
+  belowEditor,
+  commentId,
+}: CurrentMoveEditorProps) {
   const ply = line.plies[moveOf(tree, current).ply]
   return (
     <>
@@ -299,6 +344,7 @@ export function CurrentMoveEditor({ line, current, tree, writing, editable, onSa
           ply={ply}
           writing={writing.get(current)}
           onSave={(change) => onSave({ move: current, ...change })}
+          commentId={commentId}
         />
       )}
       {belowEditor}

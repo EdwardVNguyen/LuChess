@@ -1,13 +1,14 @@
 import { Alert, Button, Loader, Stack, Text, Title } from '@mantine/core'
 import { useDisclosure } from '@mantine/hooks'
 import { Link, useParams, useSearch } from '@tanstack/react-router'
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ApiError, type MoveRow, type Note } from '../api'
 import { START_FEN, type Game } from '../chess/chess'
 import type { Writing } from '../chess/pgn'
 import { readingOrder, treeFromRows, type MoveId, type MoveTree } from '../chess/tree'
 import { errorMessage } from '../errors'
 import { ResponsivePopover, useOverlaySize } from '../overlay'
+import { DeleteWritingDialog } from './DeleteWritingDialog'
 import { FolderIcon } from './icons'
 import { LinkingContext, type Linking } from './linking'
 import type { LinkStatus } from './links'
@@ -16,7 +17,17 @@ import { folderPath } from './folders'
 import { NoteTree } from './NoteTree'
 import styles from './Notes.module.css'
 import { NoteMargin } from './NoteMargin'
-import { useAddMove, useFolders, useMoves, useNote, useNoteLinks, useSaveWriting } from './queries'
+import {
+  useAddMove,
+  useDeleteMove,
+  useFolders,
+  useMoves,
+  useNote,
+  useNoteLinks,
+  usePromoteMove,
+  useSaveWriting,
+} from './queries'
+import type { MoveMenu } from './MoveList'
 import { CurrentMoveEditor, StudyView, WritingView } from './StudyView'
 import { writingByMove } from './writing'
 
@@ -67,6 +78,7 @@ function LoadedNote({ id, initialMove }: { id: number; initialMove: number | und
 function NoteView({ note, rows, initialMove }: { note: Note; rows: MoveRow[]; initialMove: number | undefined }) {
   const linking = useNoteLinking(note.id)
   const playing = useMovePlaying(note.id)
+  const editing = useMoveEditing(note.id)
   const save = useSaveWriting(note.id)
   const folders = useFolders()
   const path = folderPath(folders.data ?? [], note.folderId).map((folder) => folder.name)
@@ -106,10 +118,15 @@ function NoteView({ note, rows, initialMove }: { note: Note; rows: MoveRow[]; in
         onPlay={playing.onPlay}
         playError={playing.error}
         onDraw={(move, drawings) => save.mutate({ move, drawings })}
+        onPromote={editing.onPromote}
+        onDelete={editing.onDelete}
         tools={(view) => <Editor save={save} writing={writing} {...view} />}
       >
-        {(view) => <WritingColumn writing={writing} scrollToCurrent={initialMove !== undefined} {...view} />}
+        {(view) => (
+          <WritingColumn writing={writing} scrollToCurrent={initialMove !== undefined} error={editing.error} {...view} />
+        )}
       </StudyView>
+      {editing.confirmDialog}
     </LinkingContext>
   )
 }
@@ -129,6 +146,79 @@ function useMovePlaying(noteId: number) {
   }
 
   return { onPlay, error: add.isError ? errorMessage(add.error) : null }
+}
+
+type Confirming = { move: MoveId; message: string; done: (deleted: boolean) => void }
+
+// The move list's Promote to main line and Delete from here. Deleting a Move
+// deletes its subtree; if the API answers that writing would go with it, the
+// user confirms before it is sent again with the confirmation.
+function useMoveEditing(noteId: number) {
+  const promote = usePromoteMove(noteId)
+  const remove = useDeleteMove(noteId)
+  const [confirming, setConfirming] = useState<Confirming | null>(null)
+  const [failed, setFailed] = useState<string | null>(null)
+  const size = useOverlaySize()
+
+  function onPromote(move: MoveId) {
+    setFailed(null)
+    promote.mutate(move, { onError: (error) => setFailed(errorMessage(error)) })
+  }
+
+  function onDelete(move: MoveId): Promise<boolean> {
+    setFailed(null)
+    return new Promise((done) => {
+      remove.mutate(
+        { moveId: move, confirm: false },
+        {
+          onSuccess: (result) => {
+            if (result.status === 'deleted') done(true)
+            else setConfirming({ move, message: result.message, done })
+          },
+          onError: (error) => {
+            setFailed(errorMessage(error))
+            done(false)
+          },
+        },
+      )
+    })
+  }
+
+  function closeConfirm() {
+    confirming?.done(false)
+    setConfirming(null)
+    remove.reset()
+  }
+
+  function confirm() {
+    if (!confirming) return
+    remove.mutate(
+      { moveId: confirming.move, confirm: true },
+      {
+        onSuccess: (result) => {
+          if (result.status !== 'deleted') return
+          confirming.done(true)
+          setConfirming(null)
+        },
+      },
+    )
+  }
+
+  return {
+    onPromote,
+    onDelete,
+    error: failed,
+    confirmDialog: (
+      <DeleteWritingDialog
+        size={size}
+        message={confirming?.message ?? null}
+        onClose={closeConfirm}
+        onConfirm={confirm}
+        deleting={remove.isPending}
+        error={confirming && remove.isError ? errorMessage(remove.error) : null}
+      />
+    ),
+  }
 }
 
 // Links show their targets' current names from the Note's links. Until those
@@ -159,6 +249,8 @@ function WritingColumn({
   tree,
   current,
   onMoveChange,
+  menu,
+  error,
 }: {
   writing: ReadonlyMap<MoveId, Writing>
   /** Bring the current Move's writing into view, as when arriving by a Backlink. */
@@ -166,6 +258,9 @@ function WritingColumn({
   tree: MoveTree
   current: MoveId
   onMoveChange: (move: MoveId) => void
+  menu?: MoveMenu
+  /** Why the last promote or delete from the move list's menu failed. */
+  error: string | null
 }) {
   const anchor = useRef<HTMLDivElement>(null)
 
@@ -179,7 +274,20 @@ function WritingColumn({
   return (
     <>
       <div ref={anchor} hidden />
-      <WritingView tree={tree} current={current} onMoveChange={onMoveChange} writing={writing} />
+      <WritingView
+        tree={tree}
+        current={current}
+        onMoveChange={onMoveChange}
+        writing={writing}
+        menu={menu}
+        belowMoves={
+          error && (
+            <Text c="accent" size="sm" role="alert">
+              {error}
+            </Text>
+          )
+        }
+      />
     </>
   )
 }
@@ -191,15 +299,18 @@ function Editor({
   tree,
   line,
   current,
+  commentId,
 }: {
   save: SaveWriting
   writing: ReadonlyMap<MoveId, Writing>
   tree: MoveTree
   line: Game
   current: MoveId
+  commentId: string
 }) {
   return (
     <CurrentMoveEditor
+      commentId={commentId}
       tree={tree}
       line={line}
       current={current}

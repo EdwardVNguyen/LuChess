@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type MouseEvent, type TouchEvent } from 'react'
+import { useEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type TouchEvent } from 'react'
 
 /** How long a touch is held before it opens the menu, as the browser's own long-press. */
 export const LONG_PRESS_MS = 500
@@ -9,7 +9,7 @@ type Opened<T> = { x: number; y: number; value: T }
 
 /**
  * A right-click menu: `triggerProps(value)` goes on each element that opens it,
- * by right-click (or the keyboard's menu key) and by long-press on touch, and
+ * by right-click, by Shift+F10 or the menu key while it has focus, and by long-press on touch, and
  * `opened.value` says which one did. The innermost trigger wins, and the
  * browser's own menu never also shows. Render the items in a `ContextMenu`.
  */
@@ -22,16 +22,26 @@ export function useContextMenu<T>() {
   }
   useEffect(() => cancel, [])
 
+  // From the keyboard there is no pointer, so open at the element.
+  const openAt = (element: HTMLElement, value: T) => {
+    const box = element.getBoundingClientRect()
+    setOpened({ x: box.left + 12, y: box.top + box.height / 2, value })
+  }
+
   const triggerProps = (value: T) => ({
     onContextMenu(event: MouseEvent<HTMLElement>) {
       event.preventDefault()
       event.stopPropagation()
-      // From the keyboard there is no pointer, so open at the element.
-      if (event.clientX === 0 && event.clientY === 0) {
-        const box = event.currentTarget.getBoundingClientRect()
-        setOpened({ x: box.left + 12, y: box.top + box.height / 2, value })
-      } else {
-        setOpened({ x: event.clientX, y: event.clientY, value })
+      if (event.clientX === 0 && event.clientY === 0) openAt(event.currentTarget, value)
+      else setOpened({ x: event.clientX, y: event.clientY, value })
+    },
+    // Not every browser turns these keys into a contextmenu event (Safari has
+    // none), so they open the menu themselves, on the focused trigger only.
+    onKeyDown(event: KeyboardEvent<HTMLElement>) {
+      if (event.target !== event.currentTarget) return
+      if (event.key === 'ContextMenu' || (event.key === 'F10' && event.shiftKey)) {
+        event.preventDefault()
+        openAt(event.currentTarget, value)
       }
     },
     onTouchStart(event: TouchEvent<HTMLElement>) {

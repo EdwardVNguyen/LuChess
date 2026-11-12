@@ -1,7 +1,7 @@
 import { MantineProvider } from '@mantine/core'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMemoryHistory, createRootRoute, createRoute, createRouter, Outlet, RouterProvider } from '@tanstack/react-router'
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Session, SessionState } from '../session'
@@ -178,6 +178,42 @@ describe('GuestPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Note actions' }))
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Start over' }))
     expect(await screen.findByRole('dialog', { name: 'Start over' })).toHaveTextContent('the moves you have played')
+  })
+
+  it('promotes and deletes Moves from the move list’s menu in the browser, asking before writing goes', async () => {
+    const user = userEvent.setup()
+    renderGuestPage()
+    await startFromPgn('1. e4 e5 (1... c5 2. Nf3 (2. Nc3 Nc6)) 2. Nf3 *', 'Sicilian')
+    const pgn = screen.getByRole('textbox', { name: 'PGN' })
+
+    // Two Variations deep, all the way up.
+    fireEvent.contextMenu(screen.getByRole('button', { name: 'Nc6' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Promote to main line' }))
+    expect(pgn).toHaveValue('1. e4 c5 (1... e5 2. Nf3) 2. Nc3 (2. Nf3) 2... Nc6 *')
+
+    // Writing on what would go asks first.
+    fireEvent.contextMenu(screen.getByRole('button', { name: 'Nc3' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Add comment' }))
+    const comment = screen.getByRole('textbox', { name: 'Comment on 2.Nc3' })
+    await waitFor(() => expect(comment).toHaveFocus())
+    await user.type(comment, 'Closed.')
+    await user.tab()
+
+    fireEvent.contextMenu(screen.getByRole('button', { name: 'Nc3' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Delete from here' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Delete your writing?' })
+    expect(dialog).toHaveTextContent('This will delete 1 Comment: everything written from this move on')
+    await user.click(within(dialog).getByRole('button', { name: 'Delete' }))
+    expect(pgn).toHaveValue('1. e4 c5 (1... e5 2. Nf3) 2. Nf3 *')
+    expect(screen.getByRole('button', { name: 'c5' })).toHaveAttribute('aria-current', 'step')
+
+    // Nothing written: no question.
+    fireEvent.contextMenu(screen.getAllByRole('button', { name: 'Nf3' })[0])
+    await user.click(screen.getByRole('menuitem', { name: 'Delete from here' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(pgn).toHaveValue('1. e4 c5 (1... e5) 2. Nf3 *')
+
+    expect(apiCalls).toEqual([])
   })
 
   it('sends someone logged in to the New note page', async () => {

@@ -681,6 +681,39 @@ export const entries: ShotEntry[] = [
       await page.getByText('Could not save the move').waitFor()
     },
   },
+  // The move list's right-click menu (#76): on a Move in a Variation; Delete
+  // from here when writing would go, which asks first; and a delete that fails.
+  // No design; the menu is the sidebar's (#74), the dialog Edit moves' was.
+  {
+    name: 'NoteMoveMenu',
+    route: '/notes/1',
+    fixtures: 'session',
+    setup: async (page) => {
+      await page.getByRole('button', { name: 'Nxd2', exact: true }).click({ button: 'right' })
+      await page.getByRole('menuitem', { name: 'Promote to main line' }).waitFor()
+    },
+  },
+  {
+    name: 'NoteDeleteFromHereConfirm',
+    route: '/notes/1',
+    fixtures: 'session',
+    setup: async (page) => {
+      await page.getByRole('button', { name: 'exd5', exact: true }).click({ button: 'right' })
+      await page.getByRole('menuitem', { name: 'Delete from here' }).click()
+      await page.getByRole('dialog', { name: 'Delete your writing?' }).waitFor()
+    },
+  },
+  {
+    name: 'NoteDeleteFromHereError',
+    route: '/notes/1',
+    fixtures: 'session',
+    moves: 'editError',
+    setup: async (page) => {
+      await page.getByRole('button', { name: 'Qf4', exact: true }).click({ button: 'right' })
+      await page.getByRole('menuitem', { name: 'Delete from here' }).click()
+      await page.getByText('Could not delete the move').waitFor()
+    },
+  },
   // Variations (#71): the move list on a move inside the nested Variation.
   {
     name: 'NoteVariations',
