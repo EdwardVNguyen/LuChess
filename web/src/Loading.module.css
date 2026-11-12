@@ -1,0 +1,10 @@
+/* A loader in the middle of the page body, the way the screens show they are
+ * still loading (the Notes area, the landing page, Guest mode). */
+.centered {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 16px;
+  min-height: 240px;
+}

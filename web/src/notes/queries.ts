@@ -1,8 +1,9 @@
-import { keepPreviousData, useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { ApiError, type Folder, type FolderUpdate, type MoveRow, type NewNoteInput, type Note, type NoteSummary } from '../api'
 import { api } from '../apiClient'
 import type { MoveId } from '../chess/tree'
 import { useSession } from '../session'
+import { searchKeys } from './noteSearch'
 import { mergeWriting, writingOf, type WritingChange } from './writing'
 
 // Every Note call goes through the Session, so an expired access token is
@@ -10,8 +11,6 @@ import { mergeWriting, writingOf, type WritingChange } from './writing'
 // Session ends (main.tsx).
 const keys = {
   list: ['notes'] as const,
-  searches: ['notes', 'search'] as const,
-  search: (query: string) => ['notes', 'search', query] as const,
   note: (id: number) => ['notes', id] as const,
   moves: (id: number) => ['notes', id, 'moves'] as const,
   links: (id: number) => ['notes', id, 'links'] as const,
@@ -30,18 +29,6 @@ export function useNoteList() {
     queryKey: keys.list,
     queryFn: () => authorized((token) => api.listNotes(token)),
     enabled: state.status === 'authenticated',
-  })
-}
-
-/** Pass the query already trimmed and debounced; a blank query asks nothing. */
-export function useNoteSearch(query: string) {
-  const { state, authorized } = useSession()
-  return useQuery({
-    queryKey: keys.search(query),
-    queryFn: () => authorized((token) => api.searchNotes(token, query)),
-    enabled: state.status === 'authenticated' && query !== '',
-    // Keep the last results on screen while the next keystroke's arrive.
-    placeholderData: keepPreviousData,
   })
 }
 
@@ -72,7 +59,7 @@ export function useCreateNote() {
     onSuccess: (note) => {
       queryClient.setQueryData(keys.note(note.id), note)
       queryClient.setQueryData<NoteSummary[]>(keys.list, (list) => putFirst(list, note))
-      void queryClient.invalidateQueries({ queryKey: keys.searches })
+      void queryClient.invalidateQueries({ queryKey: searchKeys.all })
     },
   })
 }
@@ -85,7 +72,7 @@ export function useRenameNote(id: number) {
     onSuccess: (note) => {
       queryClient.setQueryData(keys.note(note.id), note)
       queryClient.setQueryData<NoteSummary[]>(keys.list, (list) => putFirst(list, note))
-      void queryClient.invalidateQueries({ queryKey: keys.searches })
+      void queryClient.invalidateQueries({ queryKey: searchKeys.all })
       invalidateLinks(queryClient)
     },
   })
@@ -99,7 +86,7 @@ export function useDeleteNote(id: number) {
     onSuccess: () => {
       queryClient.setQueryData<NoteSummary[]>(keys.list, (list) => list?.filter((note) => note.id !== id))
       queryClient.removeQueries({ queryKey: keys.note(id), exact: true })
-      void queryClient.invalidateQueries({ queryKey: keys.searches })
+      void queryClient.invalidateQueries({ queryKey: searchKeys.all })
       invalidateLinks(queryClient)
     },
   })
@@ -224,7 +211,7 @@ export function useUpdateFolder(id: number) {
     mutationFn: (update: FolderUpdate) => authorized((token) => api.updateFolder(token, id, update)),
     onSuccess: (folder) => {
       queryClient.setQueryData<Folder[]>(keys.folders, (folders) => folders?.map((f) => (f.id === id ? folder : f)))
-      void queryClient.invalidateQueries({ queryKey: keys.searches })
+      void queryClient.invalidateQueries({ queryKey: searchKeys.all })
     },
   })
 }
@@ -243,7 +230,7 @@ export function useDeleteFolder(id: number) {
       if (result.status !== 'deleted') return
       void queryClient.invalidateQueries({ queryKey: keys.folders })
       void queryClient.invalidateQueries({ queryKey: keys.list, exact: true })
-      void queryClient.invalidateQueries({ queryKey: keys.searches })
+      void queryClient.invalidateQueries({ queryKey: searchKeys.all })
       void queryClient.invalidateQueries({
         predicate: (query) => query.queryKey[0] === 'notes' && typeof query.queryKey[1] === 'number' && query.queryKey.length === 2,
       })
@@ -260,7 +247,7 @@ export function useMoveNote(id: number) {
     onSuccess: (note) => {
       queryClient.setQueryData(keys.note(note.id), note)
       queryClient.setQueryData<NoteSummary[]>(keys.list, (list) => list?.map((n) => (n.id === note.id ? summary(note) : n)))
-      void queryClient.invalidateQueries({ queryKey: keys.searches })
+      void queryClient.invalidateQueries({ queryKey: searchKeys.all })
     },
   })
 }

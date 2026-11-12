@@ -1,6 +1,6 @@
 import type { Page } from 'playwright'
 import type { Folder, MoveRow, NewNoteInput, Note, WritingInput } from '../../src/api.js'
-import { importPgn } from '../../src/chess/pgn.ts'
+import { importPgn } from '../../src/chess/pgnImport.ts'
 import { mainLine, moveOf, type MoveId } from '../../src/chess/tree.ts'
 import { linkTargets } from '../../src/notes/links.js'
 import type { FixtureSet, LinksFixture, MovesFixture, NotesFixture, SearchFixture } from './entries.js'

@@ -1,8 +1,8 @@
-import { Box, Button, Group, SegmentedControl, Stack, Text, Textarea, TextInput, Title } from '@mantine/core'
-import { useState, type ReactNode } from 'react'
+import { Box, Button, Group, Loader, SegmentedControl, Stack, Text, Textarea, TextInput, Title } from '@mantine/core'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { Board } from '../board'
 import { gameFromMoves, plyLabel, START_FEN, validateFen, type LegalMove, type Result } from '../chess/chess'
-import { importPgn, tagRecord, type TagPair } from '../chess/pgn'
+import { loadPgnImport, tagRecord, type ImportedNote, type PgnImport, type TagPair } from '../chess/pgn'
 import { addMove, newTree, type MoveId, type MoveTree } from '../chess/tree'
 import { suggestedName } from './details'
 import type { NoteStart } from './newNote'
@@ -11,6 +11,8 @@ import styles from './Notes.module.css'
 type Source = 'pgn' | 'play' | 'position'
 
 const MAX_NAME_LENGTH = 200
+
+const READER_FAILED = 'Could not load the PGN reader. Check your connection and try again. What you typed is kept.'
 
 type Props = {
   title: string
@@ -34,17 +36,32 @@ export function NoteStartForm({ title, submitLabel, onSubmit, pending = false, e
   const [moves, setMoves] = useState<LegalMove[]>([])
   const [fen, setFen] = useState(START_FEN)
   const [submitted, setSubmitted] = useState(false)
+  const [reader, loadReader] = usePgnReader()
+  // Create was pressed while the PGN reader was still loading.
+  const [waiting, setWaiting] = useState(false)
 
-  const pasted = pgn.trim() === '' ? null : importPgn(pgn)
-  const placeholderName = source === 'pgn' && pasted?.ok ? suggestedName(tagRecord(pasted.value.tags)) : null
-  const finalName = name.trim() || placeholderName || ''
-  const nameError = submitted && finalName === '' ? 'Give the note a name' : undefined
+  const hasPgn = pgn.trim() !== ''
+  // The preview waits for the reader rather than showing an error.
+  const reading = source === 'pgn' && hasPgn && reader.status === 'loading'
+  const { pasted, placeholderName, finalName, current } = read(reader.status === 'ready' ? reader.importPgn : null)
+  // Until the PGN is read, its tags may yet name the Note.
+  const unread = source === 'pgn' && hasPgn && reader.status !== 'ready'
+  const nameError = submitted && !unread && finalName === '' ? 'Give the note a name' : undefined
 
-  // What would be saved, or why it can't be.
-  function draft(): Result<Omit<NoteStart, 'name'>> {
+  // What the form holds, read with `importPgn` (null while it isn't loaded):
+  // the pasted game, the name it would get, and what would be saved or why it can't be.
+  function read(importPgn: PgnImport | null) {
+    const pasted = hasPgn && importPgn ? importPgn(pgn) : null
+    const placeholderName = source === 'pgn' && pasted?.ok ? suggestedName(tagRecord(pasted.value.tags)) : null
+    const finalName = name.trim() || placeholderName || ''
+    return { pasted, placeholderName, finalName, current: draft(pasted) }
+  }
+
+  function draft(pasted: Result<ImportedNote> | null): Result<Omit<NoteStart, 'name'>> {
     switch (source) {
       case 'pgn': {
-        if (!pasted) return { ok: false, error: 'Paste a game in PGN.' }
+        if (!hasPgn) return { ok: false, error: 'Paste a game in PGN.' }
+        if (!pasted) return { ok: false, error: reader.status === 'failed' ? READER_FAILED : 'Reading the PGN…' }
         if (!pasted.ok) return pasted
         const { startFen, tags, tree, writing } = pasted.value
         return { ok: true, value: { startFen: startFen === START_FEN ? null : startFen, tags, tree, writing } }
@@ -62,13 +79,27 @@ export function NoteStartForm({ title, submitLabel, onSubmit, pending = false, e
     }
   }
 
-  const current = draft()
-
-  function submit() {
+  async function submit() {
     setSubmitted(true)
-    if (!current.ok || finalName === '') return
-    onSubmit({ name: finalName, ...current.value })
+    let ready = { finalName, current }
+    if (unread) {
+      // Create waits for the reader, then reads what was there when pressed.
+      setWaiting(true)
+      const importPgn = await loadReader()
+      setWaiting(false)
+      if (!importPgn) return
+      ready = read(importPgn)
+    }
+    if (!ready.current.ok || ready.finalName === '') return
+    onSubmit({ name: ready.finalName, ...ready.current.value })
   }
+
+  const pgnError =
+    reader.status === 'failed'
+      ? READER_FAILED
+      : !reading && (submitted || (pasted && !pasted.ok)) && !current.ok
+        ? current.error
+        : undefined
 
   return (
     <div className={styles.newNote}>
@@ -76,7 +107,7 @@ export function NoteStartForm({ title, submitLabel, onSubmit, pending = false, e
         noValidate
         onSubmit={(event) => {
           event.preventDefault()
-          submit()
+          void submit()
         }}
       >
         <Stack gap="lg">
@@ -94,17 +125,30 @@ export function NoteStartForm({ title, submitLabel, onSubmit, pending = false, e
           />
 
           {source === 'pgn' && (
-            <Textarea
-              label="PGN"
-              description="A game exported from a database or another site."
-              autosize
-              minRows={8}
-              maxRows={18}
-              value={pgn}
-              onChange={(event) => setPgn(event.currentTarget.value)}
-              error={(submitted || (pasted && !pasted.ok)) && !current.ok ? current.error : undefined}
-              styles={{ input: { fontFamily: 'var(--mantine-font-family-monospace)', fontSize: '14px' } }}
-            />
+            <Stack gap="xs">
+              <Textarea
+                label="PGN"
+                description="A game exported from a database or another site."
+                autosize
+                minRows={8}
+                maxRows={18}
+                value={pgn}
+                onChange={(event) => setPgn(event.currentTarget.value)}
+                onFocus={() => {
+                  if (reader.status === 'failed') void loadReader()
+                }}
+                error={pgnError}
+                styles={{ input: { fontFamily: 'var(--mantine-font-family-monospace)', fontSize: '14px' } }}
+              />
+              {reading && (
+                <Group gap="xs" role="status">
+                  <Loader size="xs" />
+                  <Text size="sm" c="dimmed">
+                    Reading the PGN…
+                  </Text>
+                </Group>
+              )}
+            </Stack>
           )}
 
           {source === 'play' && (
@@ -131,7 +175,7 @@ export function NoteStartForm({ title, submitLabel, onSubmit, pending = false, e
           {error}
 
           <Group justify="flex-end">
-            <Button type="submit" loading={pending}>
+            <Button type="submit" loading={pending || waiting}>
               {submitLabel}
             </Button>
           </Group>
@@ -139,6 +183,41 @@ export function NoteStartForm({ title, submitLabel, onSubmit, pending = false, e
       </form>
     </div>
   )
+}
+
+type PgnReader = { status: 'loading' } | { status: 'ready'; importPgn: PgnImport } | { status: 'failed' }
+
+/**
+ * The PGN reader, which loads as its own chunk (#84) as soon as the form
+ * opens, and a way to load it again: it answers the reader, or null when it
+ * failed to load (offline, say).
+ */
+function usePgnReader(): [PgnReader, () => Promise<PgnImport | null>] {
+  const [reader, setReader] = useState<PgnReader>({ status: 'loading' })
+  const load = useCallback(
+    () =>
+      loadPgnImport().then(
+        (importPgn) => {
+          setReader({ status: 'ready', importPgn })
+          return importPgn
+        },
+        () => {
+          setReader({ status: 'failed' })
+          return null
+        },
+      ),
+    [],
+  )
+  useEffect(() => {
+    void load()
+  }, [load])
+  return [
+    reader,
+    useCallback(() => {
+      setReader({ status: 'loading' })
+      return load()
+    }, [load]),
+  ]
 }
 
 function PlayMoves({

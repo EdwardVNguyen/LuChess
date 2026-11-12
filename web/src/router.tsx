@@ -1,69 +1,84 @@
 import { createRootRoute, createRoute, createRouter } from '@tanstack/react-router'
 import { z } from 'zod'
-import { DevBoardRoute } from './board/DevBoardRoute'
-import { ForgotPasswordPage } from './ForgotPasswordPage'
-import { GuestPage } from './guest/GuestPage'
-import { HomePage } from './HomePage'
 import { Layout } from './Layout'
-import { LoginPage } from './LoginPage'
-import { NewNotePage } from './notes/NewNotePage'
-import { NoteScreen } from './notes/NoteScreen'
-import { NotesIndex } from './notes/NotesIndex'
-import { NotesLayout } from './notes/NotesLayout'
-import { DevOverlaysRoute } from './overlay/DevOverlaysRoute'
-import { ResetPasswordPage } from './ResetPasswordPage'
-import { SettingsPage } from './settings/SettingsPage'
-import { SignUpPage } from './SignUpPage'
-import { DevThemeRoute } from './theme/DevThemeRoute'
-import { VerifyEmailPage } from './VerifyEmailPage'
+import { AuthLoading, PageLoading } from './Loading'
 
+// Routes are defined here, with their search params; each page's component
+// is loaded on demand from `routes/`, one chunk per group of pages a visitor
+// needs together (the landing page, the auth pages, the signed-in app, Guest
+// mode), so a visitor downloads only the code for where they are. While a
+// chunk loads, the route shows the screen's own loading state.
 const rootRoute = createRootRoute({ component: Layout })
-const homeRoute = createRoute({ getParentRoute: () => rootRoute, path: '/', component: HomePage })
-const signUpRoute = createRoute({ getParentRoute: () => rootRoute, path: '/signup', component: SignUpPage })
-const loginRoute = createRoute({ getParentRoute: () => rootRoute, path: '/login', component: LoginPage })
+
+const landing = () => import('./routes/landing')
+const homeRoute = createRoute({ getParentRoute: () => rootRoute, path: '/' }).lazy(() =>
+  landing().then((m) => m.homeRoute),
+)
+
+const auth = () => import('./routes/auth')
+const signUpRoute = createRoute({ getParentRoute: () => rootRoute, path: '/signup', pendingComponent: AuthLoading }).lazy(
+  () => auth().then((m) => m.signUpRoute),
+)
+const loginRoute = createRoute({ getParentRoute: () => rootRoute, path: '/login', pendingComponent: AuthLoading }).lazy(
+  () => auth().then((m) => m.loginRoute),
+)
 const verifyEmailRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/verify-email',
   validateSearch: z.object({ token: z.string().optional() }),
-  component: VerifyEmailPage,
-})
+  pendingComponent: AuthLoading,
+}).lazy(() => auth().then((m) => m.verifyEmailRoute))
 const forgotPasswordRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/forgot-password',
-  component: ForgotPasswordPage,
-})
+  pendingComponent: AuthLoading,
+}).lazy(() => auth().then((m) => m.forgotPasswordRoute))
 const resetPasswordRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/reset-password',
   validateSearch: z.object({ token: z.string().optional() }),
-  component: ResetPasswordPage,
-})
-const settingsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/settings', component: SettingsPage })
-const tryRoute = createRoute({ getParentRoute: () => rootRoute, path: '/try', component: GuestPage })
-const notesRoute = createRoute({ getParentRoute: () => rootRoute, path: '/notes', component: NotesLayout })
-const notesIndexRoute = createRoute({ getParentRoute: () => notesRoute, path: '/', component: NotesIndex })
+  pendingComponent: AuthLoading,
+}).lazy(() => auth().then((m) => m.resetPasswordRoute))
+
+const app = () => import('./routes/app')
+const settingsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/settings' }).lazy(() =>
+  app().then((m) => m.settingsRoute),
+)
+const notesRoute = createRoute({ getParentRoute: () => rootRoute, path: '/notes' }).lazy(() =>
+  app().then((m) => m.notesRoute),
+)
+const notesIndexRoute = createRoute({ getParentRoute: () => notesRoute, path: '/' }).lazy(() =>
+  app().then((m) => m.notesIndexRoute),
+)
 const newNoteRoute = createRoute({
   getParentRoute: () => notesRoute,
   path: '/new',
   // The Folder to file the new Note in, e.g. from a Folder's "New note here".
   validateSearch: z.object({ folder: z.number().int().positive().optional().catch(undefined) }),
-  component: NewNotePage,
-})
+}).lazy(() => app().then((m) => m.newNoteRoute))
 const noteRoute = createRoute({
   getParentRoute: () => notesRoute,
   path: '/$noteId',
   // The Move to open at, e.g. where a Backlink's Comment or Body is.
   validateSearch: z.object({ move: z.number().int().positive().optional().catch(undefined) }),
-  component: NoteScreen,
-})
+}).lazy(() => app().then((m) => m.noteRoute))
 
-// Dev-only: pages showing the theme's components and the shared overlays, so
-// a change is easy to screenshot. Not reachable, or bundled, in production
-// (web/AGENTS.md). `npm run shots` builds in the "shots" mode to keep them.
+const tryRoute = createRoute({ getParentRoute: () => rootRoute, path: '/try' }).lazy(() =>
+  import('./routes/guest').then((m) => m.tryRoute),
+)
+
+// Dev-only: pages showing the theme's components, the shared overlays and the
+// board, so a change is easy to screenshot. Not reachable, or bundled, in
+// production (web/AGENTS.md). `npm run shots` builds in the "shots" mode to
+// keep them.
 const devRoutes = import.meta.env.DEV || import.meta.env.MODE === 'shots'
   ? [
-      createRoute({ getParentRoute: () => rootRoute, path: '/dev/theme', component: DevThemeRoute }),
-      createRoute({ getParentRoute: () => rootRoute, path: '/dev/overlays', component: DevOverlaysRoute }),
+      createRoute({ getParentRoute: () => rootRoute, path: '/dev/theme' }).lazy(() =>
+        import('./routes/dev').then((m) => m.devThemeRoute),
+      ),
+      createRoute({ getParentRoute: () => rootRoute, path: '/dev/overlays' }).lazy(() =>
+        import('./routes/dev').then((m) => m.devOverlaysRoute),
+      ),
       createRoute({
         getParentRoute: () => rootRoute,
         path: '/dev/board',
@@ -71,13 +86,20 @@ const devRoutes = import.meta.env.DEV || import.meta.env.MODE === 'shots'
           mode: z.enum(['view', 'play', 'setup']).catch('view'),
           fen: z.string().optional().catch(undefined),
         }),
-        component: DevBoardRoute,
-      }),
+      }).lazy(() => import('./routes/dev').then((m) => m.devBoardRoute)),
     ]
   : []
 
 export const router = createRouter({
   routeTree: rootRoute.addChildren([homeRoute, signUpRoute, loginRoute, verifyEmailRoute, forgotPasswordRoute, resetPasswordRoute, settingsRoute, tryRoute, notesRoute.addChildren([notesIndexRoute, newNoteRoute, noteRoute]), ...devRoutes]),
+  // While a page's chunk loads, its loading state shows straight away (and
+  // for no longer than the chunk takes), never an empty page body. Hovering
+  // or focusing a link starts loading its chunk, so moving to another group
+  // of pages rarely waits at all.
+  defaultPendingComponent: PageLoading,
+  defaultPendingMs: 0,
+  defaultPendingMinMs: 0,
+  defaultPreload: 'intent',
 })
 
 declare module '@tanstack/react-router' {
