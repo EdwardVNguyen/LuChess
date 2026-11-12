@@ -1,7 +1,7 @@
 import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
-import { importPgn } from '../chess/pgn'
+import { importPgn } from '../chess/pgnImport'
 import { mainLine, type MoveTree } from '../chess/tree'
 import { renderWithTheme } from '../overlay/testUtils'
 import { MoveList } from './MoveList'

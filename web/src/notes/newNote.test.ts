@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { importPgn } from '../chess/pgn'
+import { importPgn } from '../chess/pgnImport'
 import { newNoteInput } from './newNote'
 
 describe('newNoteInput', () => {
