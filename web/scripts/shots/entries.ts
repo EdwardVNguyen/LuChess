@@ -992,7 +992,8 @@ async function startGuestNote(page: Page) {
  * load, as the form starts loading it as soon as it opens.
  */
 async function withPgnReader(page: Page, reader: 'pending' | 'failed') {
-  await page.route('**/src/chess/pgnImport.ts*', async (route) => {
+  // Shots run against a production build, where the chunk is hashed.
+  await page.route('**/assets/pgnImport-*.js', async (route) => {
     if (reader === 'failed') await route.abort('internetdisconnected')
     // Pending: never answered.
   })

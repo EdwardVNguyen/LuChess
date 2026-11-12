@@ -1,9 +1,9 @@
 import { existsSync } from 'node:fs'
-import { mkdir } from 'node:fs/promises'
-import { availableParallelism } from 'node:os'
+import { mkdir, mkdtemp, rm } from 'node:fs/promises'
+import { availableParallelism, tmpdir } from 'node:os'
 import path from 'node:path'
 import { chromium } from 'playwright'
-import { createServer } from 'vite'
+import { build, preview, type InlineConfig, type PreviewServer } from 'vite'
 import type { Browser } from 'playwright'
 import { writeComparison } from './compare.js'
 import { entries, type ShotEntry } from './entries.js'
@@ -39,16 +39,32 @@ async function main() {
   // intercepted by installApiMocks, so no API or database needs to run.
   process.env.VITE_API_URL = API_BASE_URL
 
-  const server = await createServer({
+  // Shoots a production build: a few bundled files per page load instead of
+  // hundreds of dev-server modules. The "shots" mode keeps the /dev routes,
+  // which a plain `npm run build` leaves out (src/router.tsx).
+  const buildDir = await mkdtemp(path.join(tmpdir(), 'chessnotes-shots-'))
+  const viteConfig = {
     root: webRoot,
     configFile: path.join(webRoot, 'vite.config.ts'),
-    server: { port: 0, strictPort: false },
+    mode: 'shots',
     logLevel: 'warn',
-  })
-  await server.listen()
-  const baseUrl = server.resolvedUrls?.local[0]
-  if (!baseUrl) throw new Error('Vite dev server did not report a URL to screenshot')
+    build: { outDir: buildDir, emptyOutDir: true, chunkSizeWarningLimit: Infinity },
+  } satisfies InlineConfig
+  let server: PreviewServer | undefined
+  try {
+    await build(viteConfig)
+    // Port 0: a free port, so this can run beside a dev server or another run.
+    server = await preview({ ...viteConfig, preview: { port: 0, strictPort: false } })
+    const baseUrl = server.resolvedUrls?.local[0]
+    if (!baseUrl) throw new Error('Vite preview server did not report a URL to screenshot')
+    await shootAll(selected, baseUrl)
+  } finally {
+    await server?.close()
+    await rm(buildDir, { recursive: true, force: true })
+  }
+}
 
+async function shootAll(selected: ShotEntry[], baseUrl: string) {
   // Each shot has its own browser context, so several run at once. Most of a
   // shot is waiting (for the network to go quiet, for fonts), which overlaps.
   const jobs = selected.flatMap((entry) => sizes.map((size) => ({ entry, size })))
@@ -60,13 +76,12 @@ async function main() {
       while (next < jobs.length) {
         const { entry, size } = jobs[next++]
         if (size === sizes[0]) console.log(`Shooting ${entry.name}...`)
-        await shootOne(browser, baseUrl!, entry, size)
+        await shootOne(browser, baseUrl, entry, size)
       }
     }
     await Promise.all(Array.from({ length: Math.min(concurrency, jobs.length) }, worker))
   } finally {
     await browser.close()
-    await server.close()
   }
 }
 
