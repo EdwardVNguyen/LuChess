@@ -53,11 +53,10 @@ function PlayDemo({ startFen }: { startFen: string }) {
     moves.map((move) => move.san),
   )
   const plies = played.ok ? played.value.plies : []
-  const fen = moves.at(-1)?.fen ?? startFen
 
   return (
     <Stack gap="md">
-      <Board mode="play" fen={fen} lastMove={moves.at(-1)} onMove={(move) => setMoves([...moves, move])} />
+      <Board mode="play" fen={startFen} moves={moves} onMove={(move) => setMoves([...moves, move])} />
       <Text size="sm" c="dimmed">
         {plies.length > 1 ? plies.slice(1).map(plyLabel).join(' ') : 'Drag or click a piece to play a move.'}
       </Text>

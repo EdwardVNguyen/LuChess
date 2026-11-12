@@ -6,12 +6,14 @@ import {
   firstChangedPly,
   fenFromPlacement,
   gameFromMoves,
+  gameResult,
   isPromotion,
   legalTargets,
   parsePgn,
   pgnFromMoves,
   placementFromFen,
   plyLabel,
+  resultLabel,
   START_FEN,
   sansOf,
   tryMove,
@@ -225,5 +227,64 @@ describe('editMoves', () => {
 
   it('refuses an illegal move', () => {
     expect(editMoves(pgn, ['e4', 'e5', 'Ke3'])).toMatchObject({ ok: false })
+  })
+})
+
+describe('gameResult', () => {
+  it('is null while the game goes on, or when a move is illegal', () => {
+    expect(gameResult(START_FEN, [])).toBeNull()
+    expect(gameResult(START_FEN, ['e4', 'e5'])).toBeNull()
+    expect(gameResult(START_FEN, ['e4', 'Ke3'])).toBeNull()
+  })
+
+  it('finds checkmate and who won', () => {
+    const result = gameResult(START_FEN, ['f3', 'e5', 'g4', 'Qh4#'])
+    expect(result).toEqual({ kind: 'checkmate', winner: 'b' })
+    expect(resultLabel(result!)).toBe('Checkmate · Black wins')
+  })
+
+  it('finds a Position that is already over', () => {
+    expect(gameResult('7k/5Q2/6K1/8/8/8/8/8 b - - 0 1', [])).toEqual({ kind: 'stalemate' })
+  })
+
+  it('finds stalemate', () => {
+    const result = gameResult('7k/8/6K1/8/8/8/8/5Q2 w - - 0 1', ['Qf7'])
+    expect(result).toEqual({ kind: 'stalemate' })
+    expect(resultLabel(result!)).toBe('Draw by stalemate')
+  })
+
+  it('finds insufficient material', () => {
+    const result = gameResult('4k3/8/8/8/8/8/3n4/4K3 w - - 0 1', ['Kxd2'])
+    expect(result).toEqual({ kind: 'insufficient-material' })
+    expect(resultLabel(result!)).toBe('Draw by insufficient material')
+  })
+
+  it('finds the fifty-move rule, which a pawn move resets', () => {
+    const fen = '4k3/8/8/8/8/8/4P3/R3K3 w - - 99 60'
+    const result = gameResult(fen, ['Ra2'])
+    expect(result).toEqual({ kind: 'fifty-move-rule' })
+    expect(resultLabel(result!)).toBe('Draw by the fifty-move rule')
+    expect(gameResult(fen, ['e4'])).toBeNull()
+  })
+
+  it('counts the Position as the first time it is seen', () => {
+    const shuffle = ['Nf3', 'Nf6', 'Ng1', 'Ng8']
+    expect(gameResult(START_FEN, shuffle)).toBeNull()
+    const result = gameResult(START_FEN, [...shuffle, ...shuffle])
+    expect(result).toEqual({ kind: 'threefold-repetition' })
+    expect(resultLabel(result!)).toBe('Draw by threefold repetition')
+  })
+
+  it('finds a repetition reached by different move orders', () => {
+    // The knights on f3, c3, f6 and c6, reached three ways.
+    const moves = ['Nf3', 'Nf6', 'Nc3', 'Nc6', 'Ng1', 'Ng8', 'Nf3', 'Nf6', 'Nb1', 'Nb8', 'Nc3', 'Nc6']
+    expect(gameResult(START_FEN, moves.slice(0, 8))).toBeNull()
+    expect(gameResult(START_FEN, moves)).toEqual({ kind: 'threefold-repetition' })
+  })
+
+  it('counts only the moves from the Position, not those before it', () => {
+    // The same position as after 1.Nf3 Nf6 2.Ng1 Ng8, a move later.
+    const fen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 4 3'
+    expect(gameResult(fen, ['Nf3', 'Nf6', 'Ng1', 'Ng8'])).toBeNull()
   })
 })

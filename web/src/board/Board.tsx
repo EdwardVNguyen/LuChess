@@ -4,11 +4,14 @@ import {
   checkedKing,
   clampPly,
   fenFromPlacement,
+  gameResult,
   isPromotion,
   legalTargets,
   placementFromFen,
   plyLabel,
   PROMOTIONS,
+  resultLabel,
+  sansOf,
   START_FEN,
   tryMove,
   validateFen,
@@ -43,9 +46,10 @@ type ViewProps = {
 
 type PlayProps = {
   mode: 'play'
+  /** The Position the moves are played from. */
   fen: string
-  /** Highlighted as the last move. */
-  lastMove?: { from: string; to: string } | null
+  /** The moves played so far; the board shows the position after them. */
+  moves?: readonly LegalMove[]
   onMove: (move: LegalMove) => void
 }
 
@@ -83,10 +87,13 @@ function ViewBoard({
 }: ViewProps & { orientation: Orientation }) {
   const ply = clampPly(game, requestedPly)
   const current = game.plies[ply]
-  const play = usePlay(current.fen, onMove ?? null, orientation)
+  // A game that is over at this Ply takes no more moves.
+  const result = gameResult(game.startFen, sansOf(game).slice(0, ply))
+  const play = usePlay(current.fen, result ? null : (onMove ?? null), orientation)
   const last = game.plies.length - 1
   const label = plyLabel(current)
-  const caption = label ? `After ${label}` : 'Start position'
+  const position = label ? `After ${label}` : 'Start position'
+  const caption = result ? resultLabel(result) : position
 
   function onKeyDown(event: KeyboardEvent) {
     const target = { ArrowLeft: ply - 1, ArrowRight: ply + 1, ArrowUp: 0, Home: 0, ArrowDown: last, End: last }[
@@ -101,7 +108,7 @@ function ViewBoard({
     <div
       className={styles.board}
       role="group"
-      aria-label={`Chess board, ${caption.toLowerCase()}`}
+      aria-label={`Chess board, ${position.toLowerCase()}`}
       tabIndex={0}
       onKeyDown={onKeyDown}
     >
@@ -160,8 +167,14 @@ function ControlButton({
   )
 }
 
-function PlayBoard({ fen, lastMove, onMove, orientation }: PlayProps & { orientation: Orientation }) {
-  const play = usePlay(fen, onMove, orientation)
+function PlayBoard({ fen: startFen, moves = [], onMove, orientation }: PlayProps & { orientation: Orientation }) {
+  const lastMove = moves.at(-1)
+  const fen = lastMove?.fen ?? startFen
+  const result = gameResult(
+    startFen,
+    moves.map((move) => move.san),
+  )
+  const play = usePlay(fen, result ? null : onMove, orientation)
   return (
     <div className={styles.board}>
       <BoardSurface
@@ -178,6 +191,11 @@ function PlayBoard({ fen, lastMove, onMove, orientation }: PlayProps & { orienta
       >
         {play.picker}
       </BoardSurface>
+      {result && (
+        <p className={`${styles.caption} ${styles.result}`} role="status">
+          {resultLabel(result)}
+        </p>
+      )}
     </div>
   )
 }

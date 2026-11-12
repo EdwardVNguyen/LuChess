@@ -142,6 +142,10 @@
   white-space: nowrap;
 }
 
+.result {
+  margin: 24px 0 0;
+}
+
 .setup {
   display: flex;
   flex-direction: column;
