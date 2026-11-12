@@ -22,7 +22,7 @@
 }
 
 /* react-chessboard gives pieces that can't be dragged a pointer cursor, inline,
- * so only !important overrides it. Lichess shows the default cursor. */
+ * so only !important overrides it. We want the default cursor. */
 .squares[data-movable='none'] [data-piece],
 .squares[data-movable='w'] [data-piece^='b'],
 .squares[data-movable='b'] [data-piece^='w'] {
@@ -63,7 +63,7 @@
 }
 
 /* Over the squares, so it doesn't catch the pointer, and sized as a container
- * so the coordinates scale with the board as Lichess's do. */
+ * so the coordinates scale with the board. */
 .coordinates {
   position: absolute;
   inset: 0;

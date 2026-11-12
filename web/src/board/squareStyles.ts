@@ -10,7 +10,7 @@ export const selectedStyle: CSSProperties = { backgroundColor: 'var(--cn-board-s
 export const targetStyle: CSSProperties = {
   backgroundImage: 'radial-gradient(circle, var(--cn-board-target) 0 16%, transparent 17%)',
 }
-/** A square holding a piece the selected piece can capture: a ring around its edge, as on Lichess. */
+/** A square holding a piece the selected piece can capture: a ring around its edge. */
 export const captureStyle: CSSProperties = {
   backgroundImage: 'radial-gradient(transparent 0 79%, var(--cn-board-target) 80%)',
 }

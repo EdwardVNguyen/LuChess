@@ -179,7 +179,7 @@ export function checkedKing(fen: string): string | null {
   return chess.findPiece({ type: 'k', color: chess.turn() })[0] ?? null
 }
 
-/** How a game ended. As on Lichess, every draw ends the game at once, with no claim. */
+/** How a game ended. Every draw ends the game at once, with no claim. */
 export type GameResult =
   | { kind: 'checkmate'; winner: Color }
   | { kind: 'stalemate' | 'insufficient-material' | 'threefold-repetition' | 'fifty-move-rule' }

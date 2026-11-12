@@ -273,7 +273,7 @@ export const entries: ShotEntry[] = [
       await page.getByRole('group', { name: 'Promote to' }).waitFor()
     },
   },
-  // Lichess-style highlights (#55). After 1.e4 d5, the e4 pawn selected: a
+  // Move highlights (#55). After 1.e4 d5, the e4 pawn selected: a
   // ring on d5, which it can capture, and a dot on e5.
   {
     name: 'DevBoardCapture',

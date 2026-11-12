@@ -210,7 +210,7 @@ function PlayBoard({ fen: startFen, moves = [], onMove, orientation }: PlayProps
 }
 
 // Playing legal moves on a board showing `fen`: click a piece, then a square,
-// as well as dragging, so play works on touch. As on Lichess, a dragged piece
+// as well as dragging, so play works on touch. A dragged piece
 // is selected too, so its targets show while it is dragged: a dot on an empty
 // square, a ring around a piece it can capture. A pawn move to the last rank
 // waits for the piece to promote to. With no onMove, nothing can be played.
@@ -259,7 +259,7 @@ function usePlay(fen: string, onMove: ((move: LegalMove) => void) | null, orient
   const highlights: Highlight[] = [
     [selectedSquare, selectedStyle],
     [pending?.from, selectedStyle],
-    // En passant takes from an empty square, so it gets a dot, as on Lichess.
+    // En passant takes from an empty square, so it gets a dot.
     ...targets.map((square): Highlight => [square, placement[square] ? captureStyle : targetStyle]),
   ]
   return {
