@@ -1,6 +1,7 @@
-import { Button, Loader, Stack, Text, Title } from '@mantine/core'
+import { Button, Stack, Text, Title } from '@mantine/core'
 import { Link, Outlet } from '@tanstack/react-router'
 import { useId } from 'react'
+import { PageLoading } from '../Loading'
 import { useSession } from '../session'
 import { NoteTree } from './NoteTree'
 import { PaneEdge } from './PaneEdge'
@@ -17,13 +18,8 @@ export function NotesLayout() {
   const sidebar = useCollapsible('sidebar')
   const sidebarId = useId()
 
-  if (state.status === 'restoring') {
-    return (
-      <div className={styles.centered}>
-        <Loader aria-label="Loading" />
-      </div>
-    )
-  }
+  if (state.status === 'restoring') return <PageLoading />
+
   // The shell already shows the restore error with a Retry button.
   if (state.status === 'restore-failed') return null
   if (state.status === 'guest') {
