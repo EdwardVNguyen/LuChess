@@ -634,16 +634,14 @@ export const entries: ShotEntry[] = [
       await page.getByText('Your writing was not saved').waitFor()
     },
   },
-  // Editing moves (#10, #71): a move played from 10…exd5 starts a new
-  // Variation and is saved at once; deleting a move whose subtree holds writing
-  // asks first, with what would go; and a delete that fails.
+  // Playing on the board (#75): there is no "Edit moves" step. A move played
+  // from 10…exd5 starts a new Variation and is saved at once; and a move
+  // that could not be saved.
   {
-    name: 'NoteEditMoves',
+    name: 'NotePlayMove',
     route: '/notes/1',
     fixtures: 'session',
     setup: async (page) => {
-      await page.getByRole('button', { name: 'Note actions' }).click()
-      await page.getByRole('menuitem', { name: 'Edit moves' }).click()
       // 10.Nxd5; 8…Nxd5 comes first.
       await page.getByRole('button', { name: 'Nxd5', exact: true }).nth(1).click()
       for (const square of ['c7', 'c6']) await page.locator(`[id$="-square-${square}"]`).click()
@@ -651,27 +649,14 @@ export const entries: ShotEntry[] = [
     },
   },
   {
-    name: 'NoteEditMovesConfirm',
-    route: '/notes/1',
-    fixtures: 'session',
-    setup: async (page) => {
-      await page.getByRole('button', { name: 'Note actions' }).click()
-      await page.getByRole('menuitem', { name: 'Edit moves' }).click()
-      await page.getByRole('button', { name: 'exd5', exact: true }).click()
-      await page.getByRole('button', { name: 'Delete 10…exd5' }).click()
-      await page.getByRole('dialog', { name: 'Delete your writing?' }).waitFor()
-    },
-  },
-  {
-    name: 'NoteEditMovesError',
+    name: 'NotePlayMoveError',
     route: '/notes/1',
     fixtures: 'session',
     moves: 'editError',
     setup: async (page) => {
-      await page.getByRole('button', { name: 'Note actions' }).click()
-      await page.getByRole('menuitem', { name: 'Edit moves' }).click()
-      await page.getByRole('button', { name: 'Delete 41.Qf4' }).click()
-      await page.getByText('Could not delete the move').waitFor()
+      await page.getByRole('button', { name: 'Nxd5', exact: true }).nth(1).click()
+      for (const square of ['c7', 'c6']) await page.locator(`[id$="-square-${square}"]`).click()
+      await page.getByText('Could not save the move').waitFor()
     },
   },
   // Variations (#71): the move list on a move inside the nested Variation.
@@ -825,6 +810,19 @@ export const entries: ShotEntry[] = [
     route: '/try',
     fixtures: 'guest',
     setup: startGuestNote,
+  },
+  // A Guest plays on the board too (#75), and the new Variation is kept in the browser.
+  {
+    name: 'GuestPlayMove',
+    route: '/try',
+    fixtures: 'guest',
+    setup: async (page) => {
+      await startGuestNote(page)
+      await page.getByRole('button', { name: 'Nxd5', exact: true }).nth(1).click()
+      for (const square of ['c7', 'c6']) await page.locator(`[id$="-square-${square}"]`).click()
+      await page.getByRole('button', { name: 'c6', exact: true }).waitFor()
+      await page.evaluate(() => window.scrollTo(0, 0))
+    },
   },
   {
     name: 'GuestSignUpPrompt',

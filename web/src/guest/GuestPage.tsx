@@ -2,7 +2,7 @@ import { Button, Loader, Menu, Text, UnstyledButton } from '@mantine/core'
 import { Link, Navigate, useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 import type { Writing } from '../chess/pgn'
-import type { MoveId } from '../chess/tree'
+import { addMove, nextId, type MoveId, type MoveTree } from '../chess/tree'
 import { ConfirmDialog, ResponsiveDialog, useOverlaySize, type OverlaySize } from '../overlay'
 import { BookmarkIcon, MoreIcon } from '../notes/icons'
 import noteStyles from '../notes/Notes.module.css'
@@ -78,9 +78,11 @@ type GuestNoteProps = {
   onStartOver: () => void
 }
 
-// The Guest's tree is the one they started with, and their writing on it,
-// including what an imported PGN brought, is kept here in the browser.
+// The Guest's tree, the one they started with and the moves they play on it,
+// and their writing on it, including what an imported PGN brought, are kept
+// here in the browser.
 function GuestNote({ note, size, onSave, onStartOver }: GuestNoteProps) {
+  const [tree, setTree] = useState<MoveTree>(note.tree)
   const [writing, setWriting] = useState<ReadonlyMap<MoveId, Writing>>(note.writing)
   const [confirmingStartOver, setConfirmingStartOver] = useState(false)
 
@@ -89,8 +91,16 @@ function GuestNote({ note, size, onSave, onStartOver }: GuestNoteProps) {
     setWriting((current) => withWriting(current, move, mergeWriting(current.get(move), change)))
   }
 
+  // The same tree operation as the API's add-Move: a move already played there is reused.
+  function play(parent: MoveId, san: string): MoveId | null {
+    const added = addMove(tree, parent, san, nextId(tree))
+    if (!added.ok) return null
+    setTree(added.value.tree)
+    return added.value.id
+  }
+
   function startOver() {
-    if (writing.size > 0) setConfirmingStartOver(true)
+    if (writing.size > 0 || tree !== note.tree) setConfirmingStartOver(true)
     else onStartOver()
   }
 
@@ -98,7 +108,7 @@ function GuestNote({ note, size, onSave, onStartOver }: GuestNoteProps) {
     <>
       <StudyView
         name={note.name}
-        tree={note.tree}
+        tree={tree}
         tags={note.tags}
         writing={writing}
         actions={
@@ -118,6 +128,7 @@ function GuestNote({ note, size, onSave, onStartOver }: GuestNoteProps) {
             </Menu>
           </div>
         }
+        onPlay={play}
         tools={(view) => <CurrentMoveEditor {...view} writing={writing} editable onSave={write} />}
       >
         {(view) => <WritingView {...view} writing={writing} />}
@@ -127,7 +138,7 @@ function GuestNote({ note, size, onSave, onStartOver }: GuestNoteProps) {
         opened={confirmingStartOver}
         onClose={() => setConfirmingStartOver(false)}
         title="Start over"
-        message="Everything you have written on this note will be lost."
+        message="Everything you have written on this note, and the moves you have played, will be lost."
         confirmLabel="Start over"
         onConfirm={onStartOver}
         destructive

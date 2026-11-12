@@ -1,7 +1,7 @@
-import { ActionIcon, Button, CopyButton, Group, Text, Tooltip } from '@mantine/core'
-import { useId, useMemo, useState, type ReactNode } from 'react'
+import { ActionIcon, CopyButton, Text, Tooltip } from '@mantine/core'
+import { useId, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Board } from '../board'
-import { plyLabel, type Game, type LegalMove } from '../chess/chess'
+import type { Game, LegalMove } from '../chess/chess'
 import { exportPgn, tagRecord, type TagPair, type Writing } from '../chess/pgn'
 import { lineAsGame, lineThrough, mainLine, moveOf, type MoveId, type MoveTree } from '../chess/tree'
 import { noteDetails } from './details'
@@ -13,21 +13,6 @@ import { useCollapsible } from './useCollapsible'
 import styles from './Notes.module.css'
 import { PlyEditor } from './PlyEditor'
 import type { WritingChange } from './writing'
-
-/** Playing moves on the board is on while the caller passes this. */
-export type MoveEditing = {
-  /**
-   * Adds a move after `parent`, and answers the Move it became (an existing
-   * one when that move was already played there), or null if it was not saved.
-   */
-  onPlay: (parent: MoveId, san: string) => Promise<MoveId | null> | MoveId | null
-  /** Deletes a Move and its subtree, confirming first if writing would go; true once deleted. */
-  onDelete: (move: MoveId) => Promise<boolean> | boolean
-  onDone: () => void
-  saving: boolean
-  /** Why the last change failed. */
-  error: string | null
-}
 
 /** What the board shows, for the writing column and the tools under the board. */
 export type StudyViewState = {
@@ -59,8 +44,14 @@ type StudyViewProps = {
   initialMove?: MoveId
   /** The margin: beside the writing on desktop, below it on tablet and mobile. */
   margin?: ReactNode
-  /** While set, moves played on the board are added to the tree. */
-  moveEditing?: MoveEditing | null
+  /**
+   * Adds a move played on the board after `parent`, and answers the Move it
+   * became (an existing one when that move was already played there), or null
+   * if it was not saved. The board takes no moves without it.
+   */
+  onPlay?: (parent: MoveId, san: string) => Promise<MoveId | null> | MoveId | null
+  /** Under the board: why the last move played was not saved. */
+  playError?: string | null
 }
 
 const noLinkNames = () => null
@@ -80,7 +71,8 @@ export function StudyView({
   tools,
   initialMove,
   margin,
-  moveEditing,
+  onPlay,
+  playError,
 }: StudyViewProps) {
   // Open at the end of the Main line, so a pasted game shows its final position.
   const [chosen, setChosen] = useState<MoveId>(() =>
@@ -96,20 +88,22 @@ export function StudyView({
   const marginPane = useCollapsible('margin')
   const marginId = useId()
 
-  // A move already played after the current Move steps onto it; any other
-  // is added after it, extending the line or starting a Variation.
+  // A move already played after the current Move steps onto it, whether it
+  // continues the line or starts a Variation; any other is added after it,
+  // extending the line or starting a new Variation. One is saved at a time,
+  // so the next move is played from where the last one landed.
+  const playing = useRef(false)
   async function play(move: LegalMove) {
-    if (!moveEditing) return
+    if (!onPlay || playing.current) return
     const existing = moveOf(tree, current).children.find((child) => moveOf(tree, child).san === move.san)
     if (existing !== undefined) return setChosen(existing)
-    const added = await moveEditing.onPlay(current, move.san)
-    if (added !== null) setChosen(added)
-  }
-
-  async function deleteMove() {
-    const parent = moveOf(tree, current).parent
-    if (!moveEditing || parent === null) return
-    if (await moveEditing.onDelete(current)) setChosen(parent)
+    playing.current = true
+    try {
+      const added = await onPlay(current, move.san)
+      if (added !== null) setChosen(added)
+    } finally {
+      playing.current = false
+    }
   }
 
   const view: StudyViewState = {
@@ -135,9 +129,13 @@ export function StudyView({
           game={line}
           ply={ply}
           onPlyChange={(next) => setChosen(line.plies[Math.min(Math.max(next, 0), line.plies.length - 1)].id ?? tree.root)}
-          onMove={moveEditing ? (move) => void play(move) : undefined}
+          onMove={onPlay ? (move) => void play(move) : undefined}
         />
-        {moveEditing && <MoveEditBar game={line} ply={ply} editing={moveEditing} onDelete={() => void deleteMove()} />}
+        {playError && (
+          <Text c="accent" size="sm" role="alert">
+            {playError}
+          </Text>
+        )}
         <BoardTools fen={line.plies[ply].fen} pgn={pgn}>
           {tools?.(view)}
         </BoardTools>
@@ -164,43 +162,6 @@ export function StudyView({
           {/* Not laid out on its own (display: contents), so the margin's sections stay its grid or flex items. */}
           <div className={styles.marginBody}>{margin}</div>
         </aside>
-      )}
-    </div>
-  )
-}
-
-// Under the board while moves are played: what playing a move does, Delete
-// from the current Move, and Done. Each move is saved as it is played.
-function MoveEditBar({
-  game,
-  ply,
-  editing,
-  onDelete,
-}: {
-  game: Game
-  ply: number
-  editing: MoveEditing
-  onDelete: () => void
-}) {
-  const label = plyLabel(game.plies[ply])
-  return (
-    <div className={styles.editBar} role="region" aria-label="Editing moves">
-      <Text className={styles.editHint}>
-        Play a move on the board to add it. A move other than the next one starts a Variation. Deleting a move deletes
-        the moves after it.
-      </Text>
-      <Group gap="xs" justify="space-between">
-        <Button variant="default" size="xs" disabled={label === null || editing.saving} onClick={onDelete}>
-          {label === null ? 'Delete move' : `Delete ${label}`}
-        </Button>
-        <Button size="xs" loading={editing.saving} onClick={editing.onDone}>
-          Done
-        </Button>
-      </Group>
-      {editing.error && (
-        <Text c="accent" size="sm" role="alert">
-          {editing.error}
-        </Text>
       )}
     </div>
   )

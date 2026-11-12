@@ -1,13 +1,13 @@
 import { Alert, Button, Loader, Stack, Text, Title } from '@mantine/core'
 import { useDisclosure } from '@mantine/hooks'
 import { Link, useParams, useSearch } from '@tanstack/react-router'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { ApiError, type MoveRow, type Note } from '../api'
 import { START_FEN, type Game } from '../chess/chess'
 import type { Writing } from '../chess/pgn'
 import { readingOrder, treeFromRows, type MoveId, type MoveTree } from '../chess/tree'
 import { errorMessage } from '../errors'
-import { ConfirmDialog, ResponsivePopover, useOverlaySize } from '../overlay'
+import { ResponsivePopover, useOverlaySize } from '../overlay'
 import { FolderIcon } from './icons'
 import { LinkingContext, type Linking } from './linking'
 import type { LinkStatus } from './links'
@@ -16,7 +16,7 @@ import { folderPath } from './folders'
 import { NoteTree } from './NoteTree'
 import styles from './Notes.module.css'
 import { NoteMargin } from './NoteMargin'
-import { useAddMove, useDeleteMove, useFolders, useMoves, useNote, useNoteLinks, useSaveWriting } from './queries'
+import { useAddMove, useFolders, useMoves, useNote, useNoteLinks, useSaveWriting } from './queries'
 import { CurrentMoveEditor, StudyView, WritingView } from './StudyView'
 import { writingByMove } from './writing'
 
@@ -66,7 +66,7 @@ function LoadedNote({ id, initialMove }: { id: number; initialMove: number | und
 
 function NoteView({ note, rows, initialMove }: { note: Note; rows: MoveRow[]; initialMove: number | undefined }) {
   const linking = useNoteLinking(note.id)
-  const editing = useMoveEditing(note.id)
+  const playing = useMovePlaying(note.id)
   const save = useSaveWriting(note.id)
   const folders = useFolders()
   const path = folderPath(folders.data ?? [], note.folderId).map((folder) => folder.name)
@@ -100,118 +100,34 @@ function NoteView({ note, rows, initialMove }: { note: Note; rows: MoveRow[]; in
         tags={note.tags}
         writing={writing}
         linkName={linking.name}
-        actions={<NoteActions note={note} onEditMoves={editing.start} />}
+        actions={<NoteActions note={note} />}
         initialMove={initialMove}
         margin={<NoteMargin noteId={note.id} writing={inReadingOrder} />}
-        moveEditing={editing.editing}
+        onPlay={playing.onPlay}
+        playError={playing.error}
         tools={(view) => <Editor save={save} writing={writing} {...view} />}
       >
         {(view) => <WritingColumn writing={writing} scrollToCurrent={initialMove !== undefined} {...view} />}
       </StudyView>
-      {editing.confirmDialog}
     </LinkingContext>
   )
 }
 
-type Confirming = { move: MoveId; message: string; done: (deleted: boolean) => void }
-
-// Playing moves on a Note's board: each move is added as it is played. Deleting
-// a Move deletes its subtree; if the API answers that writing would go with
-// it, the user confirms before it is sent again with the confirmation.
-function useMoveEditing(noteId: number) {
-  const [active, setActive] = useState(false)
-  const [confirming, setConfirming] = useState<Confirming | null>(null)
+// Moves played on a Note's board are saved straight away, one add-Move
+// operation each. The API answers the existing Move when that move was
+// already played there (ADR 0009).
+function useMovePlaying(noteId: number) {
   const add = useAddMove(noteId)
-  const remove = useDeleteMove(noteId)
-  const size = useOverlaySize()
 
   function onPlay(parentId: MoveId, san: string): Promise<MoveId | null> {
-    remove.reset()
+    add.reset()
     return add.mutateAsync({ parentId, san }).then(
       (move) => move.id,
       () => null,
     )
   }
 
-  function onDelete(move: MoveId): Promise<boolean> {
-    add.reset()
-    return new Promise((done) => {
-      remove.mutate(
-        { moveId: move, confirm: false },
-        {
-          onSuccess: (result) => {
-            if (result.status === 'deleted') done(true)
-            else setConfirming({ move, message: result.message, done })
-          },
-          onError: () => done(false),
-        },
-      )
-    })
-  }
-
-  function closeConfirm() {
-    confirming?.done(false)
-    setConfirming(null)
-    remove.reset()
-  }
-
-  function confirm() {
-    if (!confirming) return
-    remove.mutate(
-      { moveId: confirming.move, confirm: true },
-      {
-        onSuccess: (result) => {
-          if (result.status !== 'deleted') return
-          confirming.done(true)
-          setConfirming(null)
-        },
-      },
-    )
-  }
-
-  const failed = add.isError ? add.error : remove.isError && !confirming ? remove.error : null
-
-  return {
-    start: active
-      ? undefined
-      : () => {
-          add.reset()
-          remove.reset()
-          setActive(true)
-        },
-    editing: active
-      ? {
-          onPlay,
-          onDelete,
-          onDone: () => setActive(false),
-          saving: add.isPending || remove.isPending,
-          error: failed ? errorMessage(failed) : null,
-        }
-      : null,
-    confirmDialog: confirming && (
-      <ConfirmDialog
-        size={size}
-        opened
-        onClose={closeConfirm}
-        title="Delete your writing?"
-        message={
-          <>
-            {confirming.message}: everything written from this move on, in every Variation after it, and the Links in
-            them. This cannot be undone.
-            {remove.isError && (
-              <Text component="span" display="block" c="accent" size="sm" mt="sm" role="alert">
-                {errorMessage(remove.error)}
-              </Text>
-            )}
-          </>
-        }
-        confirmLabel="Delete"
-        onConfirm={confirm}
-        confirmLoading={remove.isPending}
-        destructive
-      />
-    ),
-  }
+  return { onPlay, error: add.isError ? errorMessage(add.error) : null }
 }
 
 // Links show their targets' current names from the Note's links. Until those

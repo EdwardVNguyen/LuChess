@@ -66,6 +66,12 @@ function renderGuestPage(state: SessionState = { status: 'guest' }) {
   return router
 }
 
+function square(name: string): HTMLElement {
+  const element = document.querySelector<HTMLElement>(`[id$="-square-${name}"]`)
+  if (!element) throw new Error(`no square ${name}`)
+  return element
+}
+
 async function startFromPgn(pgn: string, name: string) {
   await userEvent.type(await screen.findByRole('textbox', { name: 'PGN' }), pgn)
   await userEvent.type(screen.getByRole('textbox', { name: 'Name' }), name)
@@ -130,6 +136,48 @@ describe('GuestPage', () => {
     await userEvent.click(within(dialog).getByRole('button', { name: 'Start over' }))
 
     expect(await screen.findByRole('button', { name: 'Start writing' })).toBeInTheDocument()
+  })
+
+  it('plays moves on the board in the browser: extending, stepping forward, and Variations', async () => {
+    renderGuestPage()
+    await startFromPgn('1. e4 e5 *', 'Open games')
+    const play = async (from: string, to: string) => {
+      await userEvent.click(square(from))
+      await userEvent.click(square(to))
+    }
+
+    // At the end of the line, a move extends it.
+    await play('g1', 'f3')
+    expect(screen.getByRole('button', { name: 'Nf3' })).toHaveAttribute('aria-current', 'step')
+
+    // The next Move only steps forward.
+    await userEvent.click(screen.getByRole('button', { name: 'e4' }))
+    await play('e7', 'e5')
+    expect(screen.getByRole('button', { name: 'e5' })).toHaveAttribute('aria-current', 'step')
+
+    // A different move starts a Variation, and playing it again steps into it.
+    await userEvent.click(screen.getByRole('button', { name: 'e4' }))
+    await play('c7', 'c5')
+    expect(screen.getByRole('button', { name: 'c5' })).toHaveAttribute('aria-current', 'step')
+    await userEvent.click(screen.getByRole('button', { name: 'e4' }))
+    await play('c7', 'c5')
+    expect(screen.getAllByRole('button', { name: 'c5' })).toHaveLength(1)
+    expect(screen.getByRole('button', { name: 'c5' })).toHaveAttribute('aria-current', 'step')
+    expect(screen.getByRole('textbox', { name: 'PGN' })).toHaveValue('1. e4 e5 (1... c5) 2. Nf3 *')
+
+    expect(apiCalls).toEqual([])
+    expect(fetchSpy).not.toHaveBeenCalled()
+  })
+
+  it('confirms before starting over when moves were played', async () => {
+    renderGuestPage()
+    await startFromPgn('1. c4 *', 'English')
+    await userEvent.click(square('e7'))
+    await userEvent.click(square('e5'))
+
+    await userEvent.click(screen.getByRole('button', { name: 'Note actions' }))
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Start over' }))
+    expect(await screen.findByRole('dialog', { name: 'Start over' })).toHaveTextContent('the moves you have played')
   })
 
   it('sends someone logged in to the New note page', async () => {
