@@ -6,7 +6,7 @@ import type { NoteSearchResult } from '../api'
 import { errorMessage } from '../errors'
 import { SearchIcon } from '../header/icons'
 import { ResponsivePanel, useOverlaySize } from '../overlay'
-import { useNoteSearch } from './queries'
+import { useNoteSearch } from './noteSearch'
 import { highlight, resultDetails } from './quickFindResults'
 import styles from './QuickFind.module.css'
 
