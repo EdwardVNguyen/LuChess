@@ -725,6 +725,31 @@ export const entries: ShotEntry[] = [
       await page.getByText('Set up a position').click()
     },
   },
+  // The PGN reader loads as its own chunk (#84): a pasted game while it is
+  // still loading, and when it failed to load (offline).
+  {
+    name: 'NewNotePgnLoading',
+    route: '/notes/new',
+    fixtures: 'session',
+    setup: async (page) => {
+      await withPgnReader(page, 'pending')
+      await page.getByRole('textbox', { name: 'PGN' }).fill('[White "Lovelace, Ada"]\n[Black "Hopper, Grace"]\n\n1. e4 e5 2. Nf3 Nc6 *')
+      await page.getByRole('button', { name: 'Create note' }).click()
+      await page.getByRole('status').filter({ hasText: 'Reading the PGN' }).waitFor()
+    },
+  },
+  {
+    name: 'NewNotePgnLoadFailed',
+    route: '/notes/new',
+    fixtures: 'session',
+    setup: async (page) => {
+      await withPgnReader(page, 'failed')
+      await page.getByText('Could not load the PGN reader').waitFor()
+      await page.getByRole('textbox', { name: 'PGN' }).fill('[White "Lovelace, Ada"]\n[Black "Hopper, Grace"]\n\n1. e4 e5 2. Nf3 Nc6 *')
+      await page.getByRole('textbox', { name: 'Name' }).click()
+      await page.getByText('Could not load the PGN reader').waitFor()
+    },
+  },
   // Quick Find (#7), matching design/screenshots/QuickFind*.png. The
   // undesigned states follow: before typing, searching, nothing found, failed.
   {
@@ -960,6 +985,23 @@ async function startGuestNote(page: Page) {
   await page.getByRole('button', { name: 'Previous move' }).focus()
   // Writing scrolled the page; a full-page shot would catch the fixed header mid-page.
   await page.evaluate(() => window.scrollTo(0, 0))
+}
+
+/**
+ * Reloads the page with the PGN reader's chunk never arriving or failing to
+ * load, as the form starts loading it as soon as it opens.
+ */
+async function withPgnReader(page: Page, reader: 'pending' | 'failed') {
+  await page.route('**/src/chess/pgnImport.ts*', async (route) => {
+    if (reader === 'failed') await route.abort('internetdisconnected')
+    // Pending: never answered.
+  })
+  await page.reload({ waitUntil: 'load' })
+  await page.evaluate(() => document.fonts.ready)
+  await page.addStyleTag({
+    content: '*, *::before, *::after { animation-duration: 0s !important; animation-delay: 0s !important; transition-duration: 0s !important; caret-color: transparent !important; }',
+  })
+  await page.getByRole('textbox', { name: 'PGN' }).waitFor()
 }
 
 async function openQuickFind(page: Page, query: string) {
