@@ -5,7 +5,7 @@ import type { NoteSearchResult } from '../api'
 import { errorMessage } from '../errors'
 import { SearchIcon } from '../header/icons'
 import styles from './LinkPicker.module.css'
-import { useNoteSearch } from './queries'
+import { useNoteSearch } from './noteSearch'
 import { resultDetails } from './quickFindResults'
 
 type Props = {
