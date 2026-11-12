@@ -77,7 +77,7 @@ export function LinkPicker({ noteId, onPick }: Props) {
       )}
       {debounced !== '' && search.isError && (
         <div className={styles.state}>
-          <Text size="sm" ff="var(--cn-font-sans)" role="alert">
+          <Text size="sm" role="alert">
             {errorMessage(search.error)}
           </Text>
           <Button variant="default" size="xs" onClick={() => void search.refetch()}>

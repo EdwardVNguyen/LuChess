@@ -92,7 +92,7 @@ function FindNotes({ onDone }: { onDone: () => void }) {
       </div>
 
       {debounced === '' && (
-        <Text className={styles.state} size="sm" ff="var(--cn-font-sans)" c="var(--cn-muted)">
+        <Text className={styles.state} size="sm" c="var(--cn-muted)">
           Type to find a note by its name or the players in its game.
         </Text>
       )}
@@ -103,7 +103,7 @@ function FindNotes({ onDone }: { onDone: () => void }) {
       )}
       {debounced !== '' && search.isError && (
         <div className={styles.state}>
-          <Text size="sm" ff="var(--cn-font-sans)" role="alert">
+          <Text size="sm" role="alert">
             {errorMessage(search.error)}
           </Text>
           <Button variant="default" size="xs" onClick={() => void search.refetch()}>
@@ -112,7 +112,7 @@ function FindNotes({ onDone }: { onDone: () => void }) {
         </div>
       )}
       {debounced !== '' && search.isSuccess && results.length === 0 && (
-        <Text className={styles.state} size="sm" ff="var(--cn-font-sans)" c="var(--cn-muted)" role="status">
+        <Text className={styles.state} size="sm" c="var(--cn-muted)" role="status">
           No notes match “{debounced}”.
         </Text>
       )}

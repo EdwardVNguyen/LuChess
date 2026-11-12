@@ -60,7 +60,7 @@ export function NoteTree({ onNavigate, showHeading = true }: Props) {
       {showHeading && <div className={styles.eyebrow}>Your notes</div>}
       {failed ? (
         <div className={styles.listState}>
-          <Text size="sm" ff="var(--cn-font-sans)" role="alert">
+          <Text size="sm" role="alert">
             {errorMessage(failed.error)}
           </Text>
           <Button
@@ -82,7 +82,7 @@ export function NoteTree({ onNavigate, showHeading = true }: Props) {
         <>
           {empty && (
             <div className={styles.listState}>
-              <Text size="sm" ff="var(--cn-font-sans)" c="var(--cn-muted)">
+              <Text size="sm" c="var(--cn-muted)">
                 No notes yet.
               </Text>
             </div>

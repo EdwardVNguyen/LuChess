@@ -3,10 +3,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMemoryHistory, createRootRoute, createRoute, createRouter, Outlet, RouterProvider } from '@tanstack/react-router'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError, type User } from '../api'
 import { createSession, SessionProvider, type Session } from '../session'
-import { theme } from '../theme'
+import { theme, themeStore } from '../theme'
 import { SettingsPage } from './SettingsPage'
 
 const deleteAccount = vi.fn<(token: string, password: string) => Promise<void>>()
@@ -15,6 +15,21 @@ vi.mock('../apiClient', () => ({
 }))
 
 const ada: User = { id: 1, email: 'ada@example.com', name: 'Ada' }
+
+async function guestSession(): Promise<Session> {
+  const session = createSession({
+    transport: {
+      login: async () => ({ accessToken: 'token', user: ada }),
+      refresh: async () => {
+        throw new ApiError('Not logged in', 401)
+      },
+      logout: async () => {},
+    },
+    lock: (fn) => fn(),
+  })
+  await session.restore()
+  return session
+}
 
 async function signedInSession(): Promise<Session> {
   const session = createSession({
@@ -106,5 +121,43 @@ describe('SettingsPage', () => {
 
     expect(await within(dialog).findByRole('alert')).toHaveTextContent('Could not reach the server')
     expect(session.getState()).toEqual({ status: 'authenticated', user: ada })
+  })
+})
+
+describe('SettingsPage theme', () => {
+  afterEach(() => {
+    themeStore().set('warm')
+    window.localStorage.clear()
+  })
+
+  it('shows Warm paper chosen by default', async () => {
+    renderSettings(await signedInSession())
+
+    expect(await screen.findByRole('radio', { name: 'Warm paper' })).toBeChecked()
+  })
+
+  it('applies a new theme at once and saves it on the device', async () => {
+    const user = userEvent.setup()
+    renderSettings(await signedInSession())
+
+    await user.click(await screen.findByRole('radio', { name: 'Night' }))
+
+    expect(screen.getByRole('radio', { name: 'Night' })).toBeChecked()
+    expect(document.documentElement.dataset.cnTheme).toBe('night')
+    expect(document.documentElement.dataset.mantineColorScheme).toBe('dark')
+    expect(window.localStorage.getItem('chessnotes:theme')).toBe('night')
+  })
+
+  it('lets a Guest choose a theme too', async () => {
+    const user = userEvent.setup()
+    const session = await guestSession()
+    expect(session.getState()).toEqual({ status: 'guest' })
+    renderSettings(session)
+
+    await user.click(await screen.findByRole('radio', { name: 'Cool paper' }))
+
+    expect(document.documentElement.dataset.cnTheme).toBe('cool')
+    expect(screen.getByRole('link', { name: 'Log in' })).toBeInTheDocument()
+    expect(screen.queryByLabelText('Your password')).not.toBeInTheDocument()
   })
 })

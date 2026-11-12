@@ -22,7 +22,7 @@ export function NoteMargin({ noteId }: { noteId: number }) {
   const pending = (plies.isPending || links.isPending) && !links.isError
   const failed = links.isError && (
     <div className={styles.marginState}>
-      <Text size="sm" ff="var(--cn-font-sans)" role="alert">
+      <Text size="sm" role="alert">
         {errorMessage(links.error)}
       </Text>
       <Button variant="default" size="xs" onClick={() => void links.refetch()}>

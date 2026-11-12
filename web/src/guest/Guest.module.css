@@ -20,7 +20,7 @@
   text-align: center;
   background: var(--cn-highlight);
   border-bottom: 1px solid var(--cn-rule);
-  font-family: var(--cn-font-sans);
+  font-family: var(--cn-font);
   font-size: 14px;
   color: var(--cn-ink);
 }

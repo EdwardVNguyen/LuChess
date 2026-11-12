@@ -21,7 +21,7 @@
     border: 1px solid var(--cn-edge);
     border-radius: var(--cn-radius-button);
     color: var(--cn-muted);
-    font-family: var(--cn-font-sans);
+    font-family: var(--cn-font);
     font-size: 14px;
   }
 }
@@ -38,7 +38,7 @@
 }
 
 .shortcut {
-  font-family: var(--cn-font-sans);
+  font-family: var(--cn-font);
   font-size: 12px;
   border: 1px solid var(--cn-edge);
   border-radius: 4px;
@@ -131,8 +131,8 @@
   border: 0;
   padding: 0;
   background: transparent;
-  font-family: var(--cn-font-serif);
-  font-size: 19px;
+  font-family: var(--cn-font);
+  font-size: 17px;
   color: var(--cn-ink);
   outline: none;
 }
@@ -144,7 +144,7 @@
 
 @media (min-width: 64em) {
   .input {
-    font-size: 24px;
+    font-size: 22px;
   }
 }
 
@@ -174,7 +174,7 @@
 }
 
 .eyebrow {
-  font-family: var(--cn-font-sans);
+  font-family: var(--cn-font);
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.09em;
@@ -225,15 +225,15 @@
 }
 
 .name {
-  font-family: var(--cn-font-serif);
-  font-size: 19px;
+  font-family: var(--cn-font);
+  font-size: 17px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .details {
-  font-family: var(--cn-font-sans);
+  font-family: var(--cn-font);
   font-size: 13px;
   color: var(--cn-muted);
   overflow: hidden;
@@ -257,7 +257,7 @@
     display: flex;
     align-items: center;
     gap: 20px;
-    font-family: var(--cn-font-sans);
+    font-family: var(--cn-font);
     font-size: 13px;
     color: var(--cn-muted);
   }
@@ -273,7 +273,7 @@
 
 .close {
   margin-left: auto;
-  font-family: var(--cn-font-sans);
+  font-family: var(--cn-font);
   font-size: 13px;
   color: var(--cn-muted);
   text-decoration: underline;

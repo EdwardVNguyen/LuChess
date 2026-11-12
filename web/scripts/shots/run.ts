@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs'
 import { mkdir } from 'node:fs/promises'
+import { availableParallelism } from 'node:os'
 import path from 'node:path'
 import { chromium } from 'playwright'
 import { createServer } from 'vite'
@@ -48,14 +49,21 @@ async function main() {
   const baseUrl = server.resolvedUrls?.local[0]
   if (!baseUrl) throw new Error('Vite dev server did not report a URL to screenshot')
 
+  // Each shot has its own browser context, so several run at once. Most of a
+  // shot is waiting (for the network to go quiet, for fonts), which overlaps.
+  const jobs = selected.flatMap((entry) => sizes.map((size) => ({ entry, size })))
+  const concurrency = Math.max(1, Number(process.env.SHOTS_CONCURRENCY) || Math.min(8, Math.ceil(availableParallelism() / 2)))
   const browser = await chromium.launch()
   try {
-    for (const entry of selected) {
-      console.log(`Shooting ${entry.name}...`)
-      for (const size of sizes) {
-        await shootOne(browser, baseUrl, entry, size)
+    let next = 0
+    async function worker() {
+      while (next < jobs.length) {
+        const { entry, size } = jobs[next++]
+        if (size === sizes[0]) console.log(`Shooting ${entry.name}...`)
+        await shootOne(browser, baseUrl!, entry, size)
       }
     }
+    await Promise.all(Array.from({ length: Math.min(concurrency, jobs.length) }, worker))
   } finally {
     await browser.close()
     await server.close()
@@ -70,6 +78,9 @@ async function shootOne(browser: Browser, baseUrl: string, entry: ShotEntry, siz
   const page = await context.newPage()
   try {
     await installApiMocks(page, entry.fixtures, entry.notes, entry.search, entry.plies, entry.links, entry.moves)
+    if (entry.theme) {
+      await page.addInitScript((theme) => window.localStorage.setItem('chessnotes:theme', theme), entry.theme)
+    }
     await page.goto(`${baseUrl.replace(/\/$/, '')}${entry.route}`, { waitUntil: entry.waitUntil ?? 'networkidle' })
     await page.evaluate(() => document.fonts.ready)
     // Belt and braces on top of reducedMotion: stop anything still animating

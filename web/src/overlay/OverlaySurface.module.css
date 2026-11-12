@@ -25,13 +25,13 @@
 }
 
 .fullScreenTitle {
-  font-family: var(--cn-font-serif);
-  font-size: 19px !important;
+  font-family: var(--cn-font);
+  font-size: 17px !important;
   font-weight: 400 !important;
 }
 
 .cancel {
-  font-family: var(--cn-font-sans);
+  font-family: var(--cn-font);
   font-size: 15px;
   color: var(--cn-accent);
 }

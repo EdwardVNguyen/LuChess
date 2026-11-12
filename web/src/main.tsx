@@ -1,13 +1,12 @@
 import '@mantine/core/styles.css'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { MantineProvider } from '@mantine/core'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { RouterProvider } from '@tanstack/react-router'
 import { api } from './apiClient'
 import { router } from './router'
 import { createSession, SessionProvider } from './session'
-import { cssVariablesResolver, theme } from './theme'
+import { ThemeProvider } from './theme'
 
 const queryClient = new QueryClient()
 const session = createSession({
@@ -19,12 +18,12 @@ const session = createSession({
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <MantineProvider theme={theme} cssVariablesResolver={cssVariablesResolver}>
+    <ThemeProvider>
       <QueryClientProvider client={queryClient}>
         <SessionProvider session={session}>
           <RouterProvider router={router} />
         </SessionProvider>
       </QueryClientProvider>
-    </MantineProvider>
+    </ThemeProvider>
   </StrictMode>,
 )

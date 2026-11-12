@@ -39,6 +39,8 @@ export type ShotEntry = {
   moves?: MovesFixture
   /** What to wait for before setup; a never-answered request means networkidle never comes. @default 'networkidle' */
   waitUntil?: 'load' | 'networkidle'
+  /** The theme saved on the device before the page loads (docs/adr/0008). @default Warm paper, the site's default */
+  theme?: 'night' | 'cool'
   /** Extra steps after the page loads, e.g. opening a dialog. */
   setup?: (page: Page) => Promise<void>
 }
@@ -856,6 +858,25 @@ export const entries: ShotEntry[] = [
       await page.evaluate(() => window.scrollTo(0, 0))
     },
   },
+  // The site in its other themes (docs/adr/0008); every other entry shows
+  // Warm paper, the default. The Note screen, the landing page and Settings
+  // in Night and Cool paper.
+  ...(['night', 'cool'] as const).flatMap((theme): ShotEntry[] => {
+    const suffix = theme === 'night' ? 'Night' : 'CoolPaper'
+    return [
+      {
+        name: `Note-${suffix}`,
+        route: '/notes/1',
+        fixtures: 'session',
+        theme,
+        setup: async (page) => {
+          await page.getByRole('button', { name: 'exd5', exact: true }).click()
+        },
+      },
+      { name: `HomeLoggedOut-${suffix}`, route: '/', fixtures: 'guest', theme },
+      { name: `Settings-${suffix}`, route: '/settings', fixtures: 'session', theme },
+    ]
+  }),
 ]
 
 /** Types the password on Settings and opens the confirm dialog to delete the account. */

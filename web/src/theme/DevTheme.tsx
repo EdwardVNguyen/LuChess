@@ -16,9 +16,14 @@ import {
 } from '@mantine/core'
 import { useDisclosure } from '@mantine/hooks'
 import styles from './DevTheme.module.css'
-import { colorTokens } from './tokens'
+import { palettes, type ThemeName } from './tokens'
 
-const swatches = Object.entries(colorTokens).filter(([name]) => name !== 'overlay' && name !== 'dialogShadow') as [string, string][]
+// Each theme's colours (not its scheme or ramp ends), shown in that theme.
+const swatches = (name: ThemeName) =>
+  Object.entries(palettes[name]).filter(([, value]) => typeof value === 'string' && value.startsWith('#')) as [
+    string,
+    string,
+  ][]
 
 // Dev-only page that shows the theme's components in one place, so a change
 // to a token or a component override is easy to screenshot and compare with
@@ -33,15 +38,19 @@ export function DevTheme() {
 
       <Stack gap="sm">
         <Title order={2}>Colors</Title>
-        <div className={styles.swatches}>
-          {swatches.map(([name, value]) => (
-            <div key={name} className={styles.swatch}>
-              <div className={styles.swatchColor} style={{ background: value }} />
-              <span className={styles.swatchName}>{name}</span>
-              <span className={styles.swatchValue}>{value}</span>
-            </div>
-          ))}
-        </div>
+        {(Object.keys(palettes) as ThemeName[]).map((theme) => (
+          <div key={theme} data-cn-theme={theme} className={styles.swatches}>
+            {swatches(theme).map(([name, value]) => (
+              <div key={name} className={styles.swatch}>
+                <div className={styles.swatchColor} style={{ background: value }} />
+                <span className={styles.swatchName}>
+                  {theme} {name}
+                </span>
+                <span className={styles.swatchValue}>{value}</span>
+              </div>
+            ))}
+          </div>
+        ))}
       </Stack>
 
       <Stack gap="sm">
@@ -60,13 +69,11 @@ export function DevTheme() {
 
       <Stack gap="sm">
         <Title order={2}>Fonts</Title>
-        <Text fz={28}>Newsreader: The Lucena position, step by step</Text>
+        <Text fz={28}>Inter: The Lucena position, step by step</Text>
         <Text fz={28} fs="italic">
-          Newsreader italic: 17.Qxd6
+          Inter italic: 17.Qxd6
         </Text>
-        <Text fz={16} style={{ fontFamily: 'var(--cn-font-sans)' }}>
-          Hanken Grotesk: FOLDER NAME, Sign up, Only you
-        </Text>
+        <Text fz={16}>Inter: FOLDER NAME, Sign up, Only you</Text>
       </Stack>
 
       <Stack gap="sm">
