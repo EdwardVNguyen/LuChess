@@ -59,8 +59,8 @@ const noteRoute = createRoute({
 
 // Dev-only: pages showing the theme's components and the shared overlays, so
 // a change is easy to screenshot. Not reachable, or bundled, in production
-// (web/AGENTS.md).
-const devRoutes = import.meta.env.DEV
+// (web/AGENTS.md). `npm run shots` builds in the "shots" mode to keep them.
+const devRoutes = import.meta.env.DEV || import.meta.env.MODE === 'shots'
   ? [
       createRoute({ getParentRoute: () => rootRoute, path: '/dev/theme', component: DevThemeRoute }),
       createRoute({ getParentRoute: () => rootRoute, path: '/dev/overlays', component: DevOverlaysRoute }),

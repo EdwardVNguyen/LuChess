@@ -20,6 +20,10 @@ npm run shots            # every entry
 npm run shots -- Login   # a single entry, matched by name
 ```
 
+It shoots a production build of the app (`vite build` in the `shots` mode, which keeps the `/dev/*` routes that a
+normal build leaves out), served by `vite preview` on a free port, so it can run beside `npm run dev`. Captures run
+in parallel; set `SHOTS_CONCURRENCY` to change how many.
+
 For each entry this writes three PNGs to `web/shots/` (gitignored), named like the design files:
 
 - `<Screen>.png` — desktop, 1440px wide
