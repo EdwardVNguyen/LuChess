@@ -11,9 +11,8 @@ import { useDeleteNote, useRenameNote } from './queries'
 
 const MAX_NAME_LENGTH = 200
 
-// The menu beside a Note's title: Edit moves, which the Note screen handles,
-// and Rename, Move to folder and Delete, each in a dialog.
-export function NoteActions({ note, onEditMoves }: { note: Note; onEditMoves?: () => void }) {
+// The menu beside a Note's title: Rename, Move to folder and Delete, each in a dialog.
+export function NoteActions({ note }: { note: Note }) {
   const [dialog, setDialog] = useState<'rename' | 'move' | 'delete' | null>(null)
   const size = useOverlaySize()
 
@@ -26,7 +25,6 @@ export function NoteActions({ note, onEditMoves }: { note: Note; onEditMoves?: (
           </UnstyledButton>
         </Menu.Target>
         <Menu.Dropdown>
-          {onEditMoves && <Menu.Item onClick={onEditMoves}>Edit moves</Menu.Item>}
           <Menu.Item onClick={() => setDialog('rename')}>Rename</Menu.Item>
           <Menu.Item onClick={() => setDialog('move')}>Move to folder</Menu.Item>
           <Menu.Item color="accent.6" onClick={() => setDialog('delete')}>

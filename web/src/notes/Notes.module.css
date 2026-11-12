@@ -1116,24 +1116,6 @@
   gap: 8px;
 }
 
-/* Under the board while the moves are edited. */
-.editBar {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 12px 14px;
-  border: 1px dashed var(--cn-dashed);
-  border-radius: var(--cn-radius-card);
-  background: var(--cn-card);
-}
-
-.editHint {
-  font-family: var(--cn-font);
-  font-size: 13px;
-  line-height: 1.45;
-  color: var(--cn-muted);
-}
-
 /* Under the board (#72): the editor for the current Ply, then the FEN and the
  * PGN to copy, as in a Lichess Study. */
 .boardTools {
