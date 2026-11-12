@@ -2,7 +2,7 @@ import { ActionIcon, CopyButton, Text, Tooltip } from '@mantine/core'
 import { useId, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Board } from '../board'
 import type { Game, LegalMove } from '../chess/chess'
-import { exportPgn, tagRecord, type TagPair, type Writing } from '../chess/pgn'
+import { exportPgn, tagRecord, type Drawing, type TagPair, type Writing } from '../chess/pgn'
 import { lineAsGame, lineThrough, mainLine, moveOf, type MoveId, type MoveTree } from '../chess/tree'
 import { noteDetails } from './details'
 import { CheckIcon, CopyIcon } from './icons'
@@ -52,9 +52,15 @@ type StudyViewProps = {
   onPlay?: (parent: MoveId, san: string) => Promise<MoveId | null> | MoveId | null
   /** Under the board: why the last move played was not saved. */
   playError?: string | null
+  /**
+   * Saves the Drawings on a Move or the Position, drawn on the board while it
+   * shows that Move (#77). Without it, the Drawings are only shown.
+   */
+  onDraw?: (move: MoveId, drawings: Drawing[]) => void
 }
 
 const noLinkNames = () => null
+const noDrawings: readonly Drawing[] = []
 
 // The study view shared by a saved Note and a Guest's unsaved one: the title,
 // the board and the writing column (design/screenshots/Note*.png), so the two
@@ -73,6 +79,7 @@ export function StudyView({
   margin,
   onPlay,
   playError,
+  onDraw,
 }: StudyViewProps) {
   // Open at the end of the Main line, so a pasted game shows its final position.
   const [chosen, setChosen] = useState<MoveId>(() =>
@@ -80,6 +87,18 @@ export function StudyView({
   )
   // A Move deleted from under the board leaves it at the Position.
   const current = tree.moves.has(chosen) ? chosen : tree.root
+  // The Drawings last drawn on the current Move, shown until the board leaves
+  // it: a second Drawing made before the first is saved builds on the first.
+  const [drawn, setDrawn] = useState<{ move: MoveId; drawings: Drawing[] } | null>(null)
+  const drawings = drawn?.move === current ? drawn.drawings : (writing.get(current)?.drawings ?? noDrawings)
+  const goTo = (move: MoveId) => {
+    setDrawn(null)
+    setChosen(move)
+  }
+  function draw(next: Drawing[]) {
+    setDrawn({ move: current, drawings: next })
+    onDraw?.(current, next)
+  }
   const details = noteDetails(tagRecord(tags))
   const line = useMemo(() => lineAsGame(lineThrough(tree, current), tagRecord(tags)), [tree, current, tags])
   const ply = moveOf(tree, current).ply
@@ -96,11 +115,11 @@ export function StudyView({
   async function play(move: LegalMove) {
     if (!onPlay || playing.current) return
     const existing = moveOf(tree, current).children.find((child) => moveOf(tree, child).san === move.san)
-    if (existing !== undefined) return setChosen(existing)
+    if (existing !== undefined) return goTo(existing)
     playing.current = true
     try {
       const added = await onPlay(current, move.san)
-      if (added !== null) setChosen(added)
+      if (added !== null) goTo(added)
     } finally {
       playing.current = false
     }
@@ -110,7 +129,7 @@ export function StudyView({
     tree,
     line,
     current,
-    onMoveChange: setChosen,
+    onMoveChange: goTo,
   }
 
   return (
@@ -128,8 +147,10 @@ export function StudyView({
           mode="view"
           game={line}
           ply={ply}
-          onPlyChange={(next) => setChosen(line.plies[Math.min(Math.max(next, 0), line.plies.length - 1)].id ?? tree.root)}
+          onPlyChange={(next) => goTo(line.plies[Math.min(Math.max(next, 0), line.plies.length - 1)].id ?? tree.root)}
           onMove={onPlay ? (move) => void play(move) : undefined}
+          drawings={drawings}
+          onDrawingsChange={onDraw ? draw : undefined}
         />
         {playError && (
           <Text c="accent" size="sm" role="alert">

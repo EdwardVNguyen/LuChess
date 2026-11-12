@@ -93,6 +93,25 @@ describe('importPgn', () => {
     expect(writing.has(at(tree, 'e4', 'c5', 'Nf3').id)).toBe(false)
   })
 
+  it('reads Drawings in all four brushes, on their own or with a Comment, and each shape once (#77)', () => {
+    const note = imported('{[%csl Yd4]} 1. e4 {[%cal Bg1f3,Rd2d4,Bg1f3][%csl Ge4,Re4]} 1... e5 (1... c5 {[%cal Yc5d4] Sicilian.}) *')
+    expect(note.writing.get(note.tree.root)).toMatchObject({ comment: null, body: null, drawings: [{ from: 'd4', brush: 'yellow' }] })
+    expect(note.writing.get(at(note.tree, 'e4').id)).toMatchObject({
+      comment: null,
+      drawings: [
+        { from: 'e4', brush: 'green' },
+        { from: 'g1', to: 'f3', brush: 'blue' },
+        { from: 'd2', to: 'd4', brush: 'red' },
+      ],
+    })
+    expect(note.writing.get(at(note.tree, 'e4', 'c5').id)).toMatchObject({
+      comment: 'Sicilian.',
+      drawings: [{ from: 'c5', to: 'd4', brush: 'yellow' }],
+    })
+    const pgn = exportPgn({ ...note, linkName: () => null })
+    expect(imported(pgn).writing).toEqual(note.writing)
+  })
+
   it('drops NAGs that have no Glyph', () => {
     const { tree, writing } = imported('1. e4 $22 $1 $140 e5 $36 *')
     expect(writing.get(at(tree, 'e4').id)).toMatchObject({ moveGlyph: '!', positionGlyph: null })

@@ -1,8 +1,16 @@
 import { useReducedMotion } from '@mantine/hooks'
-import { useId, useState, type ReactNode } from 'react'
-import { Chessboard, type ChessboardOptions } from 'react-chessboard'
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react'
+import {
+  Chessboard,
+  ChessboardProvider,
+  defaultArrowOptions,
+  useChessboardContext,
+  type ChessboardOptions,
+} from 'react-chessboard'
 import type { Color } from '../chess/chess'
+import type { Brush, Drawing } from '../chess/pgn'
 import styles from './Board.module.css'
+import { BRUSH_COLORS, brushOf, circleStyle, toggleDrawing } from './drawings'
 import { boardPieces } from './pieces'
 import { dragOverStyle, layer, type Highlight } from './squareStyles'
 
@@ -18,7 +26,18 @@ type BoardSurfaceProps = {
   movable?: Movable
   /** Per-square highlights, e.g. the last move or a selected piece, drawn in order. */
   highlights?: Highlight[]
-  options?: Omit<ChessboardOptions, 'id' | 'position' | 'pieces' | 'boardOrientation' | 'squareStyles'>
+  /** Arrows and circles drawn on the board (#77). */
+  drawings?: readonly Drawing[]
+  /**
+   * When given, the Drawings can be drawn: a right-drag draws an arrow and a
+   * right-click a circle, and drawing one again removes it (`toggleDrawing`).
+   * A left-click clears them all.
+   */
+  onDrawingsChange?: (drawings: Drawing[]) => void
+  options?: Omit<
+    ChessboardOptions,
+    'id' | 'position' | 'pieces' | 'boardOrientation' | 'squareStyles' | 'arrows' | 'allowDrawingArrows' | 'arrowOptions'
+  >
   /** Drawn over the squares, e.g. the promotion picker. */
   children?: ReactNode
 }
@@ -34,6 +53,8 @@ export function BoardSurface({
   orientation,
   movable = 'none',
   highlights = [],
+  drawings = noDrawings,
+  onDrawingsChange,
   options,
   children,
 }: BoardSurfaceProps) {
@@ -50,13 +71,28 @@ export function BoardSurface({
   const files = orientation === 'white' ? FILES : [...FILES].reverse()
   const ranks = orientation === 'white' ? RANKS : [...RANKS].reverse()
 
+  // A right-press starts a Drawing, with the brush its modifier keys choose,
+  // and letting go finishes it: on the same square a circle, on another an
+  // arrow. react-chessboard draws the arrow while it is dragged, in that brush.
+  const start = useRef<{ square: string; brush: Brush } | null>(null)
+  const [brush, setBrush] = useState<Brush>('green')
+  const arrows = useMemo(
+    () =>
+      drawings.flatMap((d) => (d.to ? [{ startSquare: d.from, endSquare: d.to, color: BRUSH_COLORS[d.brush] }] : [])),
+    [drawings],
+  )
+  const arrowOptions = useMemo(() => {
+    const color = BRUSH_COLORS[brush]
+    return { ...defaultArrowOptions, colors: { default: color, shift: color, ctrl: color, alt: color, meta: color } }
+  }, [brush])
+  const circles = drawings.flatMap((d): Highlight[] => (d.to ? [] : [[d.from, circleStyle(d.brush)]]))
+
   return (
     <div className={styles.surface}>
-      <div className={styles.squares} data-movable={movable}>
-        <Chessboard
+      <div className={styles.squares} data-movable={movable} onMouseLeave={() => (start.current = null)}>
+        <ChessboardProvider
           options={{
             allowDragging: false,
-            allowDrawingArrows: false,
             animationDurationInMs: 150,
             showAnimations: !reduceMotion,
             showNotation: false,
@@ -77,23 +113,63 @@ export function BoardSurface({
             onMouseOverSquare: ({ square }) => setDrag((current) => current && { over: square }),
             onMouseOutSquare: ({ square }) =>
               setDrag((current) => (current?.over === square ? { over: null } : current)),
+            onSquareMouseDown: (args, event) => {
+              // A left-click anywhere on the board clears the Drawings.
+              if (onDrawingsChange && event.button === 0 && drawings.length > 0) onDrawingsChange([])
+              if (onDrawingsChange && event.button === 2) {
+                const chosen = brushOf(event)
+                start.current = { square: args.square, brush: chosen }
+                setBrush(chosen)
+              }
+              options?.onSquareMouseDown?.(args, event)
+            },
+            onSquareMouseUp: (args, event) => {
+              const begun = start.current
+              if (onDrawingsChange && event.button === 2 && begun) {
+                start.current = null
+                const { square: from, brush: drawn } = begun
+                const shape: Drawing =
+                  from === args.square ? { from, brush: drawn } : { from, to: args.square, brush: drawn }
+                onDrawingsChange(toggleDrawing(drawings, shape))
+              }
+              options?.onSquareMouseUp?.(args, event)
+            },
             id,
             position: fen,
             pieces: boardPieces,
             boardOrientation: orientation,
-            squareStyles: layer(...highlights, [drag?.over, dragOverStyle]),
+            allowDrawingArrows: Boolean(onDrawingsChange),
+            arrows,
+            arrowOptions,
+            squareStyles: layer(...highlights, ...circles, [drag?.over, dragOverStyle]),
             boardStyle: { borderRadius: 0, boxShadow: 'var(--cn-board-shadow)' },
             lightSquareStyle: { backgroundColor: 'var(--cn-board-light)' },
             darkSquareStyle: { backgroundColor: 'var(--cn-board-dark)' },
             // Replaces react-chessboard's default ring; the drag-over highlight is in squareStyles.
             dropSquareStyle: { boxShadow: 'none' },
           }}
-        />
+        >
+          <OnlyGivenArrows />
+          <Chessboard />
+        </ChessboardProvider>
         <Coordinates files={files} ranks={ranks} />
         {children}
       </div>
     </div>
   )
+}
+
+const noDrawings: readonly Drawing[] = []
+
+// react-chessboard also keeps arrows of its own as they are drawn, which
+// would stay after the Drawing they became is removed or the Move changes.
+// The board shows only the Drawings it is given, so those are dropped at once.
+function OnlyGivenArrows() {
+  const { internalArrows, clearArrows } = useChessboardContext()
+  useEffect(() => {
+    if (internalArrows.length > 0) clearArrows()
+  }, [internalArrows, clearArrows])
+  return null
 }
 
 // a1 is dark: a square is dark when its file and rank add up to an even number.

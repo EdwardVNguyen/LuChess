@@ -128,6 +128,16 @@ export const boardTokens = {
   dragOver: 'rgba(42, 38, 32, .2)',
   // The glow on the square of a king in check.
   check: '#D9402B',
+  // The four brushes Drawings are made with (#77). Their names are what's
+  // stored and what PGN's G/R/B/Y mean: green by default, Shift for red, Alt
+  // for blue, Shift+Alt for yellow. The colours are warmed to the paper
+  // palette, so the default "green" brush is a light orange and "yellow" an
+  // ochre kept apart from it. Opaque, since arrows are drawn
+  // translucent over the pieces.
+  brushGreen: '#E8894A',
+  brushRed: '#A8352A',
+  brushBlue: '#3D5F8A',
+  brushYellow: '#B8892A',
 } as const
 
 export const fontTokens = {

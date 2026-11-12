@@ -129,6 +129,7 @@ function GuestNote({ note, size, onSave, onStartOver }: GuestNoteProps) {
           </div>
         }
         onPlay={play}
+        onDraw={(move, drawings) => write({ move, drawings })}
         tools={(view) => <CurrentMoveEditor {...view} writing={writing} editable onSave={write} />}
       >
         {(view) => <WritingView {...view} writing={writing} />}

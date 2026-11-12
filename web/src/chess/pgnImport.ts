@@ -102,12 +102,23 @@ function writingOf(
     body: body || null,
     moveGlyph,
     positionGlyph,
-    drawings: [...drawingsOf(diag?.colorFields, false), ...drawingsOf(diag?.colorArrows, true)],
+    drawings: onlyOnce([...drawingsOf(diag?.colorFields, false), ...drawingsOf(diag?.colorArrows, true)]),
   }
 }
 
 function cleanComment(text: string): string {
   return text.replaceAll(SEPARATOR, ' ').trim()
+}
+
+// A Move has each shape once (#77): the first of a circle or arrow drawn twice wins.
+function onlyOnce(drawings: Drawing[]): Drawing[] {
+  const seen = new Set<string>()
+  return drawings.filter((d) => {
+    const shape = `${d.from}${d.to ?? ''}`
+    if (seen.has(shape)) return false
+    seen.add(shape)
+    return true
+  })
 }
 
 function drawingsOf(codes: readonly string[] | undefined, arrows: boolean): Drawing[] {
