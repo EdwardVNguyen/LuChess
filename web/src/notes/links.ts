@@ -28,15 +28,15 @@ export function linkTargets(text: string): number[] {
 }
 
 /**
- * The Notes a Note's writing links to, each once, in reading order (Ply by
- * Ply, the Comment before the Body), with the first label it was given, to
+ * The Notes a Note's writing links to, each once, in the order given (reading
+ * order, the Comment before the Body), with the first label it was given, to
  * tell apart Links whose targets are gone.
  */
 export function connections(
-  plies: readonly { ply: number; comment: string | null; body: string | null }[],
+  writing: readonly { comment: string | null; body: string | null }[],
 ): { target: number; label: string | null }[] {
   const found: { target: number; label: string | null }[] = []
-  const text = [...plies].sort((a, b) => a.ply - b.ply).flatMap((p) => [p.comment ?? '', p.body ?? ''])
+  const text = writing.flatMap((w) => [w.comment ?? '', w.body ?? ''])
   for (const part of parseLinks(text.join('\n'))) {
     if (part.kind !== 'link') continue
     const seen = found.find((c) => c.target === part.target)
@@ -116,9 +116,19 @@ export function moveNumberAt(startFen: string | null, ply: number): string | nul
   return after % 2 === 0 ? `${number}.` : `${number}…`
 }
 
-/** Where a Backlink sits in the linking Note, e.g. "Comment on move 10…". */
-export function backlinkPlace({ part, ply, startFen }: { part: 'comment' | 'body'; ply: number; startFen: string | null }) {
-  const move = moveNumberAt(startFen, ply)
-  if (move === null) return part === 'comment' ? 'Comment on the position' : 'Body opening the note'
-  return part === 'comment' ? `Comment on move ${move}` : `Body after move ${move}`
+/** Where a Backlink sits in the linking Note, e.g. "Comment on 10…exd5", in a Main line or a Variation. */
+export function backlinkPlace({
+  part,
+  ply,
+  san,
+  startFen,
+}: {
+  part: 'comment' | 'body'
+  ply: number
+  san: string | null
+  startFen: string | null
+}) {
+  const number = moveNumberAt(startFen, ply)
+  if (number === null || san === null) return part === 'comment' ? 'Comment on the position' : 'Body opening the note'
+  return part === 'comment' ? `Comment on ${number}${san}` : `Body after ${number}${san}`
 }

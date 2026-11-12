@@ -1,8 +1,21 @@
 import type { Page } from 'playwright'
-import type { Folder, Note, PlyWriting } from '../../src/api.js'
+import type { Folder, MoveRow, NewNoteInput, Note, WritingInput } from '../../src/api.js'
+import { importPgn } from '../../src/chess/pgn.ts'
+import { mainLine, moveOf, type MoveId } from '../../src/chess/tree.ts'
 import { linkTargets } from '../../src/notes/links.js'
-import type { FixtureSet, LinksFixture, MovesFixture, NotesFixture, PliesFixture, SearchFixture } from './entries.js'
-import { landingFolders, landingNotes, landingPlies, landingSession, loggedInSession, sampleFolders, sampleNotes, samplePlies } from './fixtures.js'
+import type { FixtureSet, LinksFixture, MovesFixture, NotesFixture, SearchFixture } from './entries.js'
+import {
+  landingFolders,
+  landingNotes,
+  landingSession,
+  landingWriting,
+  loggedInSession,
+  sampleFolders,
+  sampleNotes,
+  sampleWriting,
+  type SampleNote,
+  type SampleWriting,
+} from './fixtures.js'
 
 // Never reached over the network: every request to it is intercepted below.
 // Vite still requires VITE_API_URL to be a well-formed http(s) URL.
@@ -16,17 +29,19 @@ export async function installApiMocks(
   fixtures: FixtureSet,
   notesFixture: NotesFixture = 'sample',
   searchFixture: SearchFixture = 'sample',
-  pliesFixture: PliesFixture = 'sample',
-  linksFixture: LinksFixture = 'sample',
   movesFixture: MovesFixture = 'sample',
+  linksFixture: LinksFixture = 'sample',
 ): Promise<void> {
   // Kept per page, so creating, renaming or deleting shows up in the list.
   const landing = notesFixture === 'landing'
   const session = landing ? landingSession : loggedInSession
-  let notes: Note[] = notesFixture === 'sample' ? structuredClone(sampleNotes) : landing ? structuredClone(landingNotes) : []
+  const samples = notesFixture === 'sample' ? sampleNotes : landing ? landingNotes : []
+  const moves = new MoveStore()
+  let notes: Note[] = samples.map((sample) =>
+    moves.loadSample(sample, (landing ? landingWriting : sampleWriting)[sample.id] ?? []),
+  )
   let folders: Folder[] = notesFixture === 'sample' ? structuredClone(sampleFolders) : landing ? structuredClone(landingFolders) : []
   let nextId = 100
-  const plies: Record<number, PlyWriting[]> = structuredClone(landing ? landingPlies : samplePlies)
 
   await page.route(`${API_BASE_URL}/**`, async (route) => {
     const request = route.request()
@@ -150,55 +165,58 @@ export async function installApiMocks(
       if (!notes.some((n) => n.id === id)) return json(404, { error: 'Note not found' })
       if (linksFixture === 'pending') return
       if (linksFixture === 'error') return json(500, { error: "Could not load the note's links" })
-      return json(200, noteLinks(notes, plies, id))
+      return json(200, noteLinks(notes, moves, id))
     }
 
-    // Editing moves, as the API does it (ADR 0003): refused with the count
-    // until confirmed if it would delete writing.
-    const movesMatch = /^\/api\/notes\/(\d+)\/moves$/.exec(pathname)
-    if (movesMatch && method === 'PUT') {
+    // A Note's tree of Moves, as the API keeps it (ADR 0009): playing a SAN
+    // already there answers that Move, and deleting a subtree with writing in
+    // it is refused with the counts until confirmed.
+    const movesMatch = /^\/api\/notes\/(\d+)\/moves(?:\/(\d+)(\/writing|\/promote)?)?$/.exec(pathname)
+    if (movesMatch) {
       if (fixtures !== 'session') return json(401, { error: 'Unauthorized' })
+      // The moves load with the Note, so they wait or fail with it.
+      if (notesFixture === 'pending') return
+      if (notesFixture === 'error') return json(500, { error: "Could not load the note's moves" })
       const id = Number(movesMatch[1])
       const note = notes.find((n) => n.id === id)
       if (!note) return json(404, { error: 'Note not found' })
-      if (movesFixture === 'saveError') return json(500, { error: 'Could not save the moves' })
-      const body = request.postDataJSON() as { pgn: string; firstChangedPly: number; confirm: boolean }
-      const lost = (plies[id] ?? []).filter((p) => p.ply >= body.firstChangedPly).length
-      if (lost > 0 && !body.confirm) {
-        return json(409, { error: `This will delete your writing on ${lost} ${lost === 1 ? 'move' : 'moves'}`, plies: lost })
+      const touch = () => (note.updatedAt = new Date().toISOString())
+      const moveId = movesMatch[2] ? Number(movesMatch[2]) : null
+      const action = movesMatch[3] ?? null
+      if (moveId === null && method === 'GET') {
+        if (movesFixture === 'pending') return
+        if (movesFixture === 'error') return json(500, { error: "Could not load the note's moves" })
+        return json(200, moves.list(id))
       }
-      plies[id] = (plies[id] ?? []).filter((p) => p.ply < body.firstChangedPly)
-      Object.assign(note, { pgn: body.pgn, updatedAt: new Date().toISOString() })
-      return json(200, note)
-    }
-
-    const pliesMatch = /^\/api\/notes\/(\d+)\/plies(?:\/(\d+))?$/.exec(pathname)
-    if (pliesMatch) {
-      if (fixtures !== 'session') return json(401, { error: 'Unauthorized' })
-      const id = Number(pliesMatch[1])
-      if (!notes.some((n) => n.id === id)) return json(404, { error: 'Note not found' })
-      if (method === 'GET') {
-        if (pliesFixture === 'pending') return
-        if (pliesFixture === 'error') return json(500, { error: "Could not load the note's writing" })
-        return json(200, plies[id] ?? [])
+      if (moveId === null && method === 'POST') {
+        if (movesFixture === 'editError') return json(500, { error: 'Could not save the move' })
+        const body = request.postDataJSON() as { parentId: number; san: string }
+        const { row, created } = moves.add(id, body.parentId, body.san)
+        if (created) touch()
+        return json(created ? 201 : 200, row)
       }
-      if (method === 'PUT' && pliesMatch[2]) {
-        if (pliesFixture === 'saveError') return json(400, { error: 'Comment must be at most 20,000 characters' })
-        const ply = Number(pliesMatch[2])
-        const body = request.postDataJSON() as Omit<PlyWriting, 'ply' | 'updatedAt'>
-        const blank = (v: string | null) => (v && v.trim() ? v.trim() : null)
-        const written: PlyWriting = {
-          ply,
-          comment: blank(body.comment),
-          body: blank(body.body),
-          moveGlyph: blank(body.moveGlyph),
-          positionGlyph: blank(body.positionGlyph),
-          updatedAt: new Date().toISOString(),
-        }
-        const others = (plies[id] ?? []).filter((p) => p.ply !== ply)
-        const kept = written.comment || written.body || written.moveGlyph || written.positionGlyph
-        plies[id] = kept ? [...others, written].sort((a, b) => a.ply - b.ply) : others
-        return json(200, written)
+      const row = moveId === null ? undefined : moves.get(id, moveId)
+      if (!row) return json(404, { error: 'Move not found' })
+      if (action === '/writing' && method === 'PUT') {
+        if (movesFixture === 'saveError') return json(400, { error: 'Comment must be at most 20,000 characters' })
+        moves.write(row, request.postDataJSON() as WritingInput)
+        touch()
+        return json(200, row)
+      }
+      if (action === '/promote' && method === 'POST') {
+        moves.promote(row)
+        touch()
+        return route.fulfill({ status: 204 })
+      }
+      if (action === null && method === 'DELETE') {
+        if (movesFixture === 'editError') return json(500, { error: 'Could not delete the move' })
+        const confirm = new URL(request.url()).searchParams.get('confirm') === 'true'
+        const counts = moves.writingUnder(row)
+        const total = counts.comments + counts.bodies + counts.glyphs + counts.drawings
+        if (total > 0 && !confirm) return json(409, { error: `This will delete ${describeWriting(counts)}`, ...counts })
+        moves.remove(row)
+        touch()
+        return route.fulfill({ status: 204 })
       }
     }
 
@@ -218,8 +236,17 @@ export async function installApiMocks(
         )
       }
       if (id === null && method === 'POST') {
-        const body = request.postDataJSON() as Pick<Note, 'name' | 'pgn' | 'startFen'>
-        const note: Note = { ...body, id: nextId++, folderId: null, createdAt: now, updatedAt: now }
+        const body = request.postDataJSON() as NewNoteInput
+        const note: Note = {
+          id: nextId++,
+          name: body.name,
+          startFen: body.startFen,
+          tags: body.tags,
+          folderId: body.folderId ?? null,
+          createdAt: now,
+          updatedAt: now,
+        }
+        moves.create(note.id, body)
         notes = [note, ...notes]
         return json(201, note)
       }
@@ -242,27 +269,193 @@ export async function installApiMocks(
 }
 
 // A stand-in for the server's Link index, read straight from the text.
-function noteLinks(notes: Note[], plies: Record<number, PlyWriting[]>, id: number) {
-  const ids = new Set((plies[id] ?? []).flatMap((p) => linkTargets(`${p.comment ?? ''}\n${p.body ?? ''}`)))
-  const targets = notes.filter((n) => ids.has(n.id)).map(({ id, name, pgn }) => ({ id, name, white: tag(pgn, 'White'), black: tag(pgn, 'Black'), date: tag(pgn, 'Date') }))
+function noteLinks(notes: Note[], moves: MoveStore, id: number) {
+  const ids = new Set(moves.list(id).flatMap((row) => linkTargets(`${row.comment ?? ''}\n${row.body ?? ''}`)))
+  const targets = notes
+    .filter((n) => ids.has(n.id))
+    .map((n) => ({ id: n.id, name: n.name, white: tag(n, 'White'), black: tag(n, 'Black'), date: tag(n, 'Date') }))
   const backlinks = notes
     .filter((n) => n.id !== id)
     .flatMap((n) =>
-      (plies[n.id] ?? []).flatMap((p) =>
+      moves.list(n.id).flatMap((row) =>
         (['comment', 'body'] as const)
-          .filter((part) => linkTargets(p[part] ?? '').includes(id))
-          .map((part) => ({ noteId: n.id, name: n.name, startFen: n.startFen, ply: p.ply, part })),
+          .filter((part) => linkTargets(row[part] ?? '').includes(id))
+          .map((part) => ({
+            noteId: n.id,
+            name: n.name,
+            startFen: n.startFen,
+            moveId: row.id,
+            san: row.san,
+            ply: moves.ply(row),
+            part,
+          })),
       ),
     )
   return { targets, backlinks }
 }
 
-const tag = (pgn: string, name: string) => new RegExp(`^\\[${name} "([^"]*)"`, 'm').exec(pgn)?.[1] ?? null
+const tag = (note: Note, name: string) => note.tags.find(([key]) => key === name)?.[1] ?? null
+
+type Stored = MoveRow & { noteId: number; ord: number }
+type Counts = { comments: number; bodies: number; glyphs: number; drawings: number }
+
+const blank = (v: string | null | undefined) => (v && v.trim() ? v.trim() : null)
+
+// Every Note's Moves, as the API's moves table keeps them: one root per Note,
+// siblings ordered by `ord`, ids shared across Notes.
+class MoveStore {
+  private rows = new Map<number, Stored>()
+  private nextId = 1
+  private at = new Date().toISOString()
+
+  /** A sample Note as the API would serve it, its PGN read into rows with the sample writing on its Main line. */
+  loadSample(sample: SampleNote, writing: SampleWriting[]): Note {
+    const imported = importPgn(sample.pgn)
+    if (!imported.ok) throw new Error(`Sample note ${sample.id}: ${imported.error}`)
+    const { tree, tags } = imported.value
+    const ids = new Map<MoveId, number>()
+    const stack: MoveId[] = [tree.root]
+    while (stack.length > 0) {
+      const move = moveOf(tree, stack.pop() as MoveId)
+      const parentId = move.parent === null ? null : (ids.get(move.parent) as number)
+      const ord = move.parent === null ? 0 : moveOf(tree, move.parent).children.indexOf(move.id)
+      ids.set(move.id, this.insert(sample.id, parentId, move.san, ord, imported.value.writing.get(move.id)).id)
+      stack.push(...[...move.children].reverse())
+    }
+    const line = mainLine(tree)
+    for (const { ply, ...fields } of writing) {
+      const row = this.rows.get(ids.get(line[ply].id) as number) as Stored
+      this.write(row, { ...writingOf(row), ...fields })
+    }
+    const { pgn: _pgn, ...note } = structuredClone(sample)
+    return { ...note, tags }
+  }
+
+  /** A new Note's tree, from the moves listed with their parents' indices. */
+  create(noteId: number, input: NewNoteInput) {
+    const root = this.insert(noteId, null, null, 0, input.position)
+    const ids: number[] = []
+    for (const move of input.moves) {
+      const parentId = move.parent === null ? root.id : ids[move.parent]
+      ids.push(this.insert(noteId, parentId, move.san, this.children(parentId).length, move).id)
+    }
+  }
+
+  list(noteId: number): MoveRow[] {
+    return [...this.rows.values()]
+      .filter((row) => row.noteId === noteId)
+      .sort((a, b) => (a.parentId ?? -1) - (b.parentId ?? -1) || a.ord - b.ord || a.id - b.id)
+      .map(({ noteId: _noteId, ord: _ord, ...row }) => row)
+  }
+
+  get(noteId: number, id: number): Stored | undefined {
+    const row = this.rows.get(id)
+    return row?.noteId === noteId ? row : undefined
+  }
+
+  add(noteId: number, parentId: number, san: string): { row: Stored; created: boolean } {
+    const existing = this.children(parentId).find((row) => row.san === san)
+    if (existing) return { row: existing, created: false }
+    const ords = this.children(parentId).map((row) => row.ord)
+    return { row: this.insert(noteId, parentId, san, ords.length > 0 ? Math.max(...ords) + 1 : 0), created: true }
+  }
+
+  write(row: Stored, input: Partial<WritingInput>) {
+    Object.assign(row, {
+      comment: blank(input.comment),
+      body: blank(input.body),
+      moveGlyph: blank(input.moveGlyph),
+      positionGlyph: blank(input.positionGlyph),
+      drawings: input.drawings ?? [],
+      updatedAt: new Date().toISOString(),
+    })
+  }
+
+  promote(row: Stored) {
+    for (let at: Stored | undefined = row; at && at.parentId !== null; at = this.rows.get(at.parentId)) {
+      const siblings = this.children(at.parentId)
+      if (siblings[0] !== at) at.ord = Math.min(...siblings.map((s) => s.ord)) - 1
+    }
+  }
+
+  writingUnder(row: Stored): Counts {
+    const counts: Counts = { comments: 0, bodies: 0, glyphs: 0, drawings: 0 }
+    for (const at of this.subtree(row)) {
+      if (at.comment) counts.comments += 1
+      if (at.body) counts.bodies += 1
+      if (at.moveGlyph) counts.glyphs += 1
+      if (at.positionGlyph) counts.glyphs += 1
+      counts.drawings += at.drawings.length
+    }
+    return counts
+  }
+
+  remove(row: Stored) {
+    for (const at of this.subtree(row)) this.rows.delete(at.id)
+  }
+
+  ply(row: MoveRow): number {
+    let ply = 0
+    for (let at = this.rows.get(row.id); at && at.parentId !== null; at = this.rows.get(at.parentId)) ply += 1
+    return ply
+  }
+
+  private children(parentId: number): Stored[] {
+    return [...this.rows.values()].filter((row) => row.parentId === parentId).sort((a, b) => a.ord - b.ord || a.id - b.id)
+  }
+
+  private subtree(row: Stored): Stored[] {
+    const all = [row]
+    for (let i = 0; i < all.length; i += 1) all.push(...this.children(all[i].id))
+    return all
+  }
+
+  private insert(noteId: number, parentId: number | null, san: string | null, ord: number, writing?: Partial<WritingInput>): Stored {
+    const row: Stored = {
+      noteId,
+      ord,
+      id: this.nextId++,
+      parentId,
+      san,
+      comment: null,
+      body: null,
+      moveGlyph: null,
+      positionGlyph: null,
+      drawings: [],
+      updatedAt: this.at,
+    }
+    this.rows.set(row.id, row)
+    if (writing) {
+      this.write(row, writing)
+      row.updatedAt = this.at
+    }
+    return row
+  }
+}
+
+function writingOf(row: MoveRow): WritingInput {
+  const { comment, body, moveGlyph, positionGlyph, drawings } = row
+  return { comment, body, moveGlyph, positionGlyph, drawings }
+}
+
+function describeWriting(counts: Counts): string {
+  const parts = (
+    [
+      [counts.comments, 'Comment', 'Comments'],
+      [counts.bodies, 'Body', 'Bodies'],
+      [counts.glyphs, 'Glyph', 'Glyphs'],
+      [counts.drawings, 'Drawing', 'Drawings'],
+    ] as const
+  )
+    .filter(([n]) => n > 0)
+    .map(([n, one, many]) => `${n} ${n === 1 ? one : many}`)
+  return parts.length === 1 ? parts[0] : `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`
+}
 
 function searchRow(note: Note, folders: Folder[]) {
   const folderPath: string[] = []
   for (let f = folders.find((x) => x.id === note.folderId); f; f = folders.find((x) => x.id === f!.parentId)) folderPath.unshift(f.name)
-  return { id: note.id, name: note.name, white: tag(note.pgn, 'White'), black: tag(note.pgn, 'Black'), date: tag(note.pgn, 'Date'), folderPath }
+  return { id: note.id, name: note.name, white: tag(note, 'White'), black: tag(note, 'Black'), date: tag(note, 'Date'), folderPath }
 }
 
 // A stand-in for the server's trigram search: a Note matches when the query's

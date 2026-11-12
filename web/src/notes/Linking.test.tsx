@@ -6,8 +6,10 @@ import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
-import type { NoteLinks, NoteSearchResult, PlyWriting } from '../api'
-import { gameFromMoves, START_FEN } from '../chess/chess'
+import type { NoteLinks, NoteSearchResult } from '../api'
+import { NO_WRITING, type Writing } from '../chess/pgn'
+import { addMove, lineAsGame, mainLine, newTree } from '../chess/tree'
+import { START_FEN } from '../chess/chess'
 import type { Session } from '../session'
 import { SessionProvider } from '../session'
 import { theme } from '../theme'
@@ -17,12 +19,10 @@ import { NoteMargin } from './NoteMargin'
 import { PlyEditor } from './PlyEditor'
 
 const searchNotes = vi.fn<(token: string, query: string) => Promise<NoteSearchResult[]>>()
-const listPlies = vi.fn<(token: string, id: number) => Promise<PlyWriting[]>>()
 const getLinks = vi.fn<(token: string, id: number) => Promise<NoteLinks>>()
 vi.mock('../apiClient', () => ({
   api: {
     searchNotes: (token: string, query: string) => searchNotes(token, query),
-    listPlies: (token: string, id: number) => listPlies(token, id),
     getLinks: (token: string, id: number) => getLinks(token, id),
   },
 }))
@@ -39,12 +39,17 @@ const session: Session = {
   authorized: (call) => call('token'),
 }
 
-const result = gameFromMoves(START_FEN, ['e4', 'e5', 'Nf3'])
-if (!result.ok) throw new Error(result.error)
-const game = result.value
+// 1.e4 e5 2.Nf3, the Position as Move 1 and each move numbered on from it.
+let tree = newTree(START_FEN, 1)
+for (const [parent, san] of [[1, 'e4'], [2, 'e5'], [3, 'Nf3']] as const) {
+  const added = addMove(tree, parent, san, parent + 1)
+  if (!added.ok) throw new Error(added.error)
+  tree = added.value.tree
+}
+const game = lineAsGame(mainLine(tree))
 
-function written(ply: number, fields: Partial<PlyWriting>): PlyWriting {
-  return { ply, comment: null, body: null, moveGlyph: null, positionGlyph: null, updatedAt: '', ...fields }
+function written(fields: Partial<Writing>): Writing {
+  return { ...NO_WRITING, ...fields }
 }
 
 const hanging: NoteSearchResult = { id: 5, name: 'Hanging pawns', white: null, black: null, date: null, folderPath: [] }
@@ -62,7 +67,7 @@ function renderInApp(ui: ReactNode, context: Linking = linking) {
   const note = createRoute({
     getParentRoute: () => root,
     path: '/notes/$noteId',
-    validateSearch: z.object({ ply: z.number().optional() }),
+    validateSearch: z.object({ move: z.number().optional() }),
   })
   const router = createRouter({ routeTree: root.addChildren([note]), history: createMemoryHistory() })
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -79,17 +84,16 @@ function renderInApp(ui: ReactNode, context: Linking = linking) {
 
 beforeEach(() => {
   searchNotes.mockReset()
-  listPlies.mockReset()
   getLinks.mockReset()
 })
 
 describe('Links in the writing', () => {
   it('shows the target’s current name unless the Link has a label, and opens the target', async () => {
     const writing = new Map([
-      [1, written(1, { comment: 'See [[note:5]].' })],
-      [2, written(2, { body: 'Black gets [[note:5|hanging pawns]] here.' })],
+      [2, written({ comment: 'See [[note:5]].' })],
+      [3, written({ body: 'Black gets [[note:5|hanging pawns]] here.' })],
     ])
-    renderInApp(<MoveList game={game} ply={3} onPlyChange={() => {}} writing={writing} />)
+    renderInApp(<MoveList tree={tree} current={4} onMoveChange={() => {}} writing={writing} />)
 
     expect(await screen.findByRole('link', { name: 'Hanging pawns' })).toHaveAttribute('href', '/notes/5')
     expect(screen.getByRole('link', { name: 'hanging pawns' })).toHaveAttribute('href', '/notes/5')
@@ -97,8 +101,8 @@ describe('Links in the writing', () => {
   })
 
   it('shows a Link to a deleted Note as unresolved, keeping its label', async () => {
-    const writing = new Map([[1, written(1, { comment: '[[note:9]] and [[note:9|the old one]]' })]])
-    renderInApp(<MoveList game={game} ply={3} onPlyChange={() => {}} writing={writing} />)
+    const writing = new Map([[2, written({ comment: '[[note:9]] and [[note:9|the old one]]' })]])
+    renderInApp(<MoveList tree={tree} current={4} onMoveChange={() => {}} writing={writing} />)
 
     expect(await screen.findByText('Deleted note')).toHaveAttribute('title', 'The note this linked to was deleted')
     expect(screen.getByText('the old one')).toHaveTextContent('the old one (deleted note)')
@@ -181,19 +185,16 @@ describe('Inserting a Link', () => {
 })
 
 describe('NoteMargin', () => {
-  it('lists Connections in reading order and Backlinks opening their Ply', async () => {
-    listPlies.mockResolvedValue([
-      written(4, { comment: '[[note:9]]', body: '[[note:5]]' }),
-      written(0, { body: '[[note:6|club]] and [[note:5]]' }),
-    ])
+  it('lists Connections in reading order and Backlinks opening their Move', async () => {
+    const writing = [written({ body: '[[note:6|club]] and [[note:5]]' }), written({ comment: '[[note:9]]', body: '[[note:5]]' })]
     getLinks.mockResolvedValue({
       targets: [hanging, club1],
       backlinks: [
-        { noteId: 7, name: 'Club night', startFen: null, ply: 20, part: 'comment' },
-        { noteId: 8, name: 'An ending', startFen: null, ply: 0, part: 'body' },
+        { noteId: 7, name: 'Club night', startFen: null, moveId: 321, san: 'exd5', ply: 20, part: 'comment' },
+        { noteId: 8, name: 'An ending', startFen: null, moveId: 40, san: null, ply: 0, part: 'body' },
       ],
     })
-    renderInApp(<NoteMargin noteId={1} />)
+    renderInApp(<NoteMargin noteId={1} writing={writing} />)
 
     const connections = await screen.findByRole('region', { name: 'Connections' })
     await waitFor(() => expect(within(connections).getAllByRole('listitem')).toHaveLength(3))
@@ -204,15 +205,14 @@ describe('NoteMargin', () => {
     ])
 
     const linkedFrom = screen.getByRole('region', { name: 'Linked from' })
-    expect(within(linkedFrom).getByRole('link', { name: 'Club night' })).toHaveAttribute('href', '/notes/7?ply=20')
-    expect(within(linkedFrom).getByText('Comment on move 10…')).toBeInTheDocument()
+    expect(within(linkedFrom).getByRole('link', { name: 'Club night' })).toHaveAttribute('href', '/notes/7?move=321')
+    expect(within(linkedFrom).getByText('Comment on 10…exd5')).toBeInTheDocument()
     expect(within(linkedFrom).getByText('Body opening the note')).toBeInTheDocument()
   })
 
   it('says when there are no Links either way', async () => {
-    listPlies.mockResolvedValue([])
     getLinks.mockResolvedValue({ targets: [], backlinks: [] })
-    renderInApp(<NoteMargin noteId={1} />)
+    renderInApp(<NoteMargin noteId={1} writing={[]} />)
 
     expect(await screen.findByText(/No links yet/)).toBeInTheDocument()
     expect(screen.getByText('No other note links here yet.')).toBeInTheDocument()

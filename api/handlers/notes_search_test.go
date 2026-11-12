@@ -1,6 +1,7 @@
 package handler_test
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/url"
 	"testing"
@@ -14,8 +15,8 @@ type searchResult struct {
 	Date  *string `json:"date"`
 }
 
-func gamePGN(white, black, date string) string {
-	return "[Event \"Casual\"]\n[White \"" + white + "\"]\n[Black \"" + black + "\"]\n[Date \"" + date + "\"]\n\n1. e4 e5 *"
+func gameTags(white, black, date string) tags {
+	return tags{{"Event", "Casual"}, {"White", white}, {"Black", black}, {"Date", date}}
 }
 
 func (a *app) search(s session, q string) []searchResult {
@@ -47,8 +48,8 @@ func deref(s *string) string {
 func TestSearchFindsNotesByMisspelledName(t *testing.T) {
 	a := newApp(t)
 	s := loggedInAs(t, a, "ada@example.com", "Ada")
-	a.mustCreateNote(s, "Lovelace v. Hopper 1952", samplePGN, nil)
-	a.mustCreateNote(s, "Rook endings", samplePGN, nil)
+	a.mustCreateNote(s, "Lovelace v. Hopper 1952", sampleTags, nil)
+	a.mustCreateNote(s, "Rook endings", sampleTags, nil)
 
 	got := names(a.search(s, "lovelce"))
 
@@ -60,7 +61,7 @@ func TestSearchFindsNotesByMisspelledName(t *testing.T) {
 func TestSearchFindsNotesByPartOfAName(t *testing.T) {
 	a := newApp(t)
 	s := loggedInAs(t, a, "ada@example.com", "Ada")
-	a.mustCreateNote(s, "Lovelace v. Hopper 1952", samplePGN, nil)
+	a.mustCreateNote(s, "Lovelace v. Hopper 1952", sampleTags, nil)
 
 	if got := names(a.search(s, "Lo")); len(got) != 1 {
 		t.Fatalf("results = %v", got)
@@ -70,8 +71,8 @@ func TestSearchFindsNotesByPartOfAName(t *testing.T) {
 func TestSearchFindsNotesByPlayerAndReturnsTheirHeaders(t *testing.T) {
 	a := newApp(t)
 	s := loggedInAs(t, a, "ada@example.com", "Ada")
-	created := a.mustCreateNote(s, "Club night", gamePGN("Lovelace, Ada", "Hopper, Grace", "1952.03.01"), nil)
-	a.mustCreateNote(s, "Rook endings", samplePGN, nil)
+	created := a.mustCreateNote(s, "Club night", gameTags("Lovelace, Ada", "Hopper, Grace", "1952.03.01"), nil)
+	a.mustCreateNote(s, "Rook endings", sampleTags, nil)
 
 	got := a.search(s, "hoper")
 
@@ -87,9 +88,9 @@ func TestSearchRanksNameMatchesAbovePlayerMatches(t *testing.T) {
 	a := newApp(t)
 	s := loggedInAs(t, a, "ada@example.com", "Ada")
 	// Created first, so it would come first on recency alone
-	a.mustCreateNote(s, "Club night", gamePGN("Hopper, Grace", "Lovelace, Ada", "1952.??.??"), nil)
+	a.mustCreateNote(s, "Club night", gameTags("Hopper, Grace", "Lovelace, Ada", "1952.??.??"), nil)
 	a.clock.Advance(1)
-	a.mustCreateNote(s, "Hopper's attack", samplePGN, nil)
+	a.mustCreateNote(s, "Hopper's attack", sampleTags, nil)
 
 	got := names(a.search(s, "Hopper"))
 
@@ -102,7 +103,7 @@ func TestSearchNeverReturnsAnotherUsersNotes(t *testing.T) {
 	a := newApp(t)
 	ada := loggedInAs(t, a, "ada@example.com", "Ada")
 	grace := loggedInAs(t, a, "grace@example.com", "Grace")
-	a.mustCreateNote(grace, "Hopper's attack", gamePGN("Hopper, Grace", "Lovelace, Ada", "1952.03.01"), nil)
+	a.mustCreateNote(grace, "Hopper's attack", gameTags("Hopper, Grace", "Lovelace, Ada", "1952.03.01"), nil)
 
 	if got := a.search(ada, "Hopper"); len(got) != 0 {
 		t.Fatalf("results = %v", names(got))
@@ -112,7 +113,7 @@ func TestSearchNeverReturnsAnotherUsersNotes(t *testing.T) {
 func TestSearchTreatsWildcardsAsText(t *testing.T) {
 	a := newApp(t)
 	s := loggedInAs(t, a, "ada@example.com", "Ada")
-	a.mustCreateNote(s, "Rook endings", samplePGN, nil)
+	a.mustCreateNote(s, "Rook endings", sampleTags, nil)
 
 	for _, q := range []string{"%", "_", `\`} {
 		if got := a.search(s, q); len(got) != 0 {
@@ -124,7 +125,7 @@ func TestSearchTreatsWildcardsAsText(t *testing.T) {
 func TestBlankSearchReturnsNothing(t *testing.T) {
 	a := newApp(t)
 	s := loggedInAs(t, a, "ada@example.com", "Ada")
-	a.mustCreateNote(s, "Rook endings", samplePGN, nil)
+	a.mustCreateNote(s, "Rook endings", sampleTags, nil)
 
 	if got := a.search(s, "   "); len(got) != 0 {
 		t.Fatalf("results = %v", names(got))
@@ -138,13 +139,13 @@ func TestSearchNeedsALogin(t *testing.T) {
 	}
 }
 
-func TestPlayerHeadersFollowThePGN(t *testing.T) {
+func TestPlayersAndDateFollowTheTags(t *testing.T) {
 	a := newApp(t)
 	s := loggedInAs(t, a, "ada@example.com", "Ada")
-	created := a.mustCreateNote(s, "Club night", gamePGN("Lovelace, Ada", "Hopper, Grace", "1952.03.01"), nil)
+	created := a.mustCreateNote(s, "Club night", gameTags("Lovelace, Ada", "Hopper, Grace", "1952.03.01"), nil)
 
-	_, err := a.db.ExecContext(t.Context(), "UPDATE notes SET pgn = $1 WHERE id = $2",
-		gamePGN(`Babbage, \"Charles\"`, "?", "1843.??.??"), created.ID)
+	changed, _ := json.Marshal(gameTags(`Babbage, "Charles"`, "?", "1843.??.??"))
+	_, err := a.db.ExecContext(t.Context(), "UPDATE notes SET tags = $1 WHERE id = $2", changed, created.ID)
 	if err != nil {
 		t.Fatal(err)
 	}

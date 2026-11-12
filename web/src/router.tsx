@@ -52,8 +52,8 @@ const newNoteRoute = createRoute({
 const noteRoute = createRoute({
   getParentRoute: () => notesRoute,
   path: '/$noteId',
-  // The Ply to open at, e.g. where a Backlink's Comment or Body is.
-  validateSearch: z.object({ ply: z.number().int().min(0).optional().catch(undefined) }),
+  // The Move to open at, e.g. where a Backlink's Comment or Body is.
+  validateSearch: z.object({ move: z.number().int().positive().optional().catch(undefined) }),
   component: NoteScreen,
 })
 

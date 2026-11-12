@@ -1,7 +1,7 @@
 import { Textarea, UnstyledButton } from '@mantine/core'
 import { useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react'
-import type { PlyWriting, PlyWritingInput } from '../api'
 import { plyLabel, type Ply } from '../chess/chess'
+import type { Writing } from '../chess/pgn'
 import { ResponsivePopover, useOverlaySize } from '../overlay'
 import { moveGlyphs, positionGlyphs } from './glyphs'
 import { LinkPicker } from './LinkPicker'
@@ -9,20 +9,20 @@ import { useLinking } from './linking'
 import { linkToken } from './links'
 import styles from './Notes.module.css'
 
-type Change = Partial<PlyWritingInput>
+type Change = Partial<Writing>
 
 type Props = {
   ply: Ply
-  /** What is saved on this Ply, if anything. */
-  writing: PlyWriting | undefined
+  /** What is saved on this Move, if anything. */
+  writing: Writing | undefined
   onSave: (change: Change) => void
 }
 
-// The editors for the current Ply: its Glyphs, its Comment and its Body.
+// The editors for the current Move, or the Position: its Glyphs, its Comment and its Body.
 // Glyphs save as they are picked; text saves when the editor loses focus (so
-// moving to another Ply saves first) or on Ctrl/⌘+Enter. Escape undoes.
+// moving to another Move saves first) or on Ctrl/⌘+Enter. Escape undoes.
 // Typing [[ in a saved Note opens the picker to link another Note.
-// Render with key={ply} so the drafts start over on every Ply.
+// Render with key={move} so the drafts start over on every Move.
 export function PlyEditor({ ply, writing, onSave }: Props) {
   const label = plyLabel(ply)
   const atPosition = ply.index === 0

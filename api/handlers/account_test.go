@@ -25,7 +25,7 @@ func (a *app) deleteAccount(s session, password string) *httptest.ResponseRecord
 
 // ownedRows says, for every table in the schema, which of its rows belong to
 // one user: a condition on `owner`, which holds their user_id and the
-// note_ids of their Notes. The Notes are given because Plies and Links reach
+// note_ids of their Notes. The Notes are given because Moves and Links reach
 // their user only through a Note, which is gone after the deletion.
 var ownedRows = map[string]string{
 	"users":          `users.id = owner.user_id`,
@@ -33,8 +33,8 @@ var ownedRows = map[string]string{
 	"refresh_tokens": `refresh_tokens.user_id = owner.user_id`,
 	"folders":        `folders.user_id = owner.user_id`,
 	"notes":          `notes.user_id = owner.user_id OR notes.id = ANY(owner.note_ids)`,
-	"plies":          `plies.note_id = ANY(owner.note_ids)`,
-	"links":          `links.note_id = ANY(owner.note_ids)`,
+	"moves":          `moves.note_id = ANY(owner.note_ids)`,
+	"links":          `links.move_id IN (SELECT id FROM moves WHERE moves.note_id = ANY(owner.note_ids))`,
 }
 
 // Tables that hold nothing of any user's.
@@ -98,12 +98,12 @@ func (a *app) writerWithEverything(email, name string) writer {
 	a.requestReset(email) // left unused
 
 	folder := a.mustCreateFolder(s, name+"'s folder", nil)
-	first := a.mustCreateNote(s, name+"'s game", playersPGN, nil)
-	second := a.mustCreateNote(s, name+"'s position", playersPGN, nil)
+	first := a.mustCreateNote(s, name+"'s game", playersTags, nil)
+	second := a.mustCreateNote(s, name+"'s position", playersTags, nil)
 	a.mustFileNote(s, first.ID, &folder.ID)
 
-	a.mustPutPly(s, first.ID, 1, map[string]any{"comment": "See " + link(second.ID, ""), "body": "Then " + link(second.ID, "this"), "moveGlyph": "!"})
-	a.mustPutPly(s, first.ID, 0, map[string]any{"body": "The idea.", "positionGlyph": "="})
+	a.mustWriteOnLine(s, first.ID, 1, map[string]any{"comment": "See " + link(second.ID, ""), "body": "Then " + link(second.ID, "this"), "moveGlyph": "!"})
+	a.mustWriteOnLine(s, first.ID, 0, map[string]any{"body": "The idea.", "positionGlyph": "="})
 
 	return writer{session: s, refresh: refresh, other: other, otherRef: otherRef, noteIDs: []int64{first.ID, second.ID}}
 }
@@ -145,7 +145,7 @@ func TestDeletingAnAccountRemovesEveryRowOfTheUserAndNoOtherUsers(t *testing.T) 
 	if notes := a.listNotes(bob.session); len(notes) != 2 {
 		t.Fatalf("Bob's notes = %d, want 2", len(notes))
 	}
-	if got := str(a.listPlies(bob.session, bob.noteIDs[0])[1].Comment); got != "See "+link(bob.noteIDs[1], "") {
+	if got := str(a.lineMove(bob.session, bob.noteIDs[0], 1).Comment); got != "See "+link(bob.noteIDs[1], "") {
 		t.Fatalf("Bob's Comment = %q, want it unchanged", got)
 	}
 	if bl := a.links(bob.session, bob.noteIDs[1]).Backlinks; len(bl) != 2 {

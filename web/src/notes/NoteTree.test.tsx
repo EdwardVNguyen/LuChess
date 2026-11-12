@@ -293,7 +293,7 @@ describe('NoteTree right-click menu', () => {
 })
 
 describe('MoveNoteDialog', () => {
-  const note: Note = { ...summary(2, 'Lucena', 3), pgn: '*', startFen: null }
+  const note: Note = { ...summary(2, 'Lucena', 3), tags: [], startFen: null }
 
   it('moves a Note to the root', async () => {
     moveNote.mockResolvedValue({ ...note, folderId: null })

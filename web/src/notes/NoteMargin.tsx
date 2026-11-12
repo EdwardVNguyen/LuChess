@@ -5,7 +5,7 @@ import type { LinkTarget } from '../api'
 import { errorMessage } from '../errors'
 import { backlinkPlace, connections, DELETED_NOTE } from './links'
 import styles from './Notes.module.css'
-import { useNoteLinks, usePlies } from './queries'
+import { useNoteLinks } from './queries'
 import { resultDetails } from './quickFindResults'
 
 // The margin of a saved Note (design/screens/Note.dc.html "Connections" and
@@ -13,13 +13,19 @@ import { resultDetails } from './quickFindResults'
 // Comments and Bodies in other Notes that link to it. Each entry shows the
 // players and date where the design shows a Folder path, until #11 adds
 // Folders. Reader notes and Sub-variations are not in v1.
-export function NoteMargin({ noteId }: { noteId: number }) {
-  const plies = usePlies(noteId)
+export function NoteMargin({
+  noteId,
+  writing,
+}: {
+  noteId: number
+  /** The Note's Comments and Bodies, in reading order. */
+  writing: readonly { comment: string | null; body: string | null }[]
+}) {
   const links = useNoteLinks(noteId)
-  const targets = useMemo(() => connections(plies.data ?? []), [plies.data])
+  const targets = useMemo(() => connections(writing), [writing])
   const found = useMemo(() => new Map((links.data?.targets ?? []).map((t) => [t.id, t])), [links.data])
 
-  const pending = (plies.isPending || links.isPending) && !links.isError
+  const pending = links.isPending && !links.isError
   const failed = links.isError && (
     <div className={styles.marginState}>
       <Text size="sm" role="alert">
@@ -53,11 +59,11 @@ export function NoteMargin({ noteId }: { noteId: number }) {
         {failed || loading || (
           <Entries empty="No other note links here yet.">
             {links.data?.backlinks.map((backlink) => (
-              <li key={`${backlink.noteId}-${backlink.ply}-${backlink.part}`} className={styles.marginEntry}>
+              <li key={`${backlink.moveId}-${backlink.part}`} className={styles.marginEntry}>
                 <Link
                   to="/notes/$noteId"
                   params={{ noteId: String(backlink.noteId) }}
-                  search={{ ply: backlink.ply }}
+                  search={{ move: backlink.moveId }}
                   className={`${styles.link} ${styles.marginLink}`}
                 >
                   {backlink.name}

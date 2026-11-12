@@ -1,5 +1,14 @@
-import type { Folder, Note, PlyWriting, User } from '../../src/api.js'
+import type { Folder, Note, User, WritingInput } from '../../src/api.js'
 import { fischerSpassky1972Game6 } from '../../src/chess/fixtures.js'
+
+/**
+ * A sample Note as the harness keeps it: its moves and their writing as PGN,
+ * which the mock API reads into a tree (scripts/shots/mockApi.ts).
+ */
+export type SampleNote = Omit<Note, 'tags'> & { pgn: string }
+
+/** Writing on a Move of a sample Note's Main line, by its Ply; ply 0 is the Position. */
+export type SampleWriting = { ply: number } & Partial<WritingInput>
 
 // Sample data only, per web/AGENTS.md: these names belong in fixtures and
 // tests, never in product copy.
@@ -23,11 +32,18 @@ export const sampleFolders: Folder[] = [
   { id: 7, parentId: null, name: 'Positions' },
 ]
 
-export const sampleNotes: Note[] = [
+export const sampleNotes: SampleNote[] = [
   {
     id: 1,
     name: 'Fischer v. Spassky 1972',
-    pgn: fischerSpassky1972Game6.replace('[Result "1-0"]', '[Result "1-0"]\n[Opening "Queen\'s Gambit Declined"]'),
+    // With Variations (#71): one at 10…exd5 with another nested inside it, and one at 11.Rc1.
+    pgn: fischerSpassky1972Game6
+      .replace('[Result "1-0"]', '[Result "1-0"]\n[Opening "Queen\'s Gambit Declined"]')
+      .replace(
+        '10. Nxd5 exd5',
+        '10. Nxd5 exd5 (10... Qb4+ $6 {Trading queens does not help.} 11. Qd2 Qxd2+ 12. Kxd2 (12. Nxd2 Bb7) 12... Bb7 {Without queens the knight on d5 is no weaker.})',
+      )
+      .replace('11. Rc1 Be6', '11. Rc1 (11. Qa4 c5) 11... Be6'),
     startFen: null,
     folderId: 1,
     createdAt: at,
@@ -90,12 +106,12 @@ export const sampleNotes: Note[] = [
   },
 ]
 
-function writing(ply: number, fields: Partial<PlyWriting>): PlyWriting {
-  return { ply, comment: null, body: null, moveGlyph: null, positionGlyph: null, updatedAt: at, ...fields }
+function writing(ply: number, fields: Partial<WritingInput>): SampleWriting {
+  return { ply, ...fields }
 }
 
-/** The writing on each sample Note's Plies, by Note ID; the Bodies follow design/screens/Note.dc.html. */
-export const samplePlies: Record<number, PlyWriting[]> = {
+/** The writing on each sample Note's Main line, by Note ID; the Bodies follow design/screens/Note.dc.html. */
+export const sampleWriting: Record<number, SampleWriting[]> = {
   1: [
     writing(0, {
       body: 'Hanging pawns are strong only while they can advance. Trade off their defenders and freeze them, and they become the target.',
@@ -147,7 +163,7 @@ export const landingFolders: Folder[] = [
   { id: 4, parentId: null, name: 'Endgames' },
 ]
 
-export const landingNotes: Note[] = [
+export const landingNotes: SampleNote[] = [
   {
     id: 1,
     name: 'Club night, round 3',
@@ -179,7 +195,7 @@ export const landingNotes: Note[] = [
   },
 ]
 
-export const landingPlies: Record<number, PlyWriting[]> = {
+export const landingWriting: Record<number, SampleWriting[]> = {
   1: [
     writing(0, {
       body: 'I took on an isolated pawn for quick development. The game turned on whether my opponent could stop it advancing.',

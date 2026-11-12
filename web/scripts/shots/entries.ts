@@ -10,17 +10,18 @@ export type FixtureSet = 'guest' | 'session' | 'restoring' | 'restoreError'
  */
 export type NotesFixture = 'sample' | 'landing' | 'empty' | 'error' | 'pending'
 
-/** The writing on a Note's Plies, separately from the Notes themselves. */
-export type PliesFixture = 'sample' | 'error' | 'pending' | 'saveError'
+/**
+ * A Note's tree of Moves and their writing, separately from the Notes themselves:
+ * as the API would answer, failing to load, never answering, refusing to save
+ * writing (`saveError`), or failing to add or delete a Move (`editError`).
+ */
+export type MovesFixture = 'sample' | 'error' | 'pending' | 'saveError' | 'editError'
 
 /** Answers to Quick Find's search, separately from the Notes themselves. */
 export type SearchFixture = 'sample' | 'error' | 'pending'
 
 /** A Note's Links (its targets and Backlinks), separately from the Notes themselves. */
 export type LinksFixture = 'sample' | 'error' | 'pending'
-
-/** Answers to editing a Note's moves: as the API would, or failing. */
-export type MovesFixture = 'sample' | 'saveError'
 
 export type ShotEntry = {
   /** Matches a design screen name, e.g. `design/screenshots/<name>.png`. */
@@ -31,8 +32,6 @@ export type ShotEntry = {
   notes?: NotesFixture
   /** @default 'sample' */
   search?: SearchFixture
-  /** @default 'sample' */
-  plies?: PliesFixture
   /** @default 'sample' */
   links?: LinksFixture
   /** @default 'sample' */
@@ -623,31 +622,21 @@ export const entries: ShotEntry[] = [
       await page.getByRole('button', { name: 'Nf3', exact: true }).click()
     },
   },
-  {
-    name: 'NoteWritingLoading',
-    route: '/notes/1',
-    fixtures: 'session',
-    plies: 'pending',
-    waitUntil: 'load',
-    setup: async (page) => {
-      await page.getByLabel('Loading your writing', { exact: true }).waitFor()
-    },
-  },
-  { name: 'NoteWritingError', route: '/notes/1', fixtures: 'session', plies: 'error' },
+  { name: 'NoteMovesError', route: '/notes/1', fixtures: 'session', moves: 'error' },
   {
     name: 'NoteSaveError',
     route: '/notes/1',
     fixtures: 'session',
-    plies: 'saveError',
+    moves: 'saveError',
     setup: async (page) => {
       await page.getByRole('textbox', { name: /^Comment on/ }).fill('A thought that will not save.')
       await page.getByRole('button', { name: 'Blunder' }).focus()
       await page.getByText('Your writing was not saved').waitFor()
     },
   },
-  // Editing moves (#10): the draft with 10…exd5 deleted, the writing it would
-  // delete left out of the preview; the confirmation the API asks for; and a
-  // save that fails.
+  // Editing moves (#10, #71): a move played from 10…exd5 starts a new
+  // Variation and is saved at once; deleting a move whose subtree holds writing
+  // asks first, with what would go; and a delete that fails.
   {
     name: 'NoteEditMoves',
     route: '/notes/1',
@@ -655,8 +644,10 @@ export const entries: ShotEntry[] = [
     setup: async (page) => {
       await page.getByRole('button', { name: 'Note actions' }).click()
       await page.getByRole('menuitem', { name: 'Edit moves' }).click()
-      await page.getByRole('button', { name: 'exd5', exact: true }).click()
-      await page.getByRole('button', { name: 'Delete 10…exd5' }).click()
+      // 10.Nxd5; 8…Nxd5 comes first.
+      await page.getByRole('button', { name: 'Nxd5', exact: true }).nth(1).click()
+      for (const square of ['c7', 'c6']) await page.locator(`[id$="-square-${square}"]`).click()
+      await page.getByRole('button', { name: 'c6', exact: true }).waitFor()
     },
   },
   {
@@ -668,7 +659,6 @@ export const entries: ShotEntry[] = [
       await page.getByRole('menuitem', { name: 'Edit moves' }).click()
       await page.getByRole('button', { name: 'exd5', exact: true }).click()
       await page.getByRole('button', { name: 'Delete 10…exd5' }).click()
-      await page.getByRole('button', { name: 'Save moves' }).click()
       await page.getByRole('dialog', { name: 'Delete your writing?' }).waitFor()
     },
   },
@@ -676,13 +666,21 @@ export const entries: ShotEntry[] = [
     name: 'NoteEditMovesError',
     route: '/notes/1',
     fixtures: 'session',
-    moves: 'saveError',
+    moves: 'editError',
     setup: async (page) => {
       await page.getByRole('button', { name: 'Note actions' }).click()
       await page.getByRole('menuitem', { name: 'Edit moves' }).click()
       await page.getByRole('button', { name: 'Delete 41.Qf4' }).click()
-      await page.getByRole('button', { name: 'Save moves' }).click()
-      await page.getByText('Could not save the moves').waitFor()
+      await page.getByText('Could not delete the move').waitFor()
+    },
+  },
+  // Variations (#71): the move list on a move inside the nested Variation.
+  {
+    name: 'NoteVariations',
+    route: '/notes/1',
+    fixtures: 'session',
+    setup: async (page) => {
+      await page.getByRole('button', { name: 'Nxd2', exact: true }).click()
     },
   },
   { name: 'NoteNotFound', route: '/notes/999', fixtures: 'session' },

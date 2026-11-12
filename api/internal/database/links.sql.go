@@ -8,53 +8,59 @@ package database
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 
 	"github.com/lib/pq"
 )
 
-const deletePlyLinks = `-- name: DeletePlyLinks :exec
+const deleteMoveLinks = `-- name: DeleteMoveLinks :exec
 DELETE FROM links
-WHERE note_id = $1 AND ply = $2
+WHERE move_id = $1
 `
 
-type DeletePlyLinksParams struct {
-	NoteID int64
-	Ply    int32
-}
-
-func (q *Queries) DeletePlyLinks(ctx context.Context, arg DeletePlyLinksParams) error {
-	_, err := q.db.ExecContext(ctx, deletePlyLinks, arg.NoteID, arg.Ply)
+func (q *Queries) DeleteMoveLinks(ctx context.Context, moveID int64) error {
+	_, err := q.db.ExecContext(ctx, deleteMoveLinks, moveID)
 	return err
 }
 
-const insertPlyLinks = `-- name: InsertPlyLinks :exec
-INSERT INTO links(note_id, ply, part, target_id)
-SELECT $1, $2, $3, unnest($4::bigint[])
+const insertLinks = `-- name: InsertLinks :exec
+INSERT INTO links(move_id, part, target_id)
+SELECT r.move_id, r.part, r.target_id
+FROM jsonb_to_recordset($1::jsonb) AS r(move_id bigint, part text, target_id bigint)
 `
 
-type InsertPlyLinksParams struct {
-	NoteID    int64
-	Ply       int32
-	Part      string
-	TargetIds []int64
-}
-
-func (q *Queries) InsertPlyLinks(ctx context.Context, arg InsertPlyLinksParams) error {
-	_, err := q.db.ExecContext(ctx, insertPlyLinks,
-		arg.NoteID,
-		arg.Ply,
-		arg.Part,
-		pq.Array(arg.TargetIds),
-	)
+// The rows are a JSON array of {"move_id", "part", "target_id"}.
+func (q *Queries) InsertLinks(ctx context.Context, rows json.RawMessage) error {
+	_, err := q.db.ExecContext(ctx, insertLinks, rows)
 	return err
 }
 
 const listBacklinks = `-- name: ListBacklinks :many
-SELECT s.id AS note_id, s.name, s.start_fen, l.ply, l.part
-FROM links l
-JOIN notes s ON s.id = l.note_id
-WHERE l.target_id = $1 AND s.user_id = $2 AND s.id <> $1
-ORDER BY s.name, s.id, l.ply, l.part DESC
+WITH RECURSIVE linking AS (
+  SELECT l.move_id, l.part
+  FROM links l
+  JOIN moves m ON m.id = l.move_id
+  JOIN notes s ON s.id = m.note_id
+  WHERE l.target_id = $1 AND s.user_id = $2 AND s.id <> $1
+), chain AS (
+  SELECT m.id AS move_id, m.parent_id, 0 AS depth
+  FROM moves m
+  WHERE m.id IN (SELECT move_id FROM linking)
+  UNION ALL
+  SELECT c.move_id, p.parent_id, c.depth + 1
+  FROM chain c
+  JOIN moves p ON p.id = c.parent_id
+), plies AS (
+  SELECT move_id, max(depth)::int AS ply
+  FROM chain
+  GROUP BY move_id
+)
+SELECT s.id AS note_id, s.name, s.start_fen, m.id AS move_id, m.san, p.ply, l.part
+FROM linking l
+JOIN moves m ON m.id = l.move_id
+JOIN notes s ON s.id = m.note_id
+JOIN plies p ON p.move_id = l.move_id
+ORDER BY s.name, s.id, p.ply, m.id, l.part DESC
 `
 
 type ListBacklinksParams struct {
@@ -66,11 +72,14 @@ type ListBacklinksRow struct {
 	NoteID   int64
 	Name     string
 	StartFen sql.NullString
+	MoveID   int64
+	San      sql.NullString
 	Ply      int32
 	Part     string
 }
 
-// The Comments and Bodies in other Notes that link to this one.
+// The Comments and Bodies in other Notes that link to this one, in Main
+// lines or Variations, with the Move each is on: its SAN and its Ply.
 func (q *Queries) ListBacklinks(ctx context.Context, arg ListBacklinksParams) ([]ListBacklinksRow, error) {
 	rows, err := q.db.QueryContext(ctx, listBacklinks, arg.TargetID, arg.UserID)
 	if err != nil {
@@ -84,6 +93,8 @@ func (q *Queries) ListBacklinks(ctx context.Context, arg ListBacklinksParams) ([
 			&i.NoteID,
 			&i.Name,
 			&i.StartFen,
+			&i.MoveID,
+			&i.San,
 			&i.Ply,
 			&i.Part,
 		); err != nil {
@@ -103,9 +114,10 @@ func (q *Queries) ListBacklinks(ctx context.Context, arg ListBacklinksParams) ([
 const listLinkTargets = `-- name: ListLinkTargets :many
 SELECT DISTINCT t.id, t.name, t.white, t.black, t.game_date
 FROM links l
-JOIN notes s ON s.id = l.note_id
+JOIN moves m ON m.id = l.move_id
+JOIN notes s ON s.id = m.note_id
 JOIN notes t ON t.id = l.target_id
-WHERE l.note_id = $1 AND s.user_id = $2 AND t.user_id = $2
+WHERE m.note_id = $1 AND s.user_id = $2 AND t.user_id = $2
 ORDER BY t.id
 `
 
@@ -152,6 +164,40 @@ func (q *Queries) ListLinkTargets(ctx context.Context, arg ListLinkTargetsParams
 	return items, nil
 }
 
+const listMoveLinkTargets = `-- name: ListMoveLinkTargets :many
+
+SELECT DISTINCT target_id
+FROM links
+WHERE move_id = $1
+`
+
+// The Link index is written only where a Move's writing is saved, inside that
+// transaction, and every read is scoped to the owner.
+// The targets already indexed on one Move, in either part. A save may keep
+// these even when the target is gone, so an Unresolved Link stays editable.
+func (q *Queries) ListMoveLinkTargets(ctx context.Context, moveID int64) ([]int64, error) {
+	rows, err := q.db.QueryContext(ctx, listMoveLinkTargets, moveID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []int64
+	for rows.Next() {
+		var target_id int64
+		if err := rows.Scan(&target_id); err != nil {
+			return nil, err
+		}
+		items = append(items, target_id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listOwnedNoteIDs = `-- name: ListOwnedNoteIDs :many
 SELECT id
 FROM notes
@@ -176,47 +222,6 @@ func (q *Queries) ListOwnedNoteIDs(ctx context.Context, arg ListOwnedNoteIDsPara
 			return nil, err
 		}
 		items = append(items, id)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listPlyLinkTargets = `-- name: ListPlyLinkTargets :many
-
-SELECT DISTINCT l.target_id
-FROM links l
-JOIN notes n ON n.id = l.note_id
-WHERE l.note_id = $1 AND l.ply = $2 AND n.user_id = $3
-`
-
-type ListPlyLinkTargetsParams struct {
-	NoteID int64
-	Ply    int32
-	UserID int32
-}
-
-// The Link index is written only by HandlePutPly, inside the transaction that
-// saves the Ply, and every read is scoped to the owner.
-// The targets already indexed on one Ply, in either part. A save may keep
-// these even when the target is gone, so an Unresolved Link stays editable.
-func (q *Queries) ListPlyLinkTargets(ctx context.Context, arg ListPlyLinkTargetsParams) ([]int64, error) {
-	rows, err := q.db.QueryContext(ctx, listPlyLinkTargets, arg.NoteID, arg.Ply, arg.UserID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []int64
-	for rows.Next() {
-		var target_id int64
-		if err := rows.Scan(&target_id); err != nil {
-			return nil, err
-		}
-		items = append(items, target_id)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err

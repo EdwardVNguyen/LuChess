@@ -8,6 +8,7 @@ package database
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"time"
 
 	"github.com/lib/pq"
@@ -15,15 +16,15 @@ import (
 
 const createNote = `-- name: CreateNote :one
 
-INSERT INTO notes(user_id, name, pgn, start_fen, folder_id, created_at, updated_at)
+INSERT INTO notes(user_id, name, tags, start_fen, folder_id, created_at, updated_at)
 VALUES ($1, $2, $3, $4, $5, $6, $6)
-RETURNING id, user_id, name, pgn, start_fen, created_at, updated_at, white, black, game_date, folder_id
+RETURNING id, user_id, name, start_fen, created_at, updated_at, folder_id, tags, white, black, game_date
 `
 
 type CreateNoteParams struct {
 	UserID   int32
 	Name     string
-	Pgn      string
+	Tags     json.RawMessage
 	StartFen sql.NullString
 	FolderID sql.NullInt64
 	Now      time.Time
@@ -34,7 +35,7 @@ func (q *Queries) CreateNote(ctx context.Context, arg CreateNoteParams) (Note, e
 	row := q.db.QueryRowContext(ctx, createNote,
 		arg.UserID,
 		arg.Name,
-		arg.Pgn,
+		arg.Tags,
 		arg.StartFen,
 		arg.FolderID,
 		arg.Now,
@@ -44,14 +45,14 @@ func (q *Queries) CreateNote(ctx context.Context, arg CreateNoteParams) (Note, e
 		&i.ID,
 		&i.UserID,
 		&i.Name,
-		&i.Pgn,
 		&i.StartFen,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.FolderID,
+		&i.Tags,
 		&i.White,
 		&i.Black,
 		&i.GameDate,
-		&i.FolderID,
 	)
 	return i, err
 }
@@ -75,7 +76,7 @@ func (q *Queries) DeleteNote(ctx context.Context, arg DeleteNoteParams) (int64, 
 }
 
 const getNote = `-- name: GetNote :one
-SELECT id, user_id, name, pgn, start_fen, created_at, updated_at, white, black, game_date, folder_id
+SELECT id, user_id, name, start_fen, created_at, updated_at, folder_id, tags, white, black, game_date
 FROM notes
 WHERE id = $1 AND user_id = $2
 `
@@ -92,14 +93,14 @@ func (q *Queries) GetNote(ctx context.Context, arg GetNoteParams) (Note, error) 
 		&i.ID,
 		&i.UserID,
 		&i.Name,
-		&i.Pgn,
 		&i.StartFen,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.FolderID,
+		&i.Tags,
 		&i.White,
 		&i.Black,
 		&i.GameDate,
-		&i.FolderID,
 	)
 	return i, err
 }
@@ -160,8 +161,8 @@ type LockNoteParams struct {
 	UserID int32
 }
 
-// Holds the Note while its moves are edited, so writing saved meanwhile waits
-// (saving a Ply touches the Note) and the confirmation counts what is deleted.
+// Holds the Note while its Moves are changed, so edits to its tree are
+// serialized and a confirmation counts exactly what is deleted.
 func (q *Queries) LockNote(ctx context.Context, arg LockNoteParams) (int64, error) {
 	row := q.db.QueryRowContext(ctx, lockNote, arg.ID, arg.UserID)
 	var id int64
@@ -174,7 +175,7 @@ UPDATE notes
 SET name = $1,
     updated_at = $2
 WHERE id = $3 AND user_id = $4
-RETURNING id, user_id, name, pgn, start_fen, created_at, updated_at, white, black, game_date, folder_id
+RETURNING id, user_id, name, start_fen, created_at, updated_at, folder_id, tags, white, black, game_date
 `
 
 type RenameNoteParams struct {
@@ -196,53 +197,14 @@ func (q *Queries) RenameNote(ctx context.Context, arg RenameNoteParams) (Note, e
 		&i.ID,
 		&i.UserID,
 		&i.Name,
-		&i.Pgn,
 		&i.StartFen,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.FolderID,
+		&i.Tags,
 		&i.White,
 		&i.Black,
 		&i.GameDate,
-		&i.FolderID,
-	)
-	return i, err
-}
-
-const replaceNoteMoves = `-- name: ReplaceNoteMoves :one
-UPDATE notes
-SET pgn = $1,
-    updated_at = $2
-WHERE id = $3 AND user_id = $4
-RETURNING id, user_id, name, pgn, start_fen, created_at, updated_at, white, black, game_date, folder_id
-`
-
-type ReplaceNoteMovesParams struct {
-	Pgn    string
-	Now    time.Time
-	ID     int64
-	UserID int32
-}
-
-func (q *Queries) ReplaceNoteMoves(ctx context.Context, arg ReplaceNoteMovesParams) (Note, error) {
-	row := q.db.QueryRowContext(ctx, replaceNoteMoves,
-		arg.Pgn,
-		arg.Now,
-		arg.ID,
-		arg.UserID,
-	)
-	var i Note
-	err := row.Scan(
-		&i.ID,
-		&i.UserID,
-		&i.Name,
-		&i.Pgn,
-		&i.StartFen,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-		&i.White,
-		&i.Black,
-		&i.GameDate,
-		&i.FolderID,
 	)
 	return i, err
 }
@@ -345,7 +307,7 @@ const setNoteFolder = `-- name: SetNoteFolder :one
 UPDATE notes
 SET folder_id = $1
 WHERE id = $2 AND user_id = $3
-RETURNING id, user_id, name, pgn, start_fen, created_at, updated_at, white, black, game_date, folder_id
+RETURNING id, user_id, name, start_fen, created_at, updated_at, folder_id, tags, white, black, game_date
 `
 
 type SetNoteFolderParams struct {
@@ -362,14 +324,30 @@ func (q *Queries) SetNoteFolder(ctx context.Context, arg SetNoteFolderParams) (N
 		&i.ID,
 		&i.UserID,
 		&i.Name,
-		&i.Pgn,
 		&i.StartFen,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.FolderID,
+		&i.Tags,
 		&i.White,
 		&i.Black,
 		&i.GameDate,
-		&i.FolderID,
 	)
 	return i, err
+}
+
+const touchNote = `-- name: TouchNote :exec
+UPDATE notes
+SET updated_at = $1
+WHERE id = $2
+`
+
+type TouchNoteParams struct {
+	Now time.Time
+	ID  int64
+}
+
+func (q *Queries) TouchNote(ctx context.Context, arg TouchNoteParams) error {
+	_, err := q.db.ExecContext(ctx, touchNote, arg.Now, arg.ID)
+	return err
 }

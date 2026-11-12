@@ -239,25 +239,38 @@ describe('api client notes', () => {
   const note = {
     id: 3,
     name: 'King and pawn',
-    pgn: '[SetUp "1"]\n[FEN "4k3/8/8/8/8/8/4P3/4K3 w - - 0 1"]\n\n*',
+    tags: [
+      ['SetUp', '1'],
+      ['FEN', '4k3/8/8/8/8/8/4P3/4K3 w - - 0 1'],
+    ] as [string, string][],
     startFen: '4k3/8/8/8/8/8/4P3/4K3 w - - 0 1',
     folderId: null,
     createdAt: '2026-11-01T12:00:00Z',
     updatedAt: '2026-11-01T12:00:00Z',
   }
 
-  it('creates a Note with the bearer token', async () => {
+  it('creates a Note and its tree with the bearer token', async () => {
     const fetchFn = vi.fn().mockResolvedValue(jsonResponse(note, 201))
     const api = createApiClient(baseUrl, fetchFn)
+    const input = {
+      name: note.name,
+      startFen: note.startFen,
+      tags: note.tags,
+      position: { body: 'Opposition.' },
+      moves: [
+        { parent: null, san: 'Kd2' },
+        { parent: 0, san: 'Kd7', comment: 'Takes the opposition.' },
+      ],
+    }
 
-    const created = await api.createNote('token-9', { name: note.name, pgn: note.pgn, startFen: note.startFen })
+    const created = await api.createNote('token-9', input)
 
     expect(created).toEqual(note)
     const [url, init] = fetchFn.mock.calls[0]
     expect(url).toBe('http://localhost:8080/api/notes')
     expect(init.method).toBe('POST')
     expect(init.headers.Authorization).toBe('Bearer token-9')
-    expect(JSON.parse(init.body)).toEqual({ name: note.name, pgn: note.pgn, startFen: note.startFen })
+    expect(JSON.parse(init.body)).toEqual(input)
   })
 
   it('renames with PATCH and deletes with DELETE', async () => {
@@ -283,47 +296,80 @@ describe('api client notes', () => {
   })
 })
 
-describe('api client editMoves', () => {
-  const note = {
-    id: 3,
-    name: 'Italian',
-    pgn: '1. e4 e5 2. Nf3 Nf6 *',
-    startFen: null,
-    folderId: null,
-    createdAt: '2026-11-01T12:00:00Z',
+describe('api client moves', () => {
+  const row = {
+    id: 12,
+    parentId: 11,
+    san: 'e5',
+    comment: null,
+    body: null,
+    moveGlyph: null,
+    positionGlyph: null,
+    drawings: [],
     updatedAt: '2026-11-01T12:05:00Z',
   }
-  const input = { pgn: note.pgn, firstChangedPly: 4, confirm: false }
 
-  it('sends the PGN and first changed Ply, and returns the saved Note', async () => {
-    const fetchFn = vi.fn().mockResolvedValue(jsonResponse(note))
-    const api = createApiClient(baseUrl, fetchFn)
-
-    await expect(api.editMoves('t', 3, input)).resolves.toEqual({ status: 'saved', note })
-    const [url, init] = fetchFn.mock.calls[0]
-    expect(url).toBe('http://localhost:8080/api/notes/3/moves')
-    expect(init.method).toBe('PUT')
-    expect(JSON.parse(init.body)).toEqual(input)
-  })
-
-  it('turns a 409 into a request for confirmation with the count', async () => {
+  it('lists the tree and plays a Move by SAN after its parent', async () => {
     const fetchFn = vi
       .fn()
-      .mockResolvedValue(jsonResponse({ error: 'This will delete your writing on 3 moves', plies: 3 }, 409))
+      .mockResolvedValueOnce(jsonResponse([{ ...row, id: 11, parentId: null, san: null }, row]))
+      .mockResolvedValueOnce(jsonResponse(row, 201))
     const api = createApiClient(baseUrl, fetchFn)
 
-    await expect(api.editMoves('t', 3, input)).resolves.toEqual({
+    await expect(api.listMoves('t', 3)).resolves.toHaveLength(2)
+    await expect(api.addMove('t', 3, 11, 'e5')).resolves.toEqual(row)
+    expect(fetchFn.mock.calls[0][0]).toBe('http://localhost:8080/api/notes/3/moves')
+    const [url, init] = fetchFn.mock.calls[1]
+    expect(url).toBe('http://localhost:8080/api/notes/3/moves')
+    expect(init.method).toBe('POST')
+    expect(JSON.parse(init.body)).toEqual({ parentId: 11, san: 'e5' })
+  })
+
+  it('writes on a Move with PUT', async () => {
+    const writing = { comment: 'Symmetry.', body: null, moveGlyph: '!', positionGlyph: null, drawings: [{ from: 'e5', brush: 'green' as const }] }
+    const fetchFn = vi.fn().mockResolvedValue(jsonResponse({ ...row, ...writing }))
+    const api = createApiClient(baseUrl, fetchFn)
+
+    await expect(api.putWriting('t', 3, 12, writing)).resolves.toMatchObject(writing)
+    const [url, init] = fetchFn.mock.calls[0]
+    expect(url).toBe('http://localhost:8080/api/notes/3/moves/12/writing')
+    expect(init.method).toBe('PUT')
+    expect(JSON.parse(init.body)).toEqual(writing)
+  })
+
+  it('deletes a subtree, turning a 409 into a request for confirmation with the counts', async () => {
+    const counts = { comments: 2, bodies: 1, glyphs: 0, drawings: 3 }
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ error: 'This will delete 2 Comments, 1 Body and 3 Drawings', ...counts }, 409))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+    const api = createApiClient(baseUrl, fetchFn)
+
+    await expect(api.deleteMove('t', 3, 12, false)).resolves.toEqual({
       status: 'needsConfirmation',
-      plies: 3,
-      message: 'This will delete your writing on 3 moves',
+      message: 'This will delete 2 Comments, 1 Body and 3 Drawings',
+      ...counts,
     })
+    await expect(api.deleteMove('t', 3, 12, true)).resolves.toEqual({ status: 'deleted' })
+    expect(fetchFn.mock.calls[0][0]).toBe('http://localhost:8080/api/notes/3/moves/12')
+    expect(fetchFn.mock.calls[1][0]).toBe('http://localhost:8080/api/notes/3/moves/12?confirm=true')
+    expect(fetchFn.mock.calls[1][1].method).toBe('DELETE')
   })
 
   it('still throws other errors', async () => {
-    const fetchFn = vi.fn().mockResolvedValue(jsonResponse({ error: 'Note not found' }, 404))
+    const fetchFn = vi.fn().mockResolvedValue(jsonResponse({ error: 'Move not found' }, 404))
     const api = createApiClient(baseUrl, fetchFn)
 
-    await expect(api.editMoves('t', 3, input)).rejects.toBeInstanceOf(ApiError)
+    await expect(api.deleteMove('t', 3, 12, false)).rejects.toBeInstanceOf(ApiError)
+  })
+
+  it('promotes with POST', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(new Response(null, { status: 204 }))
+    const api = createApiClient(baseUrl, fetchFn)
+
+    await api.promoteMove('t', 3, 12)
+    expect(fetchFn.mock.calls[0][0]).toBe('http://localhost:8080/api/notes/3/moves/12/promote')
+    expect(fetchFn.mock.calls[0][1].method).toBe('POST')
   })
 })
 
@@ -344,7 +390,7 @@ describe('api client folders', () => {
     const note = {
       id: 3,
       name: 'Italian',
-      pgn: '1. e4 *',
+      tags: [],
       startFen: null,
       folderId: 4,
       createdAt: '2026-11-01T12:00:00Z',

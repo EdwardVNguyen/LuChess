@@ -59,8 +59,8 @@ describe('backlinkPlace', () => {
   it('names the move from the standard start', () => {
     expect(moveNumberAt(null, 1)).toBe('1.')
     expect(moveNumberAt(null, 20)).toBe('10…')
-    expect(backlinkPlace({ part: 'comment', ply: 20, startFen: null })).toBe('Comment on move 10…')
-    expect(backlinkPlace({ part: 'body', ply: 21, startFen: null })).toBe('Body after move 11.')
+    expect(backlinkPlace({ part: 'comment', ply: 20, san: 'exd5', startFen: null })).toBe('Comment on 10…exd5')
+    expect(backlinkPlace({ part: 'body', ply: 21, san: 'Rc1', startFen: null })).toBe('Body after 11.Rc1')
   })
 
   it('names the move from a custom Position', () => {
@@ -70,8 +70,8 @@ describe('backlinkPlace', () => {
   })
 
   it('names the Position at ply 0', () => {
-    expect(backlinkPlace({ part: 'comment', ply: 0, startFen: null })).toBe('Comment on the position')
-    expect(backlinkPlace({ part: 'body', ply: 0, startFen: null })).toBe('Body opening the note')
+    expect(backlinkPlace({ part: 'comment', ply: 0, san: null, startFen: null })).toBe('Comment on the position')
+    expect(backlinkPlace({ part: 'body', ply: 0, san: null, startFen: null })).toBe('Body opening the note')
   })
 })
 
@@ -79,8 +79,8 @@ describe('connections', () => {
   it('lists targets in reading order, each with the first label it was given', () => {
     expect(
       connections([
-        { ply: 3, comment: '[[note:1]]', body: '[[note:2|two]]' },
-        { ply: 0, comment: null, body: '[[note:1]] [[note:3]] [[note:1|one]]' },
+        { comment: null, body: '[[note:1]] [[note:3]] [[note:1|one]]' },
+        { comment: '[[note:1]]', body: '[[note:2|two]]' },
       ]),
     ).toEqual([
       { target: 1, label: 'one' },

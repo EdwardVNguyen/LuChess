@@ -1,13 +1,15 @@
 import { Button, Loader, Menu, Text, UnstyledButton } from '@mantine/core'
 import { Link, Navigate, useNavigate } from '@tanstack/react-router'
-import { useMemo, useState } from 'react'
-import type { NewNoteInput, PlyWriting } from '../api'
+import { useState } from 'react'
+import type { Writing } from '../chess/pgn'
+import type { MoveId } from '../chess/tree'
 import { ConfirmDialog, ResponsiveDialog, useOverlaySize, type OverlaySize } from '../overlay'
 import { BookmarkIcon, MoreIcon } from '../notes/icons'
 import noteStyles from '../notes/Notes.module.css'
+import type { NoteStart } from '../notes/newNote'
 import { NoteStartForm } from '../notes/NoteStartForm'
-import { CurrentPlyEditor, StudyView, WritingView } from '../notes/StudyView'
-import { mergeWriting, replaceWriting, type PlyChange } from '../notes/writing'
+import { CurrentMoveEditor, StudyView, WritingView } from '../notes/StudyView'
+import { mergeWriting, withWriting, type WritingChange } from '../notes/writing'
 import { useSession } from '../session'
 import styles from './Guest.module.css'
 
@@ -33,7 +35,7 @@ export function GuestPage() {
 }
 
 function GuestStudy() {
-  const [note, setNote] = useState<NewNoteInput | null>(null)
+  const [note, setNote] = useState<NoteStart | null>(null)
   const [prompting, setPrompting] = useState(false)
   const size = useOverlaySize()
 
@@ -70,30 +72,25 @@ export function GuestBanner() {
 }
 
 type GuestNoteProps = {
-  note: NewNoteInput
+  note: NoteStart
   size: OverlaySize
   onSave: () => void
   onStartOver: () => void
 }
 
+// The Guest's tree is the one they started with, and their writing on it,
+// including what an imported PGN brought, is kept here in the browser.
 function GuestNote({ note, size, onSave, onStartOver }: GuestNoteProps) {
-  const [plies, setPlies] = useState<PlyWriting[]>([])
+  const [writing, setWriting] = useState<ReadonlyMap<MoveId, Writing>>(note.writing)
   const [confirmingStartOver, setConfirmingStartOver] = useState(false)
-  const writing = useMemo(() => new Map(plies.map((p) => [p.ply, p])), [plies])
 
-  // The same merge as a saved Note (useSavePly), applied in memory.
-  function write({ ply, ...change }: PlyChange) {
-    setPlies((current) => {
-      const merged = mergeWriting(
-        current.find((p) => p.ply === ply),
-        change,
-      )
-      return replaceWriting(current, { ply, ...merged, updatedAt: new Date().toISOString() })
-    })
+  // The same merge as a saved Note (useSaveWriting), applied in memory.
+  function write({ move, ...change }: WritingChange) {
+    setWriting((current) => withWriting(current, move, mergeWriting(current.get(move), change)))
   }
 
   function startOver() {
-    if (plies.length > 0) setConfirmingStartOver(true)
+    if (writing.size > 0) setConfirmingStartOver(true)
     else onStartOver()
   }
 
@@ -101,7 +98,9 @@ function GuestNote({ note, size, onSave, onStartOver }: GuestNoteProps) {
     <>
       <StudyView
         name={note.name}
-        pgn={note.pgn}
+        tree={note.tree}
+        tags={note.tags}
+        writing={writing}
         actions={
           <div className={styles.actions}>
             <Button variant="outline" leftSection={<BookmarkIcon />} className={styles.save} onClick={onSave}>
@@ -119,7 +118,7 @@ function GuestNote({ note, size, onSave, onStartOver }: GuestNoteProps) {
             </Menu>
           </div>
         }
-        tools={(view) => <CurrentPlyEditor {...view} writing={writing} editable onSave={write} />}
+        tools={(view) => <CurrentMoveEditor {...view} writing={writing} editable onSave={write} />}
       >
         {(view) => <WritingView {...view} writing={writing} />}
       </StudyView>
