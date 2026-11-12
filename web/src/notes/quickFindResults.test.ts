@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { highlight, resultDetails } from './quickFind'
+import { highlight, resultDetails } from './quickFindResults'
 
 const marked = (query: string, text: string) =>
   highlight(query, text)

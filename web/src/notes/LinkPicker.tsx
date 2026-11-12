@@ -6,7 +6,7 @@ import { errorMessage } from '../errors'
 import { SearchIcon } from '../header/icons'
 import styles from './LinkPicker.module.css'
 import { useNoteSearch } from './queries'
-import { resultDetails } from './quickFind'
+import { resultDetails } from './quickFindResults'
 
 type Props = {
   /** The Note being written on, left out of the results. */

@@ -6,7 +6,7 @@ import { errorMessage } from '../errors'
 import { backlinkPlace, connections, DELETED_NOTE } from './links'
 import styles from './Notes.module.css'
 import { useNoteLinks, usePlies } from './queries'
-import { resultDetails } from './quickFind'
+import { resultDetails } from './quickFindResults'
 
 // The margin of a saved Note (design/screens/Note.dc.html "Connections" and
 // "Linked from"): the Notes its Comments and Bodies link to, and the

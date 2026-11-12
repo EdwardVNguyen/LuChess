@@ -7,7 +7,7 @@ import { errorMessage } from '../errors'
 import { SearchIcon } from '../header/icons'
 import { ResponsivePanel, useOverlaySize } from '../overlay'
 import { useNoteSearch } from './queries'
-import { highlight, resultDetails } from './quickFind'
+import { highlight, resultDetails } from './quickFindResults'
 import styles from './QuickFind.module.css'
 
 // The "Find a note" box in the header (an icon on mobile) and the overlay it
