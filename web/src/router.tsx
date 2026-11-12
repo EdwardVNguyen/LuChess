@@ -42,7 +42,13 @@ const settingsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/set
 const tryRoute = createRoute({ getParentRoute: () => rootRoute, path: '/try', component: GuestPage })
 const notesRoute = createRoute({ getParentRoute: () => rootRoute, path: '/notes', component: NotesLayout })
 const notesIndexRoute = createRoute({ getParentRoute: () => notesRoute, path: '/', component: NotesIndex })
-const newNoteRoute = createRoute({ getParentRoute: () => notesRoute, path: '/new', component: NewNotePage })
+const newNoteRoute = createRoute({
+  getParentRoute: () => notesRoute,
+  path: '/new',
+  // The Folder to file the new Note in, e.g. from a Folder's "New note here".
+  validateSearch: z.object({ folder: z.number().int().positive().optional().catch(undefined) }),
+  component: NewNotePage,
+})
 const noteRoute = createRoute({
   getParentRoute: () => notesRoute,
   path: '/$noteId',

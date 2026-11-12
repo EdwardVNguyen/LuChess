@@ -1,9 +1,9 @@
 import { Button, Loader, Menu, Text, UnstyledButton } from '@mantine/core'
-import { Link, useParams } from '@tanstack/react-router'
+import { Link, useNavigate, useParams } from '@tanstack/react-router'
 import { useState, type CSSProperties } from 'react'
 import type { Folder, NoteSummary } from '../api'
 import { errorMessage } from '../errors'
-import { useOverlaySize } from '../overlay'
+import { ContextMenu, useContextMenu, useOverlaySize } from '../overlay'
 import { DeleteFolderDialog, MoveFolderDialog, NewFolderDialog, RenameFolderDialog } from './FolderDialogs'
 import { buildTree, foldersToOpen, type FolderNode } from './folders'
 import { ChevronIcon, FolderPlusIcon, MoreIcon } from './icons'
@@ -21,6 +21,10 @@ type Dialog =
   | { kind: 'new'; parent: Folder | null }
   | { kind: 'rename' | 'move' | 'delete'; folder: Folder }
 
+/** What a right-click menu opens on: a Folder, or the empty space around the tree (null). */
+type MenuTarget = Folder | null
+type TriggerProps = ReturnType<typeof useContextMenu<MenuTarget>>['triggerProps']
+
 const depthStyle = (depth: number) => ({ '--depth': depth }) as CSSProperties
 
 // "Your notes": the user's Folders, which open and close, and the Notes filed
@@ -34,6 +38,13 @@ export function NoteTree({ onNavigate, showHeading = true }: Props) {
   const currentId = noteId && /^\d+$/.test(noteId) ? Number(noteId) : null
   const [open, setOpen] = useState<ReadonlySet<number>>(new Set())
   const [dialog, setDialog] = useState<Dialog | null>(null)
+  const menu = useContextMenu<MenuTarget>()
+  const navigate = useNavigate()
+
+  const newNote = (folder: Folder | null) => {
+    onNavigate?.()
+    void navigate({ to: '/notes/new', search: folder ? { folder: folder.id } : {} })
+  }
 
   // Open the Folders above the open Note when it, or the Folder it is in, changes.
   const currentFolder = notes.data?.find((note) => note.id === currentId)?.folderId ?? null
@@ -56,7 +67,7 @@ export function NoteTree({ onNavigate, showHeading = true }: Props) {
   const empty = tree !== null && tree.folders.length === 0 && tree.notes.length === 0
 
   return (
-    <div className={styles.list}>
+    <div className={styles.list} {...menu.triggerProps(null)}>
       {showHeading && <div className={styles.eyebrow}>Your notes</div>}
       {failed ? (
         <div className={styles.listState}>
@@ -97,6 +108,8 @@ export function NoteTree({ onNavigate, showHeading = true }: Props) {
                 onToggle={toggle}
                 onAction={setDialog}
                 onNavigate={onNavigate}
+                menuTarget={menu.triggerProps}
+                menuOpenOn={menu.opened?.value?.id ?? null}
               />
             </ul>
           )}
@@ -106,6 +119,20 @@ export function NoteTree({ onNavigate, showHeading = true }: Props) {
           </UnstyledButton>
         </>
       )}
+
+      <ContextMenu at={menu.opened} onClose={menu.close}>
+        {menu.opened?.value ? (
+          <>
+            <Menu.Item onClick={() => newNote(menu.opened!.value)}>New note here</Menu.Item>
+            <FolderMenuItems folder={menu.opened.value} onAction={setDialog} />
+          </>
+        ) : (
+          <>
+            <Menu.Item onClick={() => newNote(null)}>New note</Menu.Item>
+            <Menu.Item onClick={() => setDialog({ kind: 'new', parent: null })}>New folder</Menu.Item>
+          </>
+        )}
+      </ContextMenu>
 
       {dialog?.kind === 'new' && (
         <NewFolderDialog
@@ -130,6 +157,9 @@ type LevelProps = {
   onToggle: (id: number) => void
   onAction: (dialog: Dialog) => void
   onNavigate?: () => void
+  menuTarget: TriggerProps
+  /** The Folder whose right-click menu is open, if any. */
+  menuOpenOn: number | null
 }
 
 function Level({ folders, notes, depth, ...rest }: LevelProps) {
@@ -147,6 +177,8 @@ function Level({ folders, notes, depth, ...rest }: LevelProps) {
             style={depthStyle(depth)}
             activeProps={{ 'aria-current': 'page' }}
             onClick={rest.onNavigate}
+            // A Note has no menu of its own: leave the browser's, e.g. to open it in a new tab.
+            onContextMenu={(event) => event.stopPropagation()}
           >
             <span className={styles.treeSlot} />
             <span className={styles.itemName}>{note.name}</span>
@@ -164,7 +196,7 @@ function FolderItem({ node, depth, ...rest }: Omit<LevelProps, 'folders' | 'note
 
   return (
     <li>
-      <div className={styles.folderRow}>
+      <div className={styles.folderRow} data-menu-open={rest.menuOpenOn === folder.id || undefined} {...rest.menuTarget(folder)}>
         <UnstyledButton
           className={styles.item}
           style={depthStyle(depth)}
@@ -183,12 +215,7 @@ function FolderItem({ node, depth, ...rest }: Omit<LevelProps, 'folders' | 'note
             </UnstyledButton>
           </Menu.Target>
           <Menu.Dropdown>
-            <Menu.Item onClick={() => rest.onAction({ kind: 'new', parent: folder })}>New subfolder</Menu.Item>
-            <Menu.Item onClick={() => rest.onAction({ kind: 'rename', folder })}>Rename</Menu.Item>
-            <Menu.Item onClick={() => rest.onAction({ kind: 'move', folder })}>Move</Menu.Item>
-            <Menu.Item color="accent.6" onClick={() => rest.onAction({ kind: 'delete', folder })}>
-              Delete
-            </Menu.Item>
+            <FolderMenuItems folder={folder} onAction={rest.onAction} />
           </Menu.Dropdown>
         </Menu>
       </div>
@@ -204,5 +231,19 @@ function FolderItem({ node, depth, ...rest }: Omit<LevelProps, 'folders' | 'note
         </ul>
       )}
     </li>
+  )
+}
+
+// A Folder's actions, in its "…" menu and its right-click menu.
+function FolderMenuItems({ folder, onAction }: { folder: Folder; onAction: (dialog: Dialog) => void }) {
+  return (
+    <>
+      <Menu.Item onClick={() => onAction({ kind: 'new', parent: folder })}>New subfolder</Menu.Item>
+      <Menu.Item onClick={() => onAction({ kind: 'rename', folder })}>Rename</Menu.Item>
+      <Menu.Item onClick={() => onAction({ kind: 'move', folder })}>Move</Menu.Item>
+      <Menu.Item color="accent.6" onClick={() => onAction({ kind: 'delete', folder })}>
+        Delete
+      </Menu.Item>
+    </>
   )
 }

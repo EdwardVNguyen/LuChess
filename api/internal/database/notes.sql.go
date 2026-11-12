@@ -15,8 +15,8 @@ import (
 
 const createNote = `-- name: CreateNote :one
 
-INSERT INTO notes(user_id, name, pgn, start_fen, created_at, updated_at)
-VALUES ($1, $2, $3, $4, $5, $5)
+INSERT INTO notes(user_id, name, pgn, start_fen, folder_id, created_at, updated_at)
+VALUES ($1, $2, $3, $4, $5, $6, $6)
 RETURNING id, user_id, name, pgn, start_fen, created_at, updated_at, white, black, game_date, folder_id
 `
 
@@ -25,6 +25,7 @@ type CreateNoteParams struct {
 	Name     string
 	Pgn      string
 	StartFen sql.NullString
+	FolderID sql.NullInt64
 	Now      time.Time
 }
 
@@ -35,6 +36,7 @@ func (q *Queries) CreateNote(ctx context.Context, arg CreateNoteParams) (Note, e
 		arg.Name,
 		arg.Pgn,
 		arg.StartFen,
+		arg.FolderID,
 		arg.Now,
 	)
 	var i Note
