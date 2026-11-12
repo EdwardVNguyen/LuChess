@@ -161,8 +161,8 @@ function PlayMoves({
       <Box className={styles.newBoard}>
         <Board
           mode="play"
-          fen={moves.at(-1)?.fen ?? START_FEN}
-          lastMove={moves.at(-1)}
+          fen={START_FEN}
+          moves={moves}
           onMove={(move) => onChange([...moves, move])}
         />
       </Box>

@@ -2,7 +2,7 @@ import { fireEvent, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
-import { gameFromMoves, parsePgn, START_FEN, validateFen, type Game } from '../chess/chess'
+import { gameFromMoves, parsePgn, START_FEN, tryMove, validateFen, type Game, type LegalMove } from '../chess/chess'
 import { fischerSpassky1972Game6 } from '../chess/fixtures'
 import { renderWithTheme } from '../overlay/testUtils'
 import { Board } from './Board'
@@ -210,6 +210,73 @@ describe('Board in play mode', () => {
     await userEvent.click(document.body)
     expect(screen.queryByRole('group', { name: 'Promote to' })).not.toBeInTheDocument()
     expect(onMove).not.toHaveBeenCalled()
+  })
+})
+
+// 1.f3 e5 2.g4 Qh4#
+const foolsMate = ['f3', 'e5', 'g4', 'Qh4#']
+
+function legalMoves(startFen: string, sans: readonly string[]): LegalMove[] {
+  const game = gameFromMoves(startFen, sans)
+  if (!game.ok) throw new Error(game.error)
+  return game.value.plies.slice(1).map((ply) => tryMove(game.value.plies[ply.index - 1].fen, ply.from!, ply.to!)!)
+}
+
+describe('Board at the end of a game', () => {
+  const mated = (() => {
+    const result = gameFromMoves(START_FEN, foolsMate)
+    if (!result.ok) throw new Error(result.error)
+    return result.value
+  })()
+
+  it('captions the result in view mode, and the Ply before it as usual', () => {
+    const over = renderWithTheme(<Board mode="view" game={mated} ply={4} onPlyChange={() => {}} />)
+    expect(screen.getByText('Checkmate · Black wins')).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Chess board, after 2…qh4#' })).toBeInTheDocument()
+    over.unmount()
+
+    renderWithTheme(<Board mode="view" game={mated} ply={3} onPlyChange={() => {}} />)
+    expect(screen.getByText('After 2.g4')).toBeInTheDocument()
+  })
+
+  it('takes no moves when editing a finished game, but does from an earlier Ply', async () => {
+    const onMove = vi.fn()
+    const over = renderWithTheme(<Board mode="view" game={mated} ply={4} onPlyChange={() => {}} onMove={onMove} />)
+    expect(movable(over.container)).toBe('none')
+    await userEvent.click(square(over.container, 'e1'))
+    await userEvent.click(square(over.container, 'f2'))
+    expect(onMove).not.toHaveBeenCalled()
+    over.unmount()
+
+    const earlier = renderWithTheme(<Board mode="view" game={mated} ply={3} onPlyChange={() => {}} onMove={onMove} />)
+    expect(movable(earlier.container)).toBe('b')
+  })
+
+  it('shows the result and takes no moves in play mode', async () => {
+    const onMove = vi.fn()
+    const { container } = renderWithTheme(
+      <Board mode="play" fen={START_FEN} moves={legalMoves(START_FEN, foolsMate)} onMove={onMove} />,
+    )
+    expect(screen.getByText('Checkmate · Black wins')).toBeInTheDocument()
+    expect(movable(container)).toBe('none')
+    await userEvent.click(square(container, 'e1'))
+    await userEvent.click(square(container, 'f2'))
+    expect(onMove).not.toHaveBeenCalled()
+    expect(marks(container, 'f2')).toEqual([])
+  })
+
+  it('ends the game on a draw in play mode', () => {
+    const shuffle = ['Nf3', 'Nf6', 'Ng1', 'Ng8']
+    const { container } = renderWithTheme(
+      <Board mode="play" fen={START_FEN} moves={legalMoves(START_FEN, [...shuffle, ...shuffle])} onMove={() => {}} />,
+    )
+    expect(screen.getByText('Draw by threefold repetition')).toBeInTheDocument()
+    expect(movable(container)).toBe('none')
+  })
+
+  it('shows no result while the game goes on', () => {
+    renderWithTheme(<Board mode="play" fen={START_FEN} moves={legalMoves(START_FEN, ['e4'])} onMove={() => {}} />)
+    expect(screen.queryByText(/Checkmate|Draw/)).not.toBeInTheDocument()
   })
 })
 

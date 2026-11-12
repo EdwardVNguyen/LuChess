@@ -308,6 +308,34 @@ export const entries: ShotEntry[] = [
       await page.mouse.move(over.x + over.width * 0.3, over.y + over.height * 0.6, { steps: 12 })
     },
   },
+  // A finished game (#73): after 1.f3 e5 2.g4 Qh4#, the result under the
+  // board, and a click on a white piece selects nothing.
+  {
+    name: 'DevBoardCheckmate',
+    route: '/dev/board?mode=play',
+    fixtures: 'guest',
+    setup: async (page) => {
+      for (const square of ['f2', 'f3', 'e7', 'e5', 'g2', 'g4', 'd8', 'h4', 'e1']) {
+        await page.locator(`[id$="-square-${square}"]`).click()
+      }
+      await page.getByText('Checkmate · Black wins').waitFor()
+    },
+  },
+  // A draw ends the game too: the start position for the third time, after
+  // 1.Nf3 Nf6 2.Ng1 Ng8 3.Nf3 Nf6 4.Ng1 Ng8.
+  {
+    name: 'DevBoardRepetition',
+    route: '/dev/board?mode=play',
+    fixtures: 'guest',
+    setup: async (page) => {
+      for (let i = 0; i < 2; i += 1) {
+        for (const square of ['g1', 'f3', 'g8', 'f6', 'f3', 'g1', 'f6', 'g8']) {
+          await page.locator(`[id$="-square-${square}"]`).click()
+        }
+      }
+      await page.getByText('Draw by threefold repetition').waitFor()
+    },
+  },
   { name: 'DevBoardSetup', route: '/dev/board?mode=setup', fixtures: 'guest' },
   // The Note screen (#6), matching design/screenshots/Note*.png at the same Ply,
   // except for the board (docs/adr/0007) and, on desktop, the column widths:

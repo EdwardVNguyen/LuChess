@@ -223,6 +223,48 @@ export function checkedKing(fen: string): string | null {
   return chess.findPiece({ type: 'k', color: chess.turn() })[0] ?? null
 }
 
+/** How a game ended. As on Lichess, every draw ends the game at once, with no claim. */
+export type GameResult =
+  | { kind: 'checkmate'; winner: Color }
+  | { kind: 'stalemate' | 'insufficient-material' | 'threefold-repetition' | 'fifty-move-rule' }
+
+/**
+ * The result of the game after `sans` are played from the Position, or null
+ * while it goes on. Repetitions are counted along those moves, from the
+ * Position on. Null when the moves can't be played.
+ */
+export function gameResult(startFen: string, sans: readonly string[]): GameResult | null {
+  let chess: Chess
+  try {
+    chess = new Chess(startFen)
+    for (const san of sans) chess.move(san)
+  } catch {
+    return null
+  }
+  if (chess.isCheckmate()) return { kind: 'checkmate', winner: chess.turn() === 'w' ? 'b' : 'w' }
+  if (chess.isStalemate()) return { kind: 'stalemate' }
+  if (chess.isInsufficientMaterial()) return { kind: 'insufficient-material' }
+  if (chess.isThreefoldRepetition()) return { kind: 'threefold-repetition' }
+  if (chess.isDrawByFiftyMoves()) return { kind: 'fifty-move-rule' }
+  return null
+}
+
+/** "Checkmate · White wins" or "Draw by threefold repetition". */
+export function resultLabel(result: GameResult): string {
+  switch (result.kind) {
+    case 'checkmate':
+      return `Checkmate · ${result.winner === 'w' ? 'White' : 'Black'} wins`
+    case 'stalemate':
+      return 'Draw by stalemate'
+    case 'insufficient-material':
+      return 'Draw by insufficient material'
+    case 'threefold-repetition':
+      return 'Draw by threefold repetition'
+    case 'fifty-move-rule':
+      return 'Draw by the fifty-move rule'
+  }
+}
+
 export function validateFen(fen: string): Result<string> {
   const result = chessJsValidateFen(fen)
   return result.ok ? { ok: true, value: fen } : { ok: false, error: result.error ?? 'The position is not valid.' }
