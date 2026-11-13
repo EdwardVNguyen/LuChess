@@ -7,7 +7,7 @@ import { addMove, deleteSubtree, newTree, nextId, promote, subtree, type MoveId,
 import { ConfirmDialog, ResponsiveDialog, useOverlaySize, type OverlaySize } from '../overlay'
 import { DeleteWritingDialog } from '../notes/DeleteWritingDialog'
 import { EditPosition } from '../notes/EditPosition'
-import { resetCounts, resetLoss } from '../notes/editPosition'
+import { resetCounts, resetLoss } from '../notes/positionSetup'
 import { BookmarkIcon, MoreIcon } from '../notes/icons'
 import noteStyles from '../notes/Notes.module.css'
 import { blankNote, type NoteStart } from '../notes/newNote'

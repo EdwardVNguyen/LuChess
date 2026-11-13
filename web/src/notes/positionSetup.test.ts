@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { START_FEN } from '../chess/chess'
 import { NO_WRITING } from '../chess/pgn'
 import { addMove, newTree } from '../chess/tree'
-import { EMPTY_BOARD_FEN, resetCounts, resetLoss, startFenFor } from './editPosition'
+import { EMPTY_BOARD_FEN, resetCounts, resetLoss, startFenFor } from './positionSetup'
 
 const none = { comments: 0, bodies: 0, glyphs: 0, drawings: 0 }
 

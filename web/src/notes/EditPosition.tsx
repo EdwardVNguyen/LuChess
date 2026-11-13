@@ -10,7 +10,7 @@ import {
   type CastlingRight,
 } from '../chess/chess'
 import { ConfirmDialog, useOverlaySize } from '../overlay'
-import { EMPTY_BOARD_FEN, startFenFor } from './editPosition'
+import { EMPTY_BOARD_FEN, startFenFor } from './positionSetup'
 import styles from './Notes.module.css'
 
 const CASTLING_LABELS: { right: CastlingRight; label: string }[] = [
