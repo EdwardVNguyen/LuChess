@@ -50,56 +50,76 @@
   }
 }
 
+/* New note as a split button (#106): New note (the plus on mobile) joined to
+ * a narrower button opening its menu, Import…. Filled ink, as the designs'
+ * New note button (Note.dc.html, Note-mobile.dc.html). */
+.split {
+  flex: none;
+  display: inline-flex;
+  align-items: stretch;
+  height: 40px;
+}
+
+.newNote,
+.newNoteIcon,
+.newNoteMore {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  background: var(--cn-ink);
+  color: var(--cn-paper);
+  font-family: var(--cn-font);
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
 .newNote {
   display: none;
+  padding-inline: 16px;
+  border-radius: var(--cn-radius-button) 0 0 var(--cn-radius-button);
+}
+
+/* The mobile New note button: the plus. */
+.newNoteIcon {
+  width: 40px;
+  border-radius: var(--cn-radius-button) 0 0 var(--cn-radius-button);
 }
 
 @media (min-width: 48em) {
   .newNote {
     display: inline-flex;
-    align-items: center;
-    height: 40px;
-    padding-inline: 16px;
-    box-sizing: border-box;
-    background: var(--cn-ink);
-    color: var(--cn-paper);
-    border-radius: var(--cn-radius-button);
-    font-family: var(--cn-font);
-    font-size: 14px;
-    font-weight: 500;
-    text-decoration: none;
-    white-space: nowrap;
   }
-}
 
-/* The mobile New note button: the plus, filled ink (Note-mobile.dc.html). */
-.newNoteIcon {
-  flex: none;
-  width: 40px;
-  height: 40px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  box-sizing: border-box;
-  border-radius: var(--cn-radius-button);
-  border: 1px solid var(--cn-ink);
-  background: var(--cn-ink);
-  color: var(--cn-paper);
-}
-
-@media (min-width: 48em) {
   .newNoteIcon {
     display: none;
   }
 }
 
+/* The ▾ opening Import…, set off from New note by a hairline in the paper colour. */
+.newNoteMore {
+  width: 30px;
+  border-radius: 0 var(--cn-radius-button) var(--cn-radius-button) 0;
+  box-shadow: inset 1px 0 0 color-mix(in srgb, var(--cn-paper) 35%, transparent);
+}
+
 .newNote:hover,
-.newNoteIcon:hover {
+.newNoteIcon:hover,
+.newNoteMore:hover,
+.newNoteMore[aria-expanded='true'] {
   opacity: 0.85;
 }
 
+.newNote:disabled,
+.newNoteIcon:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
 .newNote:focus-visible,
-.newNoteIcon:focus-visible {
+.newNoteIcon:focus-visible,
+.newNoteMore:focus-visible {
   outline: 2px solid var(--cn-ink);
   outline-offset: 2px;
 }

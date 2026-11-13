@@ -1,5 +1,5 @@
 import { createLazyRoute } from '@tanstack/react-router'
-import { NewNotePage } from '../notes/NewNotePage'
+import { ImportPage } from '../notes/ImportPage'
 import { NoteScreen } from '../notes/NoteScreen'
 import { NotesIndex } from '../notes/NotesIndex'
 import { NotesLayout } from '../notes/NotesLayout'
@@ -9,6 +9,6 @@ import { SettingsPage } from '../settings/SettingsPage'
 // them never waits for code.
 export const notesRoute = createLazyRoute('/notes')({ component: NotesLayout })
 export const notesIndexRoute = createLazyRoute('/notes/')({ component: NotesIndex })
-export const newNoteRoute = createLazyRoute('/notes/new')({ component: NewNotePage })
+export const importRoute = createLazyRoute('/notes/import')({ component: ImportPage })
 export const noteRoute = createLazyRoute('/notes/$noteId')({ component: NoteScreen })
 export const settingsRoute = createLazyRoute('/settings')({ component: SettingsPage })

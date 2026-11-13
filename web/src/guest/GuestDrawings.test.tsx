@@ -69,8 +69,11 @@ function draw(from: string, to: string) {
 const arrows = () => document.querySelectorAll('path[marker-end]').length
 
 describe('A Guest’s Drawings', () => {
+  // Through Import… and typed key by key: over the default 5 seconds on a busy run.
   it('are kept on their Move in the browser, from the PGN and drawn on the board, and go into the PGN', async () => {
     renderGuestPage()
+    await userEvent.click(await screen.findByRole('button', { name: 'Note actions' }))
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Import…' }))
     await userEvent.click(await screen.findByRole('textbox', { name: 'PGN' }))
     await userEvent.paste('1. e4 {[%cal Gg1f3]} e5 *')
     await userEvent.type(screen.getByRole('textbox', { name: 'Name' }), 'Open games')
@@ -88,5 +91,5 @@ describe('A Guest’s Drawings', () => {
     const pgn = within(screen.getByRole('region', { name: 'Tools' })).getByRole('textbox', { name: 'PGN' })
     expect(pgn).toHaveValue('1. e4 {[%cal Gg1f3]} 1... e5 {[%cal Gb8c6]} *')
     expect(apiCalls).toEqual([])
-  })
+  }, 15_000)
 })

@@ -68,7 +68,17 @@
   border-radius: 2px;
 }
 
-/* The start form, centred now that there is no sidebar beside it. */
+/* The Guest's Note, laid out as if this wrapper weren't there; hidden, and
+ * kept, while Import… is open. */
+.study {
+  display: contents;
+}
+
+.study[hidden] {
+  display: none;
+}
+
+/* The Import… form, centred now that there is no sidebar beside it. */
 .start {
   display: flex;
   justify-content: center;

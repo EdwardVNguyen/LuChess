@@ -9,11 +9,14 @@ import { useCreateNote, useFolders } from './queries'
 
 const ROOT = 'root'
 
-export function NewNotePage() {
+// Import… (#106): a Note from a game in PGN, a position in FEN, or one set up
+// on the board, filed in the Folder chosen. New note itself makes a blank
+// Note straight away (useNewNote).
+export function ImportPage() {
   const create = useCreateNote()
   const navigate = useNavigate()
   const folders = useFolders()
-  // Opened from a Folder's "New note here", that Folder is chosen to start with.
+  // Opened from a Folder's "Import here…", that Folder is chosen to start with.
   const { folder: fromSearch } = useSearch({ strict: false })
   const [chosen, setChosen] = useState<number | null | undefined>(undefined)
 
@@ -24,7 +27,7 @@ export function NewNotePage() {
 
   return (
     <NoteStartForm
-      title="New note"
+      title="Import"
       submitLabel="Create note"
       pending={create.isPending}
       error={

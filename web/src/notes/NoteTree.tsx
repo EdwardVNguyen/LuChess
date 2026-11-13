@@ -12,6 +12,7 @@ import { rowKey, useInlineRename, type RenameEnd, type RenameTarget } from './us
 import { DeleteNoteDialog } from './NoteActions'
 import styles from './Notes.module.css'
 import { useFolders, useNoteList } from './queries'
+import { useNewNote } from './useNewNote'
 
 type Props = {
   /** Called when a Note is chosen, e.g. to close the overlay the tree is in. */
@@ -49,9 +50,11 @@ export function NoteTree({ onNavigate, showHeading = true }: Props) {
   const menuOpenOn =
     opened && rowKey(opened.kind === 'folder' ? { kind: 'folder', id: opened.folder.id } : { kind: 'note', id: opened.note.id })
 
-  const newNote = (folder: Folder | null) => {
+  const newNote = useNewNote()
+  // Import… opens the form; New note makes the Note first, so the overlay the tree is in closes once it opens.
+  const importNote = (folder: Folder | null) => {
     onNavigate?.()
-    void navigate({ to: '/notes/new', search: folder ? { folder: folder.id } : {} })
+    void navigate({ to: '/notes/import', search: folder ? { folder: folder.id } : {} })
   }
 
   // Open the Folders above the open Note when it, or the Folder it is in, changes.
@@ -77,6 +80,13 @@ export function NoteTree({ onNavigate, showHeading = true }: Props) {
   return (
     <div className={styles.list} {...menu.triggerProps(null)}>
       {showHeading && <div className={styles.eyebrow}>Your notes</div>}
+      {newNote.error && (
+        <div className={styles.listState}>
+          <Text size="sm" c="accent" role="alert">
+            Could not create the note. {newNote.error}
+          </Text>
+        </div>
+      )}
       {failed ? (
         <div className={styles.listState}>
           <Text size="sm" role="alert">
@@ -133,7 +143,10 @@ export function NoteTree({ onNavigate, showHeading = true }: Props) {
       <ContextMenu at={menu.opened} onClose={menu.close}>
         {opened?.kind === 'folder' ? (
           <>
-            <Menu.Item onClick={() => newNote(opened.folder)}>New note here</Menu.Item>
+            <Menu.Item disabled={newNote.creating} onClick={() => newNote.start(opened.folder.id, onNavigate)}>
+              New note here
+            </Menu.Item>
+            <Menu.Item onClick={() => importNote(opened.folder)}>Import here…</Menu.Item>
             <FolderMenuItems folder={opened.folder} onAction={setDialog} onRename={rename.start} />
           </>
         ) : opened?.kind === 'note' ? (
@@ -146,7 +159,10 @@ export function NoteTree({ onNavigate, showHeading = true }: Props) {
           </>
         ) : (
           <>
-            <Menu.Item onClick={() => newNote(null)}>New note</Menu.Item>
+            <Menu.Item disabled={newNote.creating} onClick={() => newNote.start(null, onNavigate)}>
+              New note
+            </Menu.Item>
+            <Menu.Item onClick={() => importNote(null)}>Import…</Menu.Item>
             <Menu.Item onClick={() => setDialog({ kind: 'new', parent: null })}>New folder</Menu.Item>
           </>
         )}

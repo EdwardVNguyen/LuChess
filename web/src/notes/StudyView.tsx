@@ -27,6 +27,8 @@ export type StudyViewState = {
 
 type StudyViewProps = {
   name: string
+  /** The title, in place of the name as a heading, e.g. one that renames the Note in place. */
+  title?: ReactNode
   /** Above the title: the Folders the Note is filed in. */
   eyebrow?: ReactNode
   tree: MoveTree
@@ -116,6 +118,7 @@ function withPending(line: Game, ply: number, pending: readonly Pending[]): Game
 // behave the same. Where the tree and writing come from and go to is the caller's.
 export function StudyView({
   name,
+  title,
   eyebrow,
   tree,
   tags,
@@ -280,7 +283,7 @@ export function StudyView({
         <div className={styles.titleBlock}>
           {eyebrow && <div className={`${styles.eyebrow} ${styles.noteEyebrow}`}>{eyebrow}</div>}
           <div className={styles.titleRow}>
-            <h1 className={styles.title}>{name}</h1>
+            {title ?? <h1 className={styles.title}>{name}</h1>}
             {actions}
           </div>
           {details && <div className={styles.details}>{details}</div>}

@@ -794,20 +794,51 @@ export const entries: ShotEntry[] = [
   { name: 'Notes', route: '/notes', fixtures: 'session' },
   { name: 'NotesEmpty', route: '/notes', fixtures: 'session', notes: 'empty' },
   { name: 'NotesGuest', route: '/notes', fixtures: 'guest' },
-  { name: 'NewNote', route: '/notes/new', fixtures: 'session' },
-  // From a Folder's "New note here" (#74), with that Folder chosen.
-  { name: 'NewNoteInFolder', route: '/notes/new?folder=6', fixtures: 'session' },
+  // New note (#106) makes a blank Note at once and opens it with its title in
+  // inline rename, "Untitled" selected; the header's ▾ offers Import….
   {
-    name: 'NewNotePasted',
-    route: '/notes/new',
+    name: 'NewNote',
+    route: '/notes',
+    fixtures: 'session',
+    setup: async (page) => {
+      await page.getByRole('banner').getByRole('button', { name: 'New note' }).filter({ visible: true }).click()
+      await page.getByRole('textbox', { name: 'Rename note Untitled' }).waitFor()
+    },
+  },
+  {
+    name: 'NewNoteMenu',
+    route: '/notes/1',
+    fixtures: 'session',
+    setup: async (page) => {
+      await page.getByRole('button', { name: 'Other ways to start a note' }).click()
+      await page.getByRole('menuitem', { name: 'Import…' }).waitFor()
+    },
+  },
+  // A Note's title renamed in place, at any time.
+  {
+    name: 'NoteRenameTitle',
+    route: '/notes/1',
+    fixtures: 'session',
+    setup: async (page) => {
+      await page.getByRole('heading', { level: 1 }).getByRole('button').click()
+      await page.getByRole('textbox', { name: /^Rename note / }).waitFor()
+    },
+  },
+  // Import… (#106): a game in PGN, a position in FEN, or one set up on the board.
+  { name: 'Import', route: '/notes/import', fixtures: 'session' },
+  // From a Folder's "Import here…", with that Folder chosen.
+  { name: 'ImportInFolder', route: '/notes/import?folder=6', fixtures: 'session' },
+  {
+    name: 'ImportPasted',
+    route: '/notes/import',
     fixtures: 'session',
     setup: async (page) => {
       await page.getByRole('textbox', { name: 'PGN' }).fill('[White "Lovelace, Ada"]\n[Black "Hopper, Grace"]\n[Date "1952.03.01"]\n\n1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 *')
     },
   },
   {
-    name: 'NewNoteInvalid',
-    route: '/notes/new',
+    name: 'ImportInvalid',
+    route: '/notes/import',
     fixtures: 'session',
     setup: async (page) => {
       await page.getByRole('textbox', { name: 'PGN' }).fill('1. e4 e5 2. Ke3 *')
@@ -815,18 +846,27 @@ export const entries: ShotEntry[] = [
     },
   },
   {
-    name: 'NewNotePlay',
-    route: '/notes/new',
+    name: 'ImportFen',
+    route: '/notes/import',
     fixtures: 'session',
     setup: async (page) => {
-      await page.getByText('Play moves').click()
-      await page.locator('[id$="-square-e2"]').click()
-      await page.locator('[id$="-square-e4"]').click()
+      await page.getByText('FEN', { exact: true }).click()
+      await page.getByRole('textbox', { name: 'FEN' }).fill('8/8/8/4k3/8/8/4P3/4K3 w - - 0 1')
     },
   },
   {
-    name: 'NewNotePosition',
-    route: '/notes/new',
+    name: 'ImportFenInvalid',
+    route: '/notes/import',
+    fixtures: 'session',
+    setup: async (page) => {
+      await page.getByText('FEN', { exact: true }).click()
+      await page.getByRole('textbox', { name: 'FEN' }).fill('8/8/8/8/8/8/8/8 w - - 0 1')
+      await page.getByRole('button', { name: 'Create note' }).click()
+    },
+  },
+  {
+    name: 'ImportPosition',
+    route: '/notes/import',
     fixtures: 'session',
     setup: async (page) => {
       await page.getByText('Set up a position').click()
@@ -835,8 +875,8 @@ export const entries: ShotEntry[] = [
   // The PGN reader loads as its own chunk (#84): a pasted game while it is
   // still loading, and when it failed to load (offline).
   {
-    name: 'NewNotePgnLoading',
-    route: '/notes/new',
+    name: 'ImportPgnLoading',
+    route: '/notes/import',
     fixtures: 'session',
     setup: async (page) => {
       await withPgnReader(page, 'pending')
@@ -846,8 +886,8 @@ export const entries: ShotEntry[] = [
     },
   },
   {
-    name: 'NewNotePgnLoadFailed',
-    route: '/notes/new',
+    name: 'ImportPgnLoadFailed',
+    route: '/notes/import',
     fixtures: 'session',
     setup: async (page) => {
       await withPgnReader(page, 'failed')
@@ -916,14 +956,22 @@ export const entries: ShotEntry[] = [
   },
   // Guest mode (#13): the Note screen without the sidebar, under the banner
   // from design/screenshots/ArticleGuest*.png. No design matches the whole
-  // screen. The start form, its error, a Guest's Note with writing on it, the
-  // sign-up prompt on Save, and the loading and failed Session restore.
+  // screen. The blank board a Guest starts on (#106), Import… and its error, a
+  // Guest's Note with writing on it, the sign-up prompt on Save, and the
+  // loading and failed Session restore.
   { name: 'GuestStart', route: '/try', fixtures: 'guest' },
   {
-    name: 'GuestStartInvalid',
+    name: 'GuestImport',
+    route: '/try',
+    fixtures: 'guest',
+    setup: openGuestImport,
+  },
+  {
+    name: 'GuestImportInvalid',
     route: '/try',
     fixtures: 'guest',
     setup: async (page) => {
+      await openGuestImport(page)
       await page.getByRole('button', { name: 'Start writing' }).click()
     },
   },
@@ -1103,7 +1151,14 @@ async function openLinkPicker(page: Page, query: string) {
 }
 
 /** Starts a Guest's Note from a pasted game and writes on one of its moves. */
+async function openGuestImport(page: Page) {
+  await page.getByRole('button', { name: 'Note actions' }).click()
+  await page.getByRole('menuitem', { name: 'Import…' }).click()
+  await page.getByRole('textbox', { name: 'PGN' }).waitFor()
+}
+
 async function startGuestNote(page: Page) {
+  await openGuestImport(page)
   await page.getByRole('textbox', { name: 'PGN' }).fill(fischerSpassky1972Game6)
   await page.getByRole('button', { name: 'Start writing' }).click()
   await openCommentEditor(page, 'exd5')

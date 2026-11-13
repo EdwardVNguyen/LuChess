@@ -511,6 +511,45 @@
   }
 }
 
+/* A saved Note's title is a button that renames it in place (#106). It reads
+ * as the title, with the tree's row highlight on hover. */
+.titleButton {
+  display: inline;
+  margin-inline: -4px;
+  padding-inline: 4px;
+  border-radius: var(--cn-radius-button);
+  font: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+  text-align: start;
+  cursor: text;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.titleButton:hover {
+  background: var(--cn-highlight);
+}
+
+.titleButton:focus-visible {
+  outline: 2px solid var(--cn-ink);
+  outline-offset: 2px;
+}
+
+/* The title as a field, the same size, so renaming doesn't move the page. */
+.titleField {
+  flex: 1;
+  min-width: 0;
+}
+
+.titleInput {
+  min-height: 0;
+  padding: 2px 4px;
+  margin-inline: -5px;
+  width: calc(100% + 10px);
+  color: var(--cn-ink);
+}
+
 .details {
   font-family: var(--cn-font);
   font-size: 14px;
@@ -953,7 +992,7 @@
   }
 }
 
-/* The New note page. */
+/* The Import page, and a Guest's Import… */
 .newNote {
   width: 100%;
   max-width: 640px;
@@ -976,12 +1015,6 @@
 .newBoard {
   width: 100%;
   max-width: 382px;
-}
-
-.playedMoves {
-  font-family: var(--cn-font);
-  font-size: 15px;
-  color: var(--cn-muted);
 }
 
 /* Not uppercased, so the move's SAN keeps its case ("On 10…exd5"). */
