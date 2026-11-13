@@ -651,7 +651,7 @@ export const entries: ShotEntry[] = [
     fixtures: 'session',
     moves: 'saveError',
     setup: async (page) => {
-      await page.getByRole('textbox', { name: /^Comment on/ }).fill('A thought that will not save.')
+      await page.getByRole('textbox', { name: /^Body after/ }).fill('A thought that will not save.')
       await page.getByRole('button', { name: 'Blunder' }).focus()
       await page.getByText('Your writing was not saved').waitFor()
     },
@@ -691,6 +691,17 @@ export const entries: ShotEntry[] = [
     setup: async (page) => {
       await page.getByRole('button', { name: 'Nxd2', exact: true }).click({ button: 'right' })
       await page.getByRole('menuitem', { name: 'Promote to main line' }).waitFor()
+    },
+  },
+  // Writing a Comment where it shows, from the menu (#97): no design; the
+  // editor is the one under the board, set in the move list.
+  {
+    name: 'NoteCommentEditor',
+    route: '/notes/1',
+    fixtures: 'session',
+    setup: async (page) => {
+      await openCommentEditor(page, 'Nxd2')
+      await page.keyboard.type('Trades the last defender of e4.')
     },
   },
   {
@@ -1038,6 +1049,13 @@ export const entries: ShotEntry[] = [
   }),
 ]
 
+/** Opens the Comment editor in the move list from a Move's right-click menu (#97), focused. */
+async function openCommentEditor(page: Page, san: string) {
+  await page.getByRole('button', { name: san, exact: true }).click({ button: 'right' })
+  await page.getByRole('menuitem', { name: /^(Add|Edit) comment$/ }).click()
+  await page.getByRole('textbox', { name: /^Comment on/ }).and(page.locator(':focus')).waitFor()
+}
+
 /** Types the password on Settings and opens the confirm dialog to delete the account. */
 async function deleteAccount(page: Page, password: string) {
   await page.getByLabel('Your password').fill(password)
@@ -1045,10 +1063,10 @@ async function deleteAccount(page: Page, password: string) {
   await page.getByRole('dialog', { name: 'Delete your account?' }).waitFor()
 }
 
-/** Opens the [[ picker from the Comment on 10…exd5, then searches for `query`. */
+/** Opens the [[ picker from the Comment on 10…exd5, written in the move list (#97), then searches for `query`. */
 async function openLinkPicker(page: Page, query: string) {
-  await page.getByRole('button', { name: 'exd5', exact: true }).click()
-  await page.getByRole('textbox', { name: /^Comment on/ }).click()
+  await openCommentEditor(page, 'exd5')
+  await page.keyboard.press('ControlOrMeta+a')
   await page.keyboard.type('Compare [[')
   const search = page.getByRole('combobox', { name: 'Find a note to link' })
   await search.waitFor()
@@ -1061,10 +1079,11 @@ async function openLinkPicker(page: Page, query: string) {
 async function startGuestNote(page: Page) {
   await page.getByRole('textbox', { name: 'PGN' }).fill(fischerSpassky1972Game6)
   await page.getByRole('button', { name: 'Start writing' }).click()
-  await page.getByRole('button', { name: 'exd5', exact: true }).click()
-  await page.getByRole('group', { name: 'Position Glyph' }).getByRole('button').first().click()
+  await openCommentEditor(page, 'exd5')
   await page.getByRole('textbox', { name: /^Comment on/ }).fill('The pawn on d5 is fixed now; everything after is about it.')
-  await page.getByRole('button', { name: 'Previous move' }).focus()
+  await page.keyboard.press('Enter')
+  // After the Comment: the Glyph joins the Move's name.
+  await page.getByRole('group', { name: 'Position Glyph' }).getByRole('button').first().click()
   // Writing scrolled the page; a full-page shot would catch the fixed header mid-page.
   await page.evaluate(() => window.scrollTo(0, 0))
 }

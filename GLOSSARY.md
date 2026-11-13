@@ -33,7 +33,7 @@ A symbol judging a Move (such as ! or ??) or the position it leads to (such as Â
 _Avoid_: Annotation, NAG, symbol
 
 **Comment**:
-A user's writing about a Move, shown with that Move.
+A user's writing about a Move, shown with that Move. The Position takes no new Comments: writing about it is its Body.
 _Avoid_: Annotation, remark, caption
 
 **Body**:

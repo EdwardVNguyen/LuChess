@@ -5,9 +5,10 @@ import { moveOf, onMainLine, type MoveId, type MoveTree, type TreeMove } from '.
 import { ContextMenu, useContextMenu } from '../overlay'
 import { glyphName } from './glyphs'
 import { LinkedText } from './LinkedText'
-import { useShownText } from './linking'
+import { useLinking, useShownText } from './linking'
 import { cutShown, shownLength } from './links'
 import styles from './Notes.module.css'
+import { TextEditor } from './TextEditor'
 
 type Props = {
   tree: MoveTree
@@ -22,8 +23,8 @@ type Props = {
 
 /** The actions in a Move's right-click menu (#76). */
 export type MoveMenu = {
-  /** Go to the Move and focus its Comment. */
-  onComment: (move: MoveId) => void
+  /** Saves a Move's Comment, written in the move list (#97), or deletes it when null. */
+  onComment: (move: MoveId, comment: string | null) => void
   /** Put the Move on the Main line, all the way up (ADR 0009). */
   onPromote: (move: MoveId) => void
   /** Delete the Move and its whole subtree, confirming first if writing would go. */
@@ -45,15 +46,44 @@ type Run = { moves: ReactNode[]; variations: TreeMove[]; body: { move: MoveId; t
 // A Body breaks the moves into a paragraph of its own. Black's move after a
 // break gets its number again ("10…exd5"). The Body on the Position is not
 // here: it opens the Note above the list.
+// The menu's Add comment (Edit comment when there is one) opens an editor
+// where the Move's Comment shows. New Comments go on Moves only: a Comment on
+// the Position, from an older Note, still shows, and its menu only deletes it.
 export function MoveList({ tree, current, onMoveChange, writing = noWriting, menu }: Props) {
   const contextMenu = useContextMenu<MoveId>()
+  const [editing, setEditing] = useState<MoveId | null>(null)
+  const canLink = useLinking().noteId !== null
   const root = moveOf(tree, tree.root)
   const start = writing.get(root.id)
   const opening = start && (start.positionGlyph || start.comment) && (
     <>
       {start.positionGlyph && <Glyph glyph={start.positionGlyph} />}
-      {start.comment && <Comment text={start.comment} current={current === root.id} />}
+      {start.comment && (
+        <Comment
+          text={start.comment}
+          current={current === root.id}
+          menuTrigger={menu && contextMenu.triggerProps(root.id)}
+          menuOpen={contextMenu.opened?.value === root.id}
+        />
+      )}
     </>
+  )
+
+  const contextMenuItems = menu && (
+    <ContextMenu at={contextMenu.opened} onClose={contextMenu.close}>
+      {contextMenu.opened && tree.moves.has(contextMenu.opened.value) && (
+        <MoveMenuItems
+          tree={tree}
+          move={contextMenu.opened.value}
+          hasComment={Boolean(writing.get(contextMenu.opened.value)?.comment)}
+          menu={menu}
+          onComment={(move) => {
+            onMoveChange(move)
+            setEditing(move)
+          }}
+        />
+      )}
+    </ContextMenu>
   )
 
   if (root.children.length === 0) {
@@ -61,8 +91,28 @@ export function MoveList({ tree, current, onMoveChange, writing = noWriting, men
       <div className={styles.lineOfThought}>
         {opening && <p className={styles.moves}>{opening}</p>}
         <p className={styles.noMoves}>No moves yet. This note studies the position alone.</p>
+        {contextMenuItems}
       </div>
     )
+  }
+
+  // A Move's Comment, or its editor while it is being written.
+  function commentOn(m: TreeMove): ReactNode {
+    const comment = writing.get(m.id)?.comment
+    if (menu && editing === m.id) {
+      const label = `${m.moveNumber}${m.color === 'w' ? '.' : '…'}${m.san}`
+      return (
+        <TextEditor
+          key={`${m.id}-comment`}
+          label={`Comment on ${label}`}
+          placeholder={`Comment on ${label}.` + (canLink ? ' Type [[ to link another note.' : '')}
+          saved={comment ?? ''}
+          onSave={(text) => menu.onComment(m.id, text)}
+          onClose={() => setEditing(null)}
+        />
+      )
+    }
+    return comment ? <Comment key={`${m.id}-comment`} text={comment} current={m.id === current} /> : null
   }
 
   const move = (m: TreeMove, numbered: boolean) => (
@@ -87,8 +137,9 @@ export function MoveList({ tree, current, onMoveChange, writing = noWriting, men
       nodes.push(move(at, numbered))
       numbered = false
       const written = writing.get(at.id)
-      if (written?.comment) {
-        nodes.push(<Comment key={`${at.id}-comment`} text={written.comment} current={at.id === current} />)
+      const comment = commentOn(at)
+      if (comment) {
+        nodes.push(comment)
         numbered = true
       }
       if (written?.body) {
@@ -118,8 +169,9 @@ export function MoveList({ tree, current, onMoveChange, writing = noWriting, men
     run.moves.push(move(main, numbered))
     numbered = false
     const written = writing.get(main.id)
-    if (written?.comment) {
-      run.moves.push(<Comment key={`${main.id}-comment`} text={written.comment} current={main.id === current} />)
+    const comment = commentOn(main)
+    if (comment) {
+      run.moves.push(comment)
       numbered = true
     }
     run.variations = variations
@@ -157,22 +209,37 @@ export function MoveList({ tree, current, onMoveChange, writing = noWriting, men
           )}
         </div>
       ))}
-      {menu && (
-        <ContextMenu at={contextMenu.opened} onClose={contextMenu.close}>
-          {contextMenu.opened && tree.moves.has(contextMenu.opened.value) && (
-            <MoveMenuItems tree={tree} move={contextMenu.opened.value} menu={menu} />
-          )}
-        </ContextMenu>
-      )}
+      {contextMenuItems}
     </div>
   )
 }
 
-// A Move's right-click menu. Promote is there but off for a Move already on the Main line.
-function MoveMenuItems({ tree, move, menu }: { tree: MoveTree; move: MoveId; menu: MoveMenu }) {
+// A Move's right-click menu. Promote is there but off for a Move already on
+// the Main line. The Position's offers only to delete its Comment.
+function MoveMenuItems({
+  tree,
+  move,
+  hasComment,
+  menu,
+  onComment,
+}: {
+  tree: MoveTree
+  move: MoveId
+  hasComment: boolean
+  menu: MoveMenu
+  /** Opens the Move's Comment editor. */
+  onComment: (move: MoveId) => void
+}) {
+  if (move === tree.root) {
+    return (
+      <Menu.Item color="accent.6" onClick={() => menu.onComment(move, null)}>
+        Delete comment
+      </Menu.Item>
+    )
+  }
   return (
     <>
-      <Menu.Item onClick={() => menu.onComment(move)}>Add comment</Menu.Item>
+      <Menu.Item onClick={() => onComment(move)}>{hasComment ? 'Edit comment' : 'Add comment'}</Menu.Item>
       <Menu.Item disabled={onMainLine(tree, move)} onClick={() => menu.onPromote(move)}>
         Promote to main line
       </Menu.Item>
@@ -232,8 +299,27 @@ function Glyph({ glyph, spaced = false }: { glyph: string; spaced?: boolean }) {
 // Past this many characters a Comment is cut short, with "more" to read it all.
 export const COMMENT_PREVIEW = 140
 
-function Comment({ text, current }: { text: string; current: boolean }) {
-  return <Expandable text={text} current={current} className={styles.comment} />
+function Comment({
+  text,
+  current,
+  menuTrigger,
+  menuOpen = false,
+}: {
+  text: string
+  current: boolean
+  /** On the Position's Comment: opens its menu, to delete it. */
+  menuTrigger?: TriggerProps
+  menuOpen?: boolean
+}) {
+  return (
+    <Expandable
+      text={text}
+      current={current}
+      className={styles.comment}
+      // Focusable, so the keyboard can open its menu too.
+      triggerProps={menuTrigger && { ...menuTrigger, tabIndex: 0, 'data-menu-open': menuOpen || undefined }}
+    />
+  )
 }
 
 // A Body inside a Variation runs on with its moves.
@@ -241,13 +327,23 @@ function InlineBody({ text, current }: { text: string; current: boolean }) {
   return <Expandable text={text} current={current} className={`${styles.comment} ${styles.inlineBody}`} />
 }
 
-function Expandable({ text, current, className }: { text: string; current: boolean; className: string }) {
+function Expandable({
+  text,
+  current,
+  className,
+  triggerProps,
+}: {
+  text: string
+  current: boolean
+  className: string
+  triggerProps?: TriggerProps & { tabIndex: number; 'data-menu-open': true | undefined }
+}) {
   const [expanded, setExpanded] = useState(false)
   const parts = useShownText(text)
   const long = shownLength(parts) > COMMENT_PREVIEW + 20
 
   return (
-    <span className={className} data-current={current || undefined}>
+    <span className={className} data-current={current || undefined} {...triggerProps}>
       <LinkedText parts={long && !expanded ? cutShown(parts, COMMENT_PREVIEW) : parts} />
       {long && (
         <>

@@ -118,6 +118,7 @@ function NoteView({ note, rows, initialMove }: { note: Note; rows: MoveRow[]; in
         onPlay={playing.onPlay}
         playError={playing.error}
         onDraw={(move, drawings) => save.mutate({ move, drawings })}
+        onComment={(move, comment) => save.mutate({ move, comment })}
         onPromote={editing.onPromote}
         onDelete={editing.onDelete}
         tools={(view) => <Editor save={save} writing={writing} {...view} />}
@@ -299,18 +300,15 @@ function Editor({
   tree,
   line,
   current,
-  commentId,
 }: {
   save: SaveWriting
   writing: ReadonlyMap<MoveId, Writing>
   tree: MoveTree
   line: Game
   current: MoveId
-  commentId: string
 }) {
   return (
     <CurrentMoveEditor
-      commentId={commentId}
       tree={tree}
       line={line}
       current={current}

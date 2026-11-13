@@ -5,7 +5,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
-import type { MoveDeleteResult, MoveRow, Note, NoteLinks } from '../api'
+import type { MoveDeleteResult, MoveRow, Note, NoteLinks, WritingInput } from '../api'
 import { importPgn } from '../chess/pgnImport'
 import { moveOf, type MoveId } from '../chess/tree'
 import { LONG_PRESS_MS } from '../overlay'
@@ -18,6 +18,7 @@ const getNote = vi.fn<(token: string, id: number) => Promise<Note>>()
 const getLinks = vi.fn<(token: string, id: number) => Promise<NoteLinks>>()
 const promoteMove = vi.fn<(token: string, id: number, moveId: number) => Promise<void>>()
 const deleteMove = vi.fn<(token: string, id: number, moveId: number, confirm: boolean) => Promise<MoveDeleteResult>>()
+const putWriting = vi.fn<(token: string, id: number, moveId: number, writing: WritingInput) => Promise<MoveRow>>()
 vi.mock('../apiClient', () => ({
   api: {
     getNote: (token: string, id: number) => getNote(token, id),
@@ -25,6 +26,7 @@ vi.mock('../apiClient', () => ({
     getLinks: (token: string, id: number) => getLinks(token, id),
     promoteMove: (token: string, id: number, moveId: number) => promoteMove(token, id, moveId),
     deleteMove: (token: string, id: number, moveId: number, confirm: boolean) => deleteMove(token, id, moveId, confirm),
+    putWriting: (token: string, id: number, moveId: number, writing: WritingInput) => putWriting(token, id, moveId, writing),
     listNotes: async () => [],
     listFolders: async () => [],
   },
@@ -135,6 +137,10 @@ beforeEach(() => {
     for (const row of rows) if (row.parentId !== null && gone.has(row.parentId)) gone.add(row.id)
     rows = rows.filter((row) => !gone.has(row.id))
     return { status: 'deleted' }
+  })
+  putWriting.mockReset().mockImplementation(async (_t, _id, moveId, writing) => {
+    rows = rows.map((row) => (row.id === moveId ? { ...row, ...writing } : row))
+    return structuredClone(rows.find((row) => row.id === moveId) as MoveRow)
   })
 })
 
@@ -333,5 +339,110 @@ describe('The right-click menu on a Move', () => {
     }
     expect(await screen.findByRole('menuitem', { name: 'Delete from here' })).toBeInTheDocument()
     expect(move('Nc6')).toHaveAttribute('aria-current', 'step')
+  })
+})
+
+describe('Writing a Comment in the move list (#97)', () => {
+  const comment = (label: string) => screen.getByRole('textbox', { name: `Comment on ${label}` })
+  const savedComment = (san: string) => putWriting.mock.calls.findLast(([, , id]) => id === idOf(san))?.[3].comment
+
+  it('leaves no Comment editor under the board, only the Glyphs and the Body', async () => {
+    renderNote()
+    await waitFor(() => expect(move('Nc6')).toHaveAttribute('aria-current', 'step'))
+
+    const tools = screen.getByRole('region', { name: 'Tools' })
+    expect(within(tools).queryByRole('textbox', { name: /^Comment on/ })).not.toBeInTheDocument()
+    expect(within(tools).getByRole('group', { name: 'Move Glyph' })).toBeInTheDocument()
+    expect(within(tools).getByRole('textbox', { name: 'Body after 2…Nc6' })).toBeInTheDocument()
+  })
+
+  it('opens the editor right after the Move, and Enter saves and closes it', async () => {
+    const user = userEvent.setup()
+    renderNote()
+
+    fireEvent.contextMenu(await screen.findByRole('button', { name: 'e5' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Add comment' }))
+    await waitFor(() => expect(comment('1…e5')).toHaveFocus())
+    // In the move list, between e5 and Nf3, not under the board.
+    expect(within(screen.getByRole('region', { name: 'Tools' })).queryByRole('textbox', { name: /^Comment on/ })).toBeNull()
+    expect(move('e5').compareDocumentPosition(comment('1…e5')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(comment('1…e5').compareDocumentPosition(move('Nf3')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+
+    await user.type(comment('1…e5'), 'Symmetry.{Shift>}{Enter}{/Shift}Again.{Enter}')
+
+    expect(screen.queryByRole('textbox', { name: 'Comment on 1…e5' })).not.toBeInTheDocument()
+    await waitFor(() => expect(savedComment('e5')).toBe('Symmetry.\nAgain.'))
+    expect(await screen.findByText(/^Symmetry\./)).toHaveTextContent('Symmetry. Again.', { normalizeWhitespace: true })
+  })
+
+  it('saves when the editor loses focus', async () => {
+    const user = userEvent.setup()
+    renderNote()
+
+    fireEvent.contextMenu(await screen.findByRole('button', { name: 'Nf3' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Add comment' }))
+    await waitFor(() => expect(comment('2.Nf3')).toHaveFocus())
+    await user.type(comment('2.Nf3'), 'Develops.')
+    await user.click(screen.getByRole('heading', { name: 'Sicilian' }))
+
+    await waitFor(() => expect(savedComment('Nf3')).toBe('Develops.'))
+    expect(screen.queryByRole('textbox', { name: 'Comment on 2.Nf3' })).not.toBeInTheDocument()
+  })
+
+  it('Escape cancels, keeping the saved Comment', async () => {
+    rows = rowsOf('1. e4 e5 {Symmetry.} 2. Nf3 Nc6 *')
+    const user = userEvent.setup()
+    renderNote()
+
+    fireEvent.contextMenu(await screen.findByRole('button', { name: 'e5' }))
+    expect(menuItems()).toEqual(['Edit comment', 'Promote to main line', 'Delete from here'])
+    await user.click(screen.getByRole('menuitem', { name: 'Edit comment' }))
+    await waitFor(() => expect(comment('1…e5')).toHaveFocus())
+    expect(comment('1…e5')).toHaveValue('Symmetry.')
+    await user.type(comment('1…e5'), ' Not saved.{Escape}')
+
+    expect(screen.queryByRole('textbox', { name: 'Comment on 1…e5' })).not.toBeInTheDocument()
+    expect(screen.getByText('Symmetry.')).toBeInTheDocument()
+    expect(putWriting).not.toHaveBeenCalled()
+  })
+
+  it('deletes the Comment when saved empty', async () => {
+    rows = rowsOf('1. e4 e5 {Symmetry.} 2. Nf3 Nc6 *')
+    const user = userEvent.setup()
+    renderNote()
+
+    fireEvent.contextMenu(await screen.findByRole('button', { name: 'e5' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Edit comment' }))
+    await waitFor(() => expect(comment('1…e5')).toHaveFocus())
+    await user.clear(comment('1…e5'))
+    await user.keyboard('{Enter}')
+
+    await waitFor(() => expect(putWriting).toHaveBeenCalled())
+    expect(savedComment('e5')).toBeNull()
+    await waitFor(() => expect(screen.queryByText('Symmetry.')).not.toBeInTheDocument())
+  })
+
+  it('doesn’t open the editor when a Comment’s text is clicked', async () => {
+    rows = rowsOf('1. e4 e5 {Symmetry.} 2. Nf3 Nc6 *')
+    const user = userEvent.setup()
+    renderNote()
+
+    await user.click(await screen.findByText('Symmetry.'))
+    expect(screen.queryByRole('textbox', { name: /^Comment on/ })).not.toBeInTheDocument()
+  })
+
+  it('offers only Delete comment on an older Comment on the Position', async () => {
+    rows = rowsOf('1. e4 e5 *')
+    rows[0] = { ...rows[0], comment: 'An older Comment.' }
+    const user = userEvent.setup()
+    renderNote()
+
+    const old = await screen.findByText('An older Comment.')
+    expect(fireEvent.contextMenu(old)).toBe(false)
+    expect(menuItems()).toEqual(['Delete comment'])
+    await user.click(screen.getByRole('menuitem', { name: 'Delete comment' }))
+
+    await waitFor(() => expect(putWriting).toHaveBeenCalledWith('token', 1, rows[0].id, expect.objectContaining({ comment: null })))
+    await waitFor(() => expect(screen.queryByText('An older Comment.')).not.toBeInTheDocument())
   })
 })
