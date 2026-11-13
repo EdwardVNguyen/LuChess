@@ -70,6 +70,47 @@ type StudyViewProps = {
 const noLinkNames = () => null
 const noDrawings: readonly Drawing[] = []
 
+/** A move played on the board that is saving, or saved and not yet in the tree (with its id). */
+type Pending = { move: LegalMove; id?: MoveId }
+/** The moves played past a saved Move, in order. */
+type Tail = { run: number; from: MoveId; moves: Pending[] }
+/** Moves played one after another from a saved Move, saving in order. */
+type Run = {
+  id: number
+  /** The Move the next save is played after: the last one saved. */
+  parent: MoveId
+  /** Once one save fails, the moves after it are dropped. */
+  failed: boolean
+}
+const noPending: readonly Pending[] = []
+
+/** The last of a tail's moves that the tree has (or where it starts), and the moves after it. */
+function landed(tree: MoveTree, tail: Tail | null): { from: MoveId | undefined; pending: readonly Pending[] } {
+  if (!tail) return { from: undefined, pending: noPending }
+  const at = tail.moves.findIndex((p) => p.id === undefined || !tree.moves.has(p.id))
+  const pending = at === -1 ? [] : tail.moves.slice(at)
+  const last = at === -1 ? tail.moves.at(-1) : tail.moves[at - 1]
+  return { from: last?.id ?? tail.from, pending }
+}
+
+/** The line up to `ply`, then the moves pending after it. */
+function withPending(line: Game, ply: number, pending: readonly Pending[]): Game {
+  const plies = line.plies.slice(0, ply + 1)
+  for (const { move } of pending) {
+    const [, turn, , , , fullMove] = plies[plies.length - 1].fen.split(' ')
+    plies.push({
+      index: plies.length,
+      san: move.san,
+      moveNumber: Number(fullMove),
+      color: turn === 'b' ? 'b' : 'w',
+      from: move.from,
+      to: move.to,
+      fen: move.fen,
+    })
+  }
+  return { ...line, plies }
+}
+
 // The study view shared by a saved Note and a Guest's unsaved one: the title,
 // the board and the writing column (design/screenshots/Note*.png), so the two
 // behave the same. Where the tree and writing come from and go to is the caller's.
@@ -95,13 +136,30 @@ export function StudyView({
   const [chosen, setChosen] = useState<MoveId>(() =>
     initialMove !== undefined && tree.moves.has(initialMove) ? initialMove : (mainLine(tree).at(-1)?.id ?? tree.root),
   )
+  // Moves played past the last saved Move, shown on the board at once while
+  // they save (#98). A saved one stays here until the tree has it.
+  const [tail, setTail] = useState<Tail | null>(null)
+  const { from: pendingFrom, pending } = landed(tree, tail)
+  if (tail && pendingFrom !== undefined && pending.length === 0) {
+    // All saved and in the tree: the board is on the last of them.
+    setTail(null)
+    setChosen(pendingFrom)
+  }
   // A Move deleted from under the board leaves it at the Position.
-  const current = tree.moves.has(chosen) ? chosen : tree.root
+  const current =
+    pendingFrom !== undefined && tree.moves.has(pendingFrom) ? pendingFrom : tree.moves.has(chosen) ? chosen : tree.root
   // The Drawings last drawn on the current Move, shown until the board leaves
   // it: a second Drawing made before the first is saved builds on the first.
   const [drawn, setDrawn] = useState<{ move: MoveId; drawings: Drawing[] } | null>(null)
-  const drawings = drawn?.move === current ? drawn.drawings : (writing.get(current)?.drawings ?? noDrawings)
+  const drawings =
+    pending.length > 0
+      ? noDrawings
+      : drawn?.move === current
+        ? drawn.drawings
+        : (writing.get(current)?.drawings ?? noDrawings)
+  // Leaving moves that are saving: they go on saving, but the board stays where it is sent.
   const goTo = (move: MoveId) => {
+    setTail(null)
     setDrawn(null)
     setChosen(move)
   }
@@ -110,8 +168,14 @@ export function StudyView({
     onDraw?.(current, next)
   }
   const details = noteDetails(tagRecord(tags))
-  const line = useMemo(() => lineAsGame(lineThrough(tree, current), tagRecord(tags)), [tree, current, tags])
-  const ply = moveOf(tree, current).ply
+  const saved = useMemo(() => lineAsGame(lineThrough(tree, current), tagRecord(tags)), [tree, current, tags])
+  const savedPly = moveOf(tree, current).ply
+  // With moves pending, the board's line ends with them.
+  const line = useMemo(
+    () => (pending.length > 0 ? withPending(saved, savedPly, pending) : saved),
+    [saved, savedPly, pending],
+  )
+  const ply = savedPly + pending.length
   const pgn = useMemo(() => exportPgn({ tree, tags, writing, linkName }).trimEnd(), [tree, tags, writing, linkName])
   // On desktop the margin can be collapsed to a rail (#61); below, it is always open.
   const marginPane = useCollapsible('margin')
@@ -119,20 +183,73 @@ export function StudyView({
 
   // A move already played after the current Move steps onto it, whether it
   // continues the line or starts a Variation; any other is added after it,
-  // extending the line or starting a new Variation. One is saved at a time,
-  // so the next move is played from where the last one landed.
-  const playing = useRef(false)
-  async function play(move: LegalMove) {
-    if (!onPlay || playing.current) return
+  // extending the line or starting a new Variation.
+  //
+  // A move that saves on a server shows on the board at once (#98). Moves
+  // played while one is saving queue behind it: they save one at a time, in
+  // order, each after the Move the one before it became. If one fails, the
+  // ones after it are dropped and the board goes back to the last saved Move.
+  const run = useRef<Run | null>(null)
+  const saving = useRef<Promise<void>>(Promise.resolve())
+  const inFlight = useRef(0)
+
+  function play(move: LegalMove) {
+    if (!onPlay) return
+    const save = onPlay
+    if (tail && pending.length > 0) {
+      const playing = run.current
+      if (playing?.id !== tail.run || playing.failed) return
+      setTail((t) => t && { ...t, moves: [...t.moves, { move }] })
+      return queue(playing, tail.moves.length, () => save(playing.parent, move.san))
+    }
     const existing = moveOf(tree, current).children.find((child) => moveOf(tree, child).san === move.san)
     if (existing !== undefined) return goTo(existing)
-    playing.current = true
-    try {
-      const added = await onPlay(current, move.san)
-      if (added !== null) goTo(added)
-    } finally {
-      playing.current = false
+    if (inFlight.current > 0) {
+      const playing = startRun(current, move)
+      return queue(playing, 0, () => save(playing.parent, move.san))
     }
+    const added = save(current, move.san)
+    // A Guest's move is added in the browser, so it is in the tree at once.
+    if (!(added instanceof Promise)) return added === null ? undefined : goTo(added)
+    queue(startRun(current, move), 0, () => added)
+  }
+
+  function startRun(from: MoveId, move: LegalMove): Run {
+    const playing: Run = { id: (run.current?.id ?? 0) + 1, parent: from, failed: false }
+    run.current = playing
+    setDrawn(null)
+    setTail({ run: playing.id, from, moves: [{ move }] })
+    return playing
+  }
+
+  // Saves the nth move of a run once the saves before it are done.
+  function queue(playing: Run, n: number, save: () => Promise<MoveId | null> | MoveId | null) {
+    inFlight.current++
+    saving.current = saving.current.then(async () => {
+      try {
+        if (playing.failed) return
+        const added = await Promise.resolve(save()).catch(() => null)
+        if (added === null) {
+          playing.failed = true
+          // The moves already saved stay, and land as the tree gets them.
+          setTail((t) => (t?.run === playing.id ? { ...t, moves: t.moves.slice(0, n) } : t))
+          return
+        }
+        playing.parent = added
+        setTail((t) =>
+          t?.run === playing.id ? { ...t, moves: t.moves.map((p, i) => (i === n ? { ...p, id: added } : p)) } : t,
+        )
+      } finally {
+        inFlight.current--
+      }
+    })
+  }
+
+  // Stepping back from moves still saving goes to a saved Move.
+  function stepTo(next: number) {
+    if (pending.length > 0 && next >= ply) return
+    const at = Math.min(Math.max(next, 0), pending.length > 0 ? savedPly : saved.plies.length - 1)
+    goTo(saved.plies[at].id ?? tree.root)
   }
 
   // Add comment: go to the Move, and once its editor is there, into its Comment.
@@ -154,7 +271,7 @@ export function StudyView({
 
   const view: StudyViewState = {
     tree,
-    line,
+    line: saved,
     current,
     onMoveChange: goTo,
     menu:
@@ -179,10 +296,10 @@ export function StudyView({
           mode="view"
           game={line}
           ply={ply}
-          onPlyChange={(next) => goTo(line.plies[Math.min(Math.max(next, 0), line.plies.length - 1)].id ?? tree.root)}
-          onMove={onPlay ? (move) => void play(move) : undefined}
+          onPlyChange={stepTo}
+          onMove={onPlay ? play : undefined}
           drawings={drawings}
-          onDrawingsChange={onDraw ? draw : undefined}
+          onDrawingsChange={onDraw && pending.length === 0 ? draw : undefined}
         />
         {playError && (
           <Text c="accent" size="sm" role="alert">
