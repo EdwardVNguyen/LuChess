@@ -212,6 +212,130 @@ describe('Inserting a Link', () => {
   })
 })
 
+describe('Link a note… in a Move’s right-click menu (#101)', () => {
+  const menuItems = () => screen.getAllByRole('menuitem').map((item) => item.textContent)
+  const comment = (label: string) => screen.getByRole('textbox', { name: `Comment on ${label}` })
+
+  function renderList(writing: ReadonlyMap<number, Writing> = new Map(), context: Linking = linking) {
+    const onComment = vi.fn()
+    const menu = { onComment, onPromote: () => {}, onDelete: () => {} }
+    renderInApp(<MoveList tree={tree} current={4} onMoveChange={() => {}} writing={writing} menu={menu} />, context)
+    return onComment
+  }
+
+  async function linkFrom(san: string, user: ReturnType<typeof userEvent.setup>) {
+    fireEvent.contextMenu(await screen.findByRole('button', { name: san }))
+    await user.click(screen.getByRole('menuitem', { name: 'Link a note…' }))
+    const search = await screen.findByRole('combobox', { name: 'Find a note to link' })
+    await waitFor(() => expect(search).toHaveFocus())
+    return search
+  }
+
+  it('sits under Add comment or Edit comment, whether or not the Move has a Comment', async () => {
+    renderList(new Map([[3, written({ comment: 'Symmetry.' })]]))
+
+    fireEvent.contextMenu(await screen.findByRole('button', { name: 'e4' }))
+    expect(menuItems()).toEqual(['Add comment', 'Link a note…', 'Promote to main line', 'Delete from here'])
+    await userEvent.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByRole('menuitem')).not.toBeInTheDocument())
+
+    fireEvent.contextMenu(screen.getByRole('button', { name: 'e5' }))
+    expect(menuItems()).toEqual(['Edit comment', 'Link a note…', 'Promote to main line', 'Delete from here'])
+  })
+
+  it('is hidden for a Guest or in an unsaved Note', async () => {
+    renderList(new Map(), { noteId: null, resolve: () => ({ status: 'unresolved' }) })
+
+    fireEvent.contextMenu(await screen.findByRole('button', { name: 'e4' }))
+    expect(menuItems()).toEqual(['Add comment', 'Promote to main line', 'Delete from here'])
+  })
+
+  it('opens the Comment editor with the picker, and inserts the Link without saving it', async () => {
+    searchNotes.mockResolvedValue([hanging])
+    const user = userEvent.setup()
+    const onComment = renderList()
+
+    const search = await linkFrom('e4', user)
+    expect(comment('1.e4')).toHaveValue('')
+    await user.type(search, 'hang')
+    await user.click(await screen.findByRole('option'))
+
+    await waitFor(() => expect(comment('1.e4')).toHaveValue('[[note:5]]'))
+    await waitFor(() => expect(comment('1.e4')).toHaveFocus())
+    expect(comment('1.e4')).toHaveProperty('selectionStart', '[[note:5]]'.length)
+    expect(onComment).not.toHaveBeenCalled()
+    await user.keyboard('{Enter}')
+    expect(onComment).toHaveBeenCalledWith(2, '[[note:5]]')
+  })
+
+  it('puts the Link at the end of the Comment, after a space unless it ends in whitespace', async () => {
+    searchNotes.mockResolvedValue([hanging])
+    const user = userEvent.setup()
+    const onComment = renderList(
+      new Map([
+        [2, written({ comment: 'Best by test.' })],
+        [3, written({ comment: 'Symmetry.\n' })],
+      ]),
+    )
+
+    await user.type(await linkFrom('e4', user), 'hang')
+    await screen.findByRole('option')
+    await user.click(screen.getByRole('textbox', { name: /^Label/ }))
+    await user.keyboard('the pawns{Enter}')
+    await waitFor(() => expect(comment('1.e4')).toHaveValue('Best by test. [[note:5|the pawns]]'))
+    await waitFor(() => expect(comment('1.e4')).toHaveFocus())
+    expect(comment('1.e4')).toHaveProperty('selectionStart', 'Best by test. [[note:5|the pawns]]'.length)
+    await user.keyboard('{Enter}')
+    expect(onComment).toHaveBeenLastCalledWith(2, 'Best by test. [[note:5|the pawns]]')
+
+    await user.type(await linkFrom('e5', user), 'hang')
+    await user.click(await screen.findByRole('option'))
+    await waitFor(() => expect(comment('1…e5')).toHaveValue('Symmetry.\n[[note:5]]'))
+  })
+
+  it('Escape closes only the picker, leaving the editor open with its draft', async () => {
+    searchNotes.mockResolvedValue([hanging])
+    const user = userEvent.setup()
+    const onComment = renderList(new Map([[2, written({ comment: 'Best by test.' })]]))
+
+    await user.type(await linkFrom('e4', user), 'hang{Escape}')
+
+    await waitFor(() => expect(screen.queryByRole('combobox')).not.toBeInTheDocument())
+    expect(comment('1.e4')).toHaveValue('Best by test.')
+    await waitFor(() => expect(comment('1.e4')).toHaveFocus())
+    expect(onComment).not.toHaveBeenCalled()
+  })
+
+  it('saves nothing when the editor of a Move without a Comment closes empty', async () => {
+    const user = userEvent.setup()
+    const onComment = renderList()
+
+    await linkFrom('e4', user)
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(comment('1.e4')).toHaveFocus())
+    await user.keyboard('{Enter}')
+
+    expect(screen.queryByRole('textbox', { name: 'Comment on 1.e4' })).not.toBeInTheDocument()
+    expect(onComment).not.toHaveBeenCalled()
+  })
+
+  it('saves the draft on another Move first, then opens this Move’s editor with the picker', async () => {
+    searchNotes.mockResolvedValue([hanging])
+    const user = userEvent.setup()
+    const onComment = renderList()
+
+    fireEvent.contextMenu(await screen.findByRole('button', { name: 'Nf3' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Add comment' }))
+    await waitFor(() => expect(comment('2.Nf3')).toHaveFocus())
+    await user.type(comment('2.Nf3'), 'Develops.')
+
+    await linkFrom('e4', user)
+    expect(onComment).toHaveBeenCalledWith(4, 'Develops.')
+    expect(screen.queryByRole('textbox', { name: 'Comment on 2.Nf3' })).not.toBeInTheDocument()
+    expect(comment('1.e4')).toBeInTheDocument()
+  })
+})
+
 describe('NoteMargin', () => {
   it('lists Connections in reading order and Backlinks opening their Move', async () => {
     const writing = [written({ body: '[[note:6|club]] and [[note:5]]' }), written({ comment: '[[note:9]]', body: '[[note:5]]' })]

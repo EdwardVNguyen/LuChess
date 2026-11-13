@@ -1015,6 +1015,30 @@ export const entries: ShotEntry[] = [
       await page.getByRole('alert').waitFor()
     },
   },
+  // Link a note… from a Move's right-click menu (#101): the menu, then the
+  // Comment editor opened with the picker. No design.
+  {
+    name: 'NoteMoveMenuLink',
+    route: '/notes/1',
+    fixtures: 'session',
+    setup: async (page) => {
+      await page.getByRole('button', { name: 'exd5', exact: true }).click({ button: 'right' })
+      await page.getByRole('menuitem', { name: 'Link a note…' }).waitFor()
+    },
+  },
+  {
+    name: 'NoteMoveLinkPicker',
+    route: '/notes/1',
+    fixtures: 'session',
+    setup: async (page) => {
+      await page.getByRole('button', { name: 'exd5', exact: true }).click({ button: 'right' })
+      await page.getByRole('menuitem', { name: 'Link a note…' }).click()
+      const search = page.getByRole('combobox', { name: 'Find a note to link' })
+      await search.and(page.locator(':focus')).waitFor()
+      await search.fill('hang')
+      await page.getByRole('option').first().waitFor()
+    },
+  },
   {
     name: 'NoteUnresolvedLink',
     route: '/notes/7',
