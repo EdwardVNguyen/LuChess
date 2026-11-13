@@ -19,7 +19,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/EdwardVNguyen/ChessNotes/api/sql/schema"
+	"github.com/EdwardVNguyen/LuChess/api/sql/schema"
 	"github.com/lib/pq"
 	"github.com/pressly/goose/v3"
 )

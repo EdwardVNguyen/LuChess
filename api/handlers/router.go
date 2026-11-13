@@ -3,7 +3,7 @@ package handler
 import (
 	"net/http"
 
-	"github.com/EdwardVNguyen/ChessNotes/api/utils"
+	"github.com/EdwardVNguyen/LuChess/api/utils"
 )
 
 // Mux is responsible for matching HTTP request URLs with endpoints and executing handlers

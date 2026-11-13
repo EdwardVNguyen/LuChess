@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/EdwardVNguyen/ChessNotes/api/internal/database"
-	"github.com/EdwardVNguyen/ChessNotes/api/internal/password"
-	"github.com/EdwardVNguyen/ChessNotes/api/utils"
+	"github.com/EdwardVNguyen/LuChess/api/internal/database"
+	"github.com/EdwardVNguyen/LuChess/api/internal/password"
+	"github.com/EdwardVNguyen/LuChess/api/utils"
 )
 
 // HandleDeleteAccount permanently deletes the signed-in user once they re-enter

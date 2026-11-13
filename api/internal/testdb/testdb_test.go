@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/EdwardVNguyen/ChessNotes/api/internal/testdb"
-	"github.com/EdwardVNguyen/ChessNotes/api/sql/schema"
+	"github.com/EdwardVNguyen/LuChess/api/internal/testdb"
+	"github.com/EdwardVNguyen/LuChess/api/sql/schema"
 	"github.com/pressly/goose/v3"
 )
 

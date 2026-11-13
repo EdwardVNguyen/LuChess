@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	handler "github.com/EdwardVNguyen/ChessNotes/api/handlers"
+	handler "github.com/EdwardVNguyen/LuChess/api/handlers"
 )
 
 // loginSession logs a verified user in and returns the session and its refresh token.

@@ -8,11 +8,11 @@ import (
 	"net/http"
 
 	"github.com/joho/godotenv"
-	"github.com/EdwardVNguyen/ChessNotes/api/internal/database"
-	"github.com/EdwardVNguyen/ChessNotes/api/handlers"
-	"github.com/EdwardVNguyen/ChessNotes/api/internal/mailer"
-	"github.com/EdwardVNguyen/ChessNotes/api/internal/password"
-	"github.com/EdwardVNguyen/ChessNotes/api/internal/session"
+	"github.com/EdwardVNguyen/LuChess/api/internal/database"
+	"github.com/EdwardVNguyen/LuChess/api/handlers"
+	"github.com/EdwardVNguyen/LuChess/api/internal/mailer"
+	"github.com/EdwardVNguyen/LuChess/api/internal/password"
+	"github.com/EdwardVNguyen/LuChess/api/internal/session"
 	_ "github.com/lib/pq"
 )
 

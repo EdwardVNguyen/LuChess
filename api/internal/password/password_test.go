@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/EdwardVNguyen/ChessNotes/api/internal/password"
+	"github.com/EdwardVNguyen/LuChess/api/internal/password"
 )
 
 var cheap = password.Hasher{MemoryKiB: 8, Iterations: 1, Parallelism: 1, SaltLen: 16, KeyLen: 32}

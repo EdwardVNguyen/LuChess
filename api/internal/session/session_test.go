@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/EdwardVNguyen/ChessNotes/api/internal/database"
-	"github.com/EdwardVNguyen/ChessNotes/api/internal/session"
-	"github.com/EdwardVNguyen/ChessNotes/api/internal/testdb"
+	"github.com/EdwardVNguyen/LuChess/api/internal/database"
+	"github.com/EdwardVNguyen/LuChess/api/internal/session"
+	"github.com/EdwardVNguyen/LuChess/api/internal/testdb"
 	"github.com/golang-jwt/jwt/v5"
 )
 

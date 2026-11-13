@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/EdwardVNguyen/ChessNotes/api/internal/database"
-	"github.com/EdwardVNguyen/ChessNotes/api/utils"
+	"github.com/EdwardVNguyen/LuChess/api/internal/database"
+	"github.com/EdwardVNguyen/LuChess/api/utils"
 )
 
 // The 409 answer to a reset that would delete Moves or writing: how many of each.

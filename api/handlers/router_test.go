@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	handler "github.com/EdwardVNguyen/ChessNotes/api/handlers"
+	handler "github.com/EdwardVNguyen/LuChess/api/handlers"
 )
 
 const frontendOrigin = "http://localhost:5173"

@@ -1,4 +1,4 @@
-module github.com/EdwardVNguyen/ChessNotes/api
+module github.com/EdwardVNguyen/LuChess/api
 
 go 1.27.0
 
