@@ -3,7 +3,7 @@ package handler
 import (
 	"net/http"
 
-	"github.com/EdwardVNguyen/ChessNotes/api/utils"
+	"github.com/EdwardVNguyen/LuChess/api/utils"
 )
 
 func (cfg *ApiConfig) HandleMe(w http.ResponseWriter, r *http.Request) {

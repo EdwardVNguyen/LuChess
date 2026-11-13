@@ -4,11 +4,11 @@ import (
 	"database/sql"
 	"time"
 
-	"github.com/EdwardVNguyen/ChessNotes/api/internal/database"
-	"github.com/EdwardVNguyen/ChessNotes/api/internal/mailer"
-	"github.com/EdwardVNguyen/ChessNotes/api/internal/password"
-	"github.com/EdwardVNguyen/ChessNotes/api/internal/ratelimit"
-	"github.com/EdwardVNguyen/ChessNotes/api/internal/session"
+	"github.com/EdwardVNguyen/LuChess/api/internal/database"
+	"github.com/EdwardVNguyen/LuChess/api/internal/mailer"
+	"github.com/EdwardVNguyen/LuChess/api/internal/password"
+	"github.com/EdwardVNguyen/LuChess/api/internal/ratelimit"
+	"github.com/EdwardVNguyen/LuChess/api/internal/session"
 )
 
 // RateLimits are requests allowed per hour; zero means use the default.

@@ -13,7 +13,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/EdwardVNguyen/ChessNotes/api/internal/database"
+	"github.com/EdwardVNguyen/LuChess/api/internal/database"
 	"github.com/golang-jwt/jwt/v5"
 )
 

@@ -10,8 +10,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/EdwardVNguyen/ChessNotes/api/internal/database"
-	"github.com/EdwardVNguyen/ChessNotes/api/utils"
+	"github.com/EdwardVNguyen/LuChess/api/internal/database"
+	"github.com/EdwardVNguyen/LuChess/api/utils"
 	"github.com/lib/pq"
 )
 

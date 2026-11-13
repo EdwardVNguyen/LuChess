@@ -10,8 +10,8 @@ import (
 	"slices"
 	"strconv"
 
-	"github.com/EdwardVNguyen/ChessNotes/api/internal/database"
-	"github.com/EdwardVNguyen/ChessNotes/api/utils"
+	"github.com/EdwardVNguyen/LuChess/api/internal/database"
+	"github.com/EdwardVNguyen/LuChess/api/utils"
 )
 
 // A Link token in a Comment or Body: [[note:42]] or [[note:42|label]] (ADR

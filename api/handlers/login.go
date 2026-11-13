@@ -5,8 +5,8 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/EdwardVNguyen/ChessNotes/api/internal/password"
-	"github.com/EdwardVNguyen/ChessNotes/api/utils"
+	"github.com/EdwardVNguyen/LuChess/api/internal/password"
+	"github.com/EdwardVNguyen/LuChess/api/utils"
 )
 
 func (cfg *ApiConfig) HandleLogin(w http.ResponseWriter, r *http.Request) {

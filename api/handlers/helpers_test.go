@@ -9,12 +9,12 @@ import (
 	"testing"
 	"time"
 
-	handler "github.com/EdwardVNguyen/ChessNotes/api/handlers"
-	"github.com/EdwardVNguyen/ChessNotes/api/internal/database"
-	"github.com/EdwardVNguyen/ChessNotes/api/internal/mailer/mailertest"
-	"github.com/EdwardVNguyen/ChessNotes/api/internal/password"
-	sessions "github.com/EdwardVNguyen/ChessNotes/api/internal/session"
-	"github.com/EdwardVNguyen/ChessNotes/api/internal/testdb"
+	handler "github.com/EdwardVNguyen/LuChess/api/handlers"
+	"github.com/EdwardVNguyen/LuChess/api/internal/database"
+	"github.com/EdwardVNguyen/LuChess/api/internal/mailer/mailertest"
+	"github.com/EdwardVNguyen/LuChess/api/internal/password"
+	sessions "github.com/EdwardVNguyen/LuChess/api/internal/session"
+	"github.com/EdwardVNguyen/LuChess/api/internal/testdb"
 )
 
 type fakeClock struct {

@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	handler "github.com/EdwardVNguyen/ChessNotes/api/handlers"
+	handler "github.com/EdwardVNguyen/LuChess/api/handlers"
 )
 
 const newPassword = "a brand new passphrase"

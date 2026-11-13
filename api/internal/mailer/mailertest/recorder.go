@@ -5,7 +5,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/EdwardVNguyen/ChessNotes/api/internal/mailer"
+	"github.com/EdwardVNguyen/LuChess/api/internal/mailer"
 )
 
 type Recorder struct {

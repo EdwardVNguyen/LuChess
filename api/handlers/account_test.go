@@ -9,7 +9,7 @@ import (
 	"slices"
 	"testing"
 
-	handler "github.com/EdwardVNguyen/ChessNotes/api/handlers"
+	handler "github.com/EdwardVNguyen/LuChess/api/handlers"
 	"github.com/lib/pq"
 )
 
