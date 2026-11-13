@@ -16,14 +16,15 @@ function written(fields: Partial<Writing>): Writing {
 }
 
 describe('PlyEditor', () => {
-  it('saves a Comment when the editor loses focus', async () => {
+  it('saves a Body when the editor loses focus, and has no Comment editor (#97)', async () => {
     const onSave = vi.fn()
-    renderWithTheme(<PlyEditor ply={game.plies[1]} writing={undefined} onSave={onSave} />)
+    renderWithTheme(<PlyEditor ply={game.plies[1]} writing={written({ comment: 'Best by test.' })} onSave={onSave} />)
 
-    await userEvent.type(screen.getByRole('textbox', { name: 'Comment on 1.e4' }), 'Best by test.')
+    expect(screen.queryByRole('textbox', { name: /^Comment/ })).not.toBeInTheDocument()
+    await userEvent.type(screen.getByRole('textbox', { name: 'Body after 1.e4' }), 'Then Black decides.')
     expect(onSave).not.toHaveBeenCalled()
     await userEvent.tab()
-    expect(onSave).toHaveBeenCalledWith({ comment: 'Best by test.' })
+    expect(onSave).toHaveBeenCalledWith({ body: 'Then Black decides.' })
   })
 
   it('does not save unchanged text, and deletes saved text', async () => {

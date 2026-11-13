@@ -1,13 +1,10 @@
-import { Textarea, UnstyledButton } from '@mantine/core'
-import { useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react'
+import { UnstyledButton } from '@mantine/core'
 import { plyLabel, type Ply } from '../chess/chess'
 import type { Writing } from '../chess/pgn'
-import { ResponsivePopover, useOverlaySize } from '../overlay'
 import { moveGlyphs, positionGlyphs } from './glyphs'
-import { LinkPicker } from './LinkPicker'
 import { useLinking } from './linking'
-import { linkToken } from './links'
 import styles from './Notes.module.css'
+import { TextEditor } from './TextEditor'
 
 type Change = Partial<Writing>
 
@@ -16,16 +13,15 @@ type Props = {
   /** What is saved on this Move, if anything. */
   writing: Writing | undefined
   onSave: (change: Change) => void
-  /** An id for the Comment's editor, e.g. for the move list's Add comment to focus it. */
-  commentId?: string
 }
 
-// The editors for the current Move, or the Position: its Glyphs, its Comment and its Body.
-// Glyphs save as they are picked; text saves when the editor loses focus (so
-// moving to another Move saves first) or on Ctrl/⌘+Enter. Escape undoes.
-// Typing [[ in a saved Note opens the picker to link another Note.
+// The editors for the current Move, or the Position: its Glyphs and its Body.
+// Glyphs save as they are picked; the Body saves when its editor loses focus
+// (so moving to another Move saves first) or on Ctrl/⌘+Enter. Escape undoes.
+// Typing [[ in a saved Note opens the picker to link another Note. A Comment
+// is written from the move list's right-click menu instead (#97).
 // Render with key={move} so the drafts start over on every Move.
-export function PlyEditor({ ply, writing, onSave, commentId }: Props) {
+export function PlyEditor({ ply, writing, onSave }: Props) {
   const label = plyLabel(ply)
   const atPosition = ply.index === 0
   const canLink = useLinking().noteId !== null
@@ -50,13 +46,6 @@ export function PlyEditor({ ply, writing, onSave, commentId }: Props) {
           onChange={(positionGlyph) => onSave({ positionGlyph })}
         />
       </div>
-      <TextEditor
-        label={atPosition ? 'Comment on the position' : `Comment on ${label}`}
-        placeholder={(atPosition ? 'Comment on the position.' : `Comment on ${label}.`) + toLink}
-        saved={writing?.comment ?? ''}
-        onSave={(comment) => onSave({ comment })}
-        id={commentId}
-      />
       <TextEditor
         label={atPosition ? 'Body opening the note' : `Body after ${label}`}
         placeholder={
@@ -94,113 +83,6 @@ function GlyphPicker({ label, glyphs, value, onChange }: GlyphPickerProps) {
           {glyph}
         </UnstyledButton>
       ))}
-    </div>
-  )
-}
-
-type TextEditorProps = {
-  label: string
-  placeholder: string
-  saved: string
-  onSave: (text: string | null) => void
-  id?: string
-}
-
-function TextEditor({ id, label, placeholder, saved, onSave }: TextEditorProps) {
-  const { noteId } = useLinking()
-  const size = useOverlaySize()
-  const [draft, setDraft] = useState(saved)
-  // Where the [[ that opened the picker sits in the draft, while it is open.
-  const [picking, setPicking] = useState<{ start: number; end: number } | null>(null)
-  const pickingRef = useRef(false)
-  const input = useRef<HTMLTextAreaElement>(null)
-
-  function save() {
-    if (draft.trim() !== saved.trim()) onSave(draft.trim() === '' ? null : draft)
-  }
-
-  function onChange(event: ChangeEvent<HTMLTextAreaElement>) {
-    const { value, selectionStart: caret } = event.currentTarget
-    if (noteId !== null && value.length > draft.length && value.slice(caret - 2, caret) === '[[') {
-      pickingRef.current = true
-      setPicking({ start: caret - 2, end: caret })
-    }
-    setDraft(value)
-  }
-
-  // The picker takes focus; the text saves when the user leaves the editor, not then.
-  function onBlur() {
-    if (!pickingRef.current) save()
-  }
-
-  function closePicker(caret: number) {
-    pickingRef.current = false
-    setPicking(null)
-    // Once focus is back in the editor, put the caret after the [[ or the Link.
-    requestAnimationFrame(() => {
-      input.current?.focus()
-      input.current?.setSelectionRange(caret, caret)
-    })
-  }
-
-  function insertLink(target: number, linkLabel: string) {
-    if (!picking) return
-    const token = linkToken(target, linkLabel)
-    setDraft(draft.slice(0, picking.start) + token + draft.slice(picking.end))
-    closePicker(picking.start + token.length)
-  }
-
-  function onKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
-    if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
-      event.preventDefault()
-      save()
-    } else if (event.key === 'Escape') {
-      setDraft(saved)
-    }
-  }
-
-  const textarea = (
-    <Textarea
-      ref={input}
-      id={id}
-      aria-label={label}
-      placeholder={placeholder}
-      value={draft}
-      onChange={onChange}
-      onBlur={onBlur}
-      onKeyDown={onKeyDown}
-      rows={2}
-      classNames={{ input: styles.editorInput }}
-    />
-  )
-
-  return (
-    <div className={styles.textEditor}>
-      {noteId === null ? (
-        textarea
-      ) : (
-        <ResponsivePopover
-          size={size}
-          opened={picking !== null}
-          onClose={() => closePicker(picking?.end ?? draft.length)}
-          label="Link a note"
-          width={360}
-          target={<div className={styles.editorTarget}>{textarea}</div>}
-        >
-          {picking && <LinkPicker noteId={noteId} onPick={insertLink} />}
-        </ResponsivePopover>
-      )}
-      {saved !== '' && (
-        <UnstyledButton
-          className={styles.editorDelete}
-          onClick={() => {
-            setDraft('')
-            onSave(null)
-          }}
-        >
-          Delete
-        </UnstyledButton>
-      )}
     </div>
   )
 }

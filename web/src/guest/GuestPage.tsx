@@ -149,6 +149,7 @@ function GuestNote({ note, size, onSave, onStartOver }: GuestNoteProps) {
         }
         onPlay={play}
         onDraw={(move, drawings) => write({ move, drawings })}
+        onComment={(move, comment) => write({ move, comment })}
         onPromote={(move) => setTree(promote(tree, move))}
         onDelete={deleteFrom}
         tools={(view) => <CurrentMoveEditor {...view} writing={writing} editable onSave={write} />}

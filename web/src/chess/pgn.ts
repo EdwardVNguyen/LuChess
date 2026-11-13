@@ -4,9 +4,10 @@ import { moveOf, type MoveId, type MoveTree, type TreeMove } from './tree.ts'
 // Reading and writing PGN with Variations (ADR 0009). @mliebelt/pgn-parser
 // reads the text, and every move is checked by chess.js as it joins the tree.
 // An import keeps everything it can: Variations, NAGs as Glyphs, the first
-// {comment} after a move as its Comment and any later ones as its Body, a
-// comment before the first move as the Position's Body, and [%cal]/[%csl] as
-// Drawings. Export reverses this, so our own PGNs round-trip.
+// {comment} after a move as its Comment and any later ones as its Body, every
+// comment before the first move as the Position's Body (#97), and
+// [%cal]/[%csl] as Drawings. Export reverses this, so our own PGNs round-trip,
+// except that a Comment on the Position, from before #97, comes back in its Body.
 //
 // The parser is large and only importing needs it, so it lives in
 // pgnImport.ts and the app reaches it only through loadPgnImport(), which
@@ -176,10 +177,10 @@ function comments(writing: Writing | undefined, atRoot: boolean, text: (comment:
   ].join('')
   const comment = [diag, writing.comment ? text(writing.comment) : ''].filter(Boolean).join(' ')
   const body = writing.body ? text(writing.body) : ''
-  // A lone comment at the root reads back as the Body, so a Comment there needs a second.
+  // At the root every comment reads back as the Body, so the Body needs no empty one before it.
   if (atRoot && !writing.comment && body) return [`{${[diag, body].filter(Boolean).join(' ')}}`]
   if (body) return [`{${comment}}`, `{${body}}`]
-  if (comment) return atRoot && writing.comment ? [`{${comment}}`, '{}'] : [`{${comment}}`]
+  if (comment) return [`{${comment}}`]
   return []
 }
 
