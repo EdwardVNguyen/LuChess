@@ -112,6 +112,33 @@ function square(name: string): HTMLElement {
   return element
 }
 
+// The piece on a square, as react-chessboard draws it.
+function pieceOn(name: string): string | null {
+  return document.querySelector(`[data-square="${name}"] [data-piece]`)?.getAttribute('data-piece') ?? null
+}
+
+// Holds each add-Move save until the test resolves or rejects it, in order.
+function deferredAddMove() {
+  const waiting: { resolve: () => void; reject: (error: Error) => void }[] = []
+  addMove.mockImplementation(
+    (_t, _id, parentId, san) =>
+      new Promise<MoveRow>((resolve, reject) => {
+        waiting.push({
+          resolve: () => {
+            const row: MoveRow = { ...rows[0], id: Math.max(...rows.map((r) => r.id)) + 1, parentId, san }
+            rows = [...rows, row]
+            resolve(row)
+          },
+          reject,
+        })
+      }),
+  )
+  return {
+    resolveNext: () => waiting.shift()?.resolve(),
+    rejectNext: (error: Error) => waiting.shift()?.reject(error),
+  }
+}
+
 async function play(user: ReturnType<typeof userEvent.setup>, from: string, to: string) {
   await user.click(square(from))
   await user.click(square(to))
@@ -212,6 +239,67 @@ describe('Playing moves on the board', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Could not save the move')
     expect(screen.queryByRole('button', { name: 'c5' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'e4' })).toHaveAttribute('aria-current', 'step')
+  })
+
+  it('shows a move on the board before it is saved, and in the move list once it is', async () => {
+    const save = deferredAddMove()
+    const user = userEvent.setup()
+    renderNote()
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Nc6' })).toHaveAttribute('aria-current', 'step'))
+
+    await play(user, 'f1', 'b5')
+
+    await waitFor(() => expect(pieceOn('b5')).toBe('wB'))
+    expect(pieceOn('f1')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Bb5' })).not.toBeInTheDocument()
+
+    save.resolveNext()
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Bb5' })).toHaveAttribute('aria-current', 'step'))
+    expect(pieceOn('b5')).toBe('wB')
+  })
+
+  it('saves moves played while one is saving, in order, each after the one before', async () => {
+    const save = deferredAddMove()
+    const user = userEvent.setup()
+    renderNote()
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Nc6' })).toHaveAttribute('aria-current', 'step'))
+
+    await play(user, 'f1', 'b5')
+    await waitFor(() => expect(pieceOn('b5')).toBe('wB'))
+    await play(user, 'a7', 'a6')
+    await waitFor(() => expect(pieceOn('a6')).toBe('bP'))
+    expect(addMove).toHaveBeenCalledTimes(1)
+
+    save.resolveNext()
+    await waitFor(() => expect(addMove).toHaveBeenCalledTimes(2))
+    expect(addMove).toHaveBeenNthCalledWith(1, 'token', 1, idOf('Nc6'), 'Bb5')
+    expect(addMove).toHaveBeenNthCalledWith(2, 'token', 1, idOf('Bb5'), 'a6')
+    save.resolveNext()
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'a6' })).toHaveAttribute('aria-current', 'step'))
+    expect(rows.find((row) => row.san === 'a6')?.parentId).toBe(idOf('Bb5'))
+  })
+
+  it('goes back to the last saved Move when a save fails, dropping the moves after it', async () => {
+    const save = deferredAddMove()
+    const user = userEvent.setup()
+    renderNote()
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Nc6' })).toHaveAttribute('aria-current', 'step'))
+
+    await play(user, 'f1', 'b5')
+    await waitFor(() => expect(pieceOn('b5')).toBe('wB'))
+    await play(user, 'a7', 'a6')
+    await waitFor(() => expect(pieceOn('a6')).toBe('bP'))
+
+    save.rejectNext(new Error('Could not save the move'))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not save the move')
+    await waitFor(() => expect(pieceOn('f1')).toBe('wB'))
+    expect(pieceOn('b5')).toBeNull()
+    expect(pieceOn('a7')).toBe('bP')
+    expect(screen.getByRole('button', { name: 'Nc6' })).toHaveAttribute('aria-current', 'step')
+    expect(screen.queryByRole('button', { name: 'Bb5' })).not.toBeInTheDocument()
+    expect(addMove).toHaveBeenCalledTimes(1)
   })
 
   it('has no Edit moves step', async () => {
