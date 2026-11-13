@@ -1,5 +1,5 @@
 import { Textarea, UnstyledButton } from '@mantine/core'
-import { useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent, type ReactElement, type Ref } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type ChangeEvent, type KeyboardEvent, type ReactElement, type Ref } from 'react'
 import { ResponsivePopover, useOverlaySize } from '../overlay'
 import { LinkPicker } from './LinkPicker'
 import { useLinking } from './linking'
@@ -25,6 +25,12 @@ type Props = {
    * menu (#101): on mounting when set, and again each time it changes.
    */
   linkRequest?: number
+  /**
+   * Its Move's menu is open over the inline editor (#101): losing focus to the
+   * menu doesn't save or close it. When the menu closes, focus comes back to
+   * the draft, unless the user went somewhere else, which saves and closes it.
+   */
+  held?: boolean
 }
 
 // Where a picked Link goes: in place of the [[ that opened the picker, or at
@@ -35,7 +41,7 @@ type Picking = { start: number; end: number } | 'end'
 // (so moving to another Move saves first). Typing [[ in a saved Note opens
 // the picker to link another Note. Under the board it stays open: Ctrl/⌘+Enter
 // saves, Escape undoes, and Delete clears what is saved.
-export function TextEditor({ label, placeholder, saved, onSave, onClose, linkRequest = 0 }: Props) {
+export function TextEditor({ label, placeholder, saved, onSave, onClose, linkRequest = 0, held = false }: Props) {
   const { noteId } = useLinking()
   const size = useOverlaySize()
   const inline = onClose !== undefined
@@ -66,6 +72,33 @@ export function TextEditor({ label, placeholder, saved, onSave, onClose, linkReq
     return () => cancelAnimationFrame(frame)
   }, [inline])
 
+  // The latest picker state and close, for the frame after the menu closes.
+  const pickingNow = useRef(picking)
+  const closeNow = useRef((saving: boolean) => close(saving))
+  useLayoutEffect(() => {
+    pickingNow.current = picking
+    closeNow.current = close
+  })
+
+  // Once its Move's menu has closed: back to the draft, or, if the user went
+  // elsewhere, save and close as losing focus does.
+  const wasHeld = useRef(held)
+  useEffect(() => {
+    const released = wasHeld.current && !held
+    wasHeld.current = held
+    if (!released || !inline) return
+    const frame = requestAnimationFrame(() => {
+      if (pickingRef.current || pickingNow.current) return
+      const active = document.activeElement
+      if (active === null || active === document.body || active === input.current) {
+        input.current?.focus()
+      } else {
+        closeNow.current(true)
+      }
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [held, inline])
+
   function save() {
     if (draft.trim() !== saved.trim()) onSave(draft.trim() === '' ? null : draft)
   }
@@ -88,7 +121,7 @@ export function TextEditor({ label, placeholder, saved, onSave, onClose, linkReq
 
   // The picker takes focus; the text saves when the user leaves the editor, not then.
   function onBlur() {
-    if (pickingRef.current || picking !== null) return
+    if (held || pickingRef.current || picking !== null) return
     if (inline) close(true)
     else save()
   }

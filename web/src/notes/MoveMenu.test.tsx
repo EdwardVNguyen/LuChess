@@ -1,7 +1,7 @@
 import { MantineProvider } from '@mantine/core'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMemoryHistory, createRootRoute, createRoute, createRouter, RouterProvider } from '@tanstack/react-router'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
@@ -116,6 +116,12 @@ function renderNote() {
 }
 
 const move = (name: string) => screen.getByRole('button', { name })
+// A right-click as a browser does it: the press takes focus unless the page
+// prevents it, then the menu opens. (user-event's right-click also closes it.)
+function rightClick(element: HTMLElement) {
+  if (fireEvent.mouseDown(element, { button: 2 })) act(() => element.focus())
+  fireEvent.contextMenu(element)
+}
 const menuItems = () => screen.getAllByRole('menuitem').map((item) => item.textContent)
 // The PGN under the board, on one line.
 const pgn = () => (screen.getByRole('textbox', { name: 'PGN' }) as HTMLTextAreaElement).value.replace(/\s+/g, ' ')
@@ -454,6 +460,48 @@ describe('Writing a Comment in the move list (#97)', () => {
     await waitFor(() => expect(comment('1…e5')).toHaveFocus())
     await user.keyboard('{Enter}')
     await waitFor(() => expect(savedComment('e5')).toBe('Symmetry, as in [[note:5]]'))
+  })
+
+  it('right-clicking the Move being written saves nothing until the editor closes (#101)', async () => {
+    const user = userEvent.setup()
+    renderNote()
+
+    fireEvent.contextMenu(await screen.findByRole('button', { name: 'e5' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Add comment' }))
+    await waitFor(() => expect(comment('1…e5')).toHaveFocus())
+    await user.type(comment('1…e5'), 'Symmetry, as in')
+
+    rightClick(move('e5'))
+    await user.click(await screen.findByRole('menuitem', { name: 'Link a note…' }))
+    const search = await screen.findByRole('combobox', { name: 'Find a note to link' })
+    await waitFor(() => expect(search).toHaveFocus())
+    expect(putWriting).not.toHaveBeenCalled()
+    await user.type(search, 'hang')
+    await user.click(await screen.findByRole('option'))
+
+    await waitFor(() => expect(comment('1…e5')).toHaveValue('Symmetry, as in [[note:5]]'))
+    await waitFor(() => expect(comment('1…e5')).toHaveFocus())
+    expect(putWriting).not.toHaveBeenCalled()
+    await user.keyboard('{Escape}')
+    expect(putWriting).not.toHaveBeenCalled()
+  })
+
+  it('closing the menu of the Move being written goes back to its editor, unsaved', async () => {
+    const user = userEvent.setup()
+    renderNote()
+
+    fireEvent.contextMenu(await screen.findByRole('button', { name: 'e5' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Add comment' }))
+    await waitFor(() => expect(comment('1…e5')).toHaveFocus())
+    await user.type(comment('1…e5'), 'Symmetry')
+
+    rightClick(move('e5'))
+    await screen.findByRole('menuitem', { name: 'Link a note…' })
+    await user.keyboard('{Escape}')
+
+    await waitFor(() => expect(comment('1…e5')).toHaveFocus())
+    expect(comment('1…e5')).toHaveValue('Symmetry')
+    expect(putWriting).not.toHaveBeenCalled()
   })
 
   it('offers no Link a note… on the Position', async () => {

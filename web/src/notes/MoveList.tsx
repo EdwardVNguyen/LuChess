@@ -1,5 +1,5 @@
 import { Menu, UnstyledButton } from '@mantine/core'
-import { useState, type ReactNode } from 'react'
+import { useState, type MouseEvent, type ReactNode } from 'react'
 import type { Writing } from '../chess/pgn'
 import { moveOf, onMainLine, type MoveId, type MoveTree, type TreeMove } from '../chess/tree'
 import { ContextMenu, useContextMenu } from '../overlay'
@@ -31,7 +31,9 @@ export type MoveMenu = {
   onDelete: (move: MoveId) => void
 }
 
-type TriggerProps = ReturnType<ReturnType<typeof useContextMenu<MoveId>>['triggerProps']>
+type TriggerProps = ReturnType<ReturnType<typeof useContextMenu<MoveId>>['triggerProps']> & {
+  onMouseDown?: (event: MouseEvent<HTMLElement>) => void
+}
 
 const noWriting: ReadonlyMap<MoveId, Writing> = new Map()
 
@@ -107,6 +109,15 @@ export function MoveList({ tree, current, onMoveChange, writing = noWriting, men
     )
   }
 
+  // A right-click doesn't take focus from a Comment being written, so its
+  // Move's menu can open over it without saving and closing it (#101).
+  const moveTrigger = (id: MoveId): TriggerProps => ({
+    ...contextMenu.triggerProps(id),
+    onMouseDown(event) {
+      if (editing && event.button === 2) event.preventDefault()
+    },
+  })
+
   // A Move's Comment, or its editor while it is being written.
   function commentOn(m: TreeMove): ReactNode {
     const comment = writing.get(m.id)?.comment
@@ -121,6 +132,7 @@ export function MoveList({ tree, current, onMoveChange, writing = noWriting, men
           onSave={(text) => menu.onComment(m.id, text)}
           onClose={() => setEditing(null)}
           linkRequest={editing.links}
+          held={contextMenu.opened?.value === m.id}
         />
       )
     }
@@ -135,7 +147,7 @@ export function MoveList({ tree, current, onMoveChange, writing = noWriting, men
       current={m.id === current}
       written={writing.get(m.id)}
       onClick={onMoveChange}
-      menuTrigger={menu && contextMenu.triggerProps(m.id)}
+      menuTrigger={menu && moveTrigger(m.id)}
       menuOpen={contextMenu.opened?.value === m.id}
     />
   )
