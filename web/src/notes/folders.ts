@@ -100,3 +100,17 @@ export function folderChoices(folders: Folder[], exclude?: number): FolderChoice
 export function foldersToOpen(folders: Folder[], folderId: number | null): number[] {
   return folderPath(folders, folderId).map((folder) => folder.id)
 }
+
+/** Something filed in the tree, which can be dragged onto a Folder or the root. */
+export type TreeItem = { kind: 'note'; note: NoteSummary } | { kind: 'folder'; folder: Folder }
+
+/**
+ * Whether dropping `item` on `target` (a Folder ID, or null for the root)
+ * moves it: not where it already is, and never a Folder into itself or any
+ * Folder inside it, so the tree never loops.
+ */
+export function canDropInto(folders: Folder[], item: TreeItem, target: number | null): boolean {
+  if (item.kind === 'note') return item.note.folderId !== target
+  if (item.folder.parentId === target) return false
+  return target === null || !folderAndSubfolders(folders, item.folder.id).has(target)
+}

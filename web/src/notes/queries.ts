@@ -3,6 +3,7 @@ import { ApiError, type Folder, type FolderUpdate, type MoveRow, type NewNoteInp
 import { api } from '../apiClient'
 import type { MoveId } from '../chess/tree'
 import { useSession } from '../session'
+import type { TreeItem } from './folders'
 import { searchKeys } from './noteSearch'
 import { mergeWriting, writingOf, type WritingChange } from './writing'
 
@@ -241,11 +242,13 @@ export function useUpdateFolder(id: number) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (update: FolderUpdate) => authorized((token) => api.updateFolder(token, id, update)),
-    onSuccess: (folder) => {
-      queryClient.setQueryData<Folder[]>(keys.folders, (folders) => folders?.map((f) => (f.id === id ? folder : f)))
-      void queryClient.invalidateQueries({ queryKey: searchKeys.all })
-    },
+    onSuccess: (folder) => folderSaved(queryClient, folder),
   })
+}
+
+function folderSaved(queryClient: QueryClient, folder: Folder) {
+  queryClient.setQueryData<Folder[]>(keys.folders, (folders) => folders?.map((f) => (f.id === folder.id ? folder : f)))
+  void queryClient.invalidateQueries({ queryKey: searchKeys.all })
 }
 
 /**
@@ -276,10 +279,30 @@ export function useMoveNote(id: number) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (folderId: number | null) => authorized((token) => api.moveNote(token, id, folderId)),
-    onSuccess: (note) => {
-      queryClient.setQueryData(keys.note(note.id), note)
-      queryClient.setQueryData<NoteSummary[]>(keys.list, (list) => list?.map((n) => (n.id === note.id ? summary(note) : n)))
-      void queryClient.invalidateQueries({ queryKey: searchKeys.all })
-    },
+    onSuccess: (note) => noteMoved(queryClient, note),
+  })
+}
+
+function noteMoved(queryClient: QueryClient, note: Note) {
+  queryClient.setQueryData(keys.note(note.id), note)
+  queryClient.setQueryData<NoteSummary[]>(keys.list, (list) => list?.map((n) => (n.id === note.id ? summary(note) : n)))
+  void queryClient.invalidateQueries({ queryKey: searchKeys.all })
+}
+
+/**
+ * Moves a Note or Folder dragged in the tree into a Folder, or to the root
+ * (null): the same calls as Move to folder and Move, with any item.
+ */
+export function useDropInFolder() {
+  const { authorized } = useSession()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ item, folderId }: { item: TreeItem; folderId: number | null }) =>
+      authorized(async (token) =>
+        item.kind === 'note'
+          ? { kind: 'note' as const, note: await api.moveNote(token, item.note.id, folderId) }
+          : { kind: 'folder' as const, folder: await api.updateFolder(token, item.folder.id, { parentId: folderId }) },
+      ),
+    onSuccess: (moved) => (moved.kind === 'note' ? noteMoved(queryClient, moved.note) : folderSaved(queryClient, moved.folder)),
   })
 }

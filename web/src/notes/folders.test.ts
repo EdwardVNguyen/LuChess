@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Folder, NoteSummary } from '../api'
-import { buildTree, folderChoices, folderContents, folderPath, foldersToOpen, type FolderNode } from './folders'
+import { buildTree, canDropInto, folderChoices, folderContents, folderPath, foldersToOpen, type FolderNode } from './folders'
 
 const folder = (id: number, name: string, parentId: number | null = null): Folder => ({ id, name, parentId })
 const note = (id: number, name: string, folderId: number | null = null): NoteSummary => ({
@@ -91,5 +91,37 @@ describe('foldersToOpen', () => {
   it('opens a Folder and every Folder above it', () => {
     expect(foldersToOpen(folders, 4)).toEqual([1, 2, 4])
     expect(foldersToOpen(folders, null)).toEqual([])
+  })
+})
+
+describe('canDropInto', () => {
+  const openings = { kind: 'folder', folder: folders[0] } as const
+  const qgd = { kind: 'folder', folder: folders[1] } as const
+
+  it('drops a Note into another Folder or the root', () => {
+    const filed = { kind: 'note', note: note(1, 'Game', 2) } as const
+    expect(canDropInto(folders, filed, 3)).toBe(true)
+    expect(canDropInto(folders, filed, null)).toBe(true)
+    expect(canDropInto(folders, { kind: 'note', note: note(2, 'Loose') }, 4)).toBe(true)
+  })
+
+  it('drops a Folder into another Folder or the root', () => {
+    expect(canDropInto(folders, qgd, 3)).toBe(true)
+    expect(canDropInto(folders, qgd, null)).toBe(true)
+    expect(canDropInto(folders, openings, 3)).toBe(true)
+  })
+
+  it('never drops a Folder into itself or any Folder inside it, so the tree never loops', () => {
+    expect(canDropInto(folders, openings, 1)).toBe(false)
+    expect(canDropInto(folders, openings, 2)).toBe(false)
+    expect(canDropInto(folders, openings, 4)).toBe(false)
+    expect(canDropInto(folders, qgd, 4)).toBe(false)
+  })
+
+  it('does nothing where it already is', () => {
+    expect(canDropInto(folders, { kind: 'note', note: note(1, 'Game', 2) }, 2)).toBe(false)
+    expect(canDropInto(folders, { kind: 'note', note: note(2, 'Loose') }, null)).toBe(false)
+    expect(canDropInto(folders, qgd, 1)).toBe(false)
+    expect(canDropInto(folders, openings, null)).toBe(false)
   })
 })

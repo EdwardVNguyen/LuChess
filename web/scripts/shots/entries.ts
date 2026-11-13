@@ -606,6 +606,23 @@ export const entries: ShotEntry[] = [
       await page.getByRole('textbox', { name: `Rename note ${name}` }).waitFor()
     },
   },
+  // Dragging onto a Folder (#107), desktop only: tablet and mobile have no
+  // sidebar and keep Move to folder, so there these shots match `Note`. No
+  // design; the Folder that would take the drop is outlined.
+  {
+    name: 'NoteTreeDragOver',
+    route: '/notes/1',
+    fixtures: 'session',
+    setup: async (page) => {
+      const sidebar = page.getByRole('navigation', { name: 'Notes' })
+      if (!(await sidebar.isVisible())) return
+      const from = (await sidebar.getByRole('link').first().boundingBox())!
+      const to = (await sidebar.getByRole('button', { name: 'Endgames', exact: true }).boundingBox())!
+      await page.mouse.move(from.x + 40, from.y + from.height / 2)
+      await page.mouse.down()
+      await page.mouse.move(to.x + 60, to.y + to.height / 2, { steps: 8 })
+    },
+  },
   {
     name: 'FolderMove',
     route: '/notes/1',
