@@ -1,7 +1,7 @@
 import { MantineProvider } from '@mantine/core'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMemoryHistory, createRootRoute, createRoute, createRouter, RouterProvider } from '@tanstack/react-router'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
@@ -86,6 +86,13 @@ beforeEach(() => {
 })
 
 describe('ImportPage', () => {
+  it('offers PGN and FEN only: a Position is set up with Edit position (#108)', async () => {
+    renderAt('/notes/import')
+    const sources = await screen.findByRole('radiogroup', { name: 'Start from' })
+    expect(within(sources).getAllByRole('radio').map((radio) => radio.getAttribute('value'))).toEqual(['pgn', 'fen'])
+    expect(screen.queryByText('Set up a position')).not.toBeInTheDocument()
+  })
+
   it('files the Note in the Folder it was opened from, by Import here…', async () => {
     renderAt('/notes/import?folder=2')
 

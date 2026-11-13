@@ -929,14 +929,6 @@ export const entries: ShotEntry[] = [
       await page.getByRole('button', { name: 'Create note' }).click()
     },
   },
-  {
-    name: 'ImportPosition',
-    route: '/notes/import',
-    fixtures: 'session',
-    setup: async (page) => {
-      await page.getByText('Set up a position').click()
-    },
-  },
   // The PGN reader loads as its own chunk (#84): a pasted game while it is
   // still loading, and when it failed to load (offline).
   {

@@ -126,7 +126,8 @@ describe('Edit position', { timeout: 15_000 }, () => {
 
     await placeKings(container)
     expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled()
-  })
+    // The first test here also loads the page's lazy route.
+  }, 15_000)
 
   it('confirms before resetting a Note with Moves and writing, then returns to it', async () => {
     const { router, container } = renderAt('/notes/1')

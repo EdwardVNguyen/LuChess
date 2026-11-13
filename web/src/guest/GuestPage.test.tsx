@@ -154,10 +154,11 @@ describe('GuestPage', () => {
     expect(fetchSpy).not.toHaveBeenCalled()
   }, 15_000)
 
-  it('studies a set-up Position with no moves', async () => {
+  it('studies a Position given in FEN with no moves', async () => {
     renderGuestPage()
     await openImport()
-    await userEvent.click(await screen.findByText('Set up a position'))
+    await userEvent.click(within(await screen.findByRole('radiogroup', { name: 'Start from' })).getByText('FEN'))
+    await userEvent.type(screen.getByRole('textbox', { name: 'FEN' }), '4k3/8/8/8/8/8/8/4K3 w - - 0 1')
     await userEvent.type(screen.getByRole('textbox', { name: 'Name' }), 'A position')
     await userEvent.click(screen.getByRole('button', { name: 'Start writing' }))
 
