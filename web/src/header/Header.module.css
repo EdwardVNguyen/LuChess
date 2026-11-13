@@ -19,6 +19,9 @@
 
 .logo {
   flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-family: var(--cn-font);
   font-style: italic;
   font-weight: 500;
@@ -32,6 +35,12 @@
   .logo {
     font-size: 22px;
   }
+}
+
+.logoMark {
+  width: 1.8em;
+  height: 1.8em;
+  flex: none;
 }
 
 .spacer {
@@ -133,12 +142,13 @@
   justify-content: center;
   box-sizing: border-box;
   border-radius: 50%;
-  border: 1px solid var(--cn-edge);
-  background: var(--cn-avatar);
-  color: var(--cn-ink);
-  font-family: var(--cn-font);
-  font-size: 15px;
-  font-weight: 600;
+  overflow: hidden;
+}
+
+.avatarImage {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
 /* The landing page's header (HomeLoggedOut*.dc.html): wider padding, and from

@@ -26,7 +26,8 @@ export function Header({ state, onLogOut, landing = false }: Props) {
   return (
     <div className={landing ? `${styles.header} ${styles.landing}` : styles.header}>
       <Link to="/" className={styles.logo}>
-        Chess Notes
+        <img src="/favicon.svg" alt="" className={styles.logoMark} />
+        LuChess
       </Link>
       {landing && (
         <nav aria-label="Main" className={styles.sections}>
@@ -44,7 +45,7 @@ export function Header({ state, onLogOut, landing = false }: Props) {
           <div className={styles.slots}>
             <QuickFind />
             <NewNoteButton />
-            <UserMenu user={user} onLogOut={onLogOut} />
+            <UserMenu onLogOut={onLogOut} />
           </div>
         </>
       )}

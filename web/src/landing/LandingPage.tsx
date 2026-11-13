@@ -33,7 +33,7 @@ function Hero() {
             Remember chess the way you remember a good story.
           </h1>
           <p className={styles.lede}>
-            Chess Notes links every game you study to the ideas behind it. Write about the moves that mattered, link
+            LuChess links every game you study to the ideas behind it. Write about the moves that mattered, link
             each game to the openings and ideas it reminds you of, and build your own web of notes.
           </p>
           <div className={styles.actions}>
@@ -134,7 +134,7 @@ function Method() {
             Ideas stick when they connect.
           </h2>
           <p className={styles.featureText}>
-            Niklas Luhmann kept thousands of linked notes and said they did his thinking with him. Chess Notes brings
+            Niklas Luhmann kept thousands of linked notes and said they did his thinking with him. LuChess brings
             that habit to your games.
           </p>
           <ul className={styles.points}>
@@ -263,12 +263,12 @@ function Footer() {
     <footer className={styles.footer}>
       <div className={`${styles.container} ${styles.footerInner}`}>
         <div className={styles.footerBrand}>
-          <span className={styles.footerLogo}>Chess Notes</span>
+          <span className={styles.footerLogo}>LuChess</span>
           <span className={styles.footerTagline}>Chess, learned through connections.</span>
         </div>
         <nav className={styles.footerColumns} aria-label="Footer">
           <div className={styles.footerColumn}>
-            <span className={styles.footerHeading}>Chess Notes</span>
+            <span className={styles.footerHeading}>LuChess</span>
             <Link to="/" hash={SECTIONS.howItWorks}>
               How it works
             </Link>

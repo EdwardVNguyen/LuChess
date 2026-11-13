@@ -163,8 +163,8 @@ func (cfg *ApiConfig) sendResetEmail(r *http.Request, to, token string) error {
 	link := fmt.Sprintf("%s/reset-password?token=%s", cfg.FrontendOrigin, token)
 	return cfg.Mailer.Send(r.Context(), mailer.Message{
 		To:      to,
-		Subject: "Reset your ChessNotes password",
-		Text: "Someone asked to reset the password for your ChessNotes account.\n\n" +
+		Subject: "Reset your LuChess password",
+		Text: "Someone asked to reset the password for your LuChess account.\n\n" +
 			"Choose a new password by opening this link within 1 hour:\n\n" + link + "\n\n" +
 			"If you did not ask for this, you can ignore this email; your password has not changed.\n",
 	})
