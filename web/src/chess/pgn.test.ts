@@ -67,6 +67,15 @@ describe('importPgn', () => {
     })
   })
 
+  it('reads every comment before the first move as the Position’s Body, never a Comment (#97)', () => {
+    const note = imported('{The plan.} {[%csl Yd4] Then the details.} 1. e4 *')
+    expect(note.writing.get(note.tree.root)).toMatchObject({
+      comment: null,
+      body: 'The plan.\n\nThen the details.',
+      drawings: [{ from: 'd4', brush: 'yellow' }],
+    })
+  })
+
   it('reads the first comment after a Move as its Comment and later ones as its Body', () => {
     expect(writing.get(at(tree, 'e4').id)).toEqual<Writing>({
       comment: 'Best by test.',
@@ -210,12 +219,12 @@ Body two} 1-0
     expect(pgn).toBe('1. e4 {See the pawns and Hanging pawns (or) a deleted note.} *\n')
   })
 
-  it('writes a Comment on the Position, and a set-up Position’s FEN', () => {
+  it('writes an older Comment on the Position, which reads back into its Body, and a set-up Position’s FEN', () => {
     const fen = '4k3/8/8/8/8/8/8/4K2R b K - 0 30'
     const note = imported(`[FEN "${fen}"]\n\n30... Kd7 *`)
-    note.writing.set(note.tree.root, { comment: 'Black to move.', body: null, moveGlyph: null, positionGlyph: null, drawings: [] })
+    note.writing.set(note.tree.root, { comment: 'Black to move.', body: 'Then the king.', moveGlyph: null, positionGlyph: null, drawings: [] })
     const pgn = exportPgn({ ...note, tags: [], linkName: noLinks })
-    expect(pgn).toBe(`[SetUp "1"]\n[FEN "${fen}"]\n\n{Black to move.} {} 30... Kd7 *\n`)
-    expect(imported(pgn).writing.get(0)).toMatchObject({ comment: 'Black to move.', body: null })
+    expect(pgn).toBe(`[SetUp "1"]\n[FEN "${fen}"]\n\n{Black to move.} {Then the king.} 30... Kd7 *\n`)
+    expect(imported(pgn).writing.get(0)).toMatchObject({ comment: null, body: 'Black to move.\n\nThen the king.' })
   })
 })

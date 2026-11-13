@@ -1,7 +1,7 @@
 import { MantineProvider } from '@mantine/core'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMemoryHistory, createRootRoute, createRoute, createRouter, RouterProvider } from '@tanstack/react-router'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -120,10 +120,10 @@ describe('Inserting a Link', () => {
     searchNotes.mockResolvedValue([club1, club2])
     const user = userEvent.setup()
     const onSave = renderEditor()
-    const comment = await screen.findByRole('textbox', { name: 'Comment on 1.e4' })
+    const body = await screen.findByRole('textbox', { name: 'Body after 1.e4' })
 
     // user-event reads "[[" as one literal "[".
-    await user.type(comment, 'Like [[[[')
+    await user.type(body, 'Like [[[[')
     const search = await screen.findByRole('combobox', { name: 'Find a note to link' })
     await waitFor(() => expect(search).toHaveFocus())
     expect(onSave).not.toHaveBeenCalled()
@@ -136,10 +136,38 @@ describe('Inserting a Link', () => {
     ])
     await user.click(options[1])
 
-    await waitFor(() => expect(comment).toHaveValue('Like [[note:7]]'))
-    await waitFor(() => expect(comment).toHaveFocus())
+    await waitFor(() => expect(body).toHaveValue('Like [[note:7]]'))
+    await waitFor(() => expect(body).toHaveFocus())
     await user.tab()
-    expect(onSave).toHaveBeenCalledWith({ comment: 'Like [[note:7]]' })
+    expect(onSave).toHaveBeenCalledWith({ body: 'Like [[note:7]]' })
+  })
+
+  it('links from a Comment written in the move list too, saving it on Enter (#97)', async () => {
+    searchNotes.mockResolvedValue([hanging])
+    const onComment = vi.fn()
+    const user = userEvent.setup()
+    const menu = { onComment, onPromote: () => {}, onDelete: () => {} }
+    renderInApp(<MoveList tree={tree} current={4} onMoveChange={() => {}} menu={menu} />)
+
+    fireEvent.contextMenu(await screen.findByRole('button', { name: 'e4' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Add comment' }))
+    const comment = screen.getByRole('textbox', { name: 'Comment on 1.e4' })
+    await waitFor(() => expect(comment).toHaveFocus())
+    expect(comment).toHaveAttribute('placeholder', 'Comment on 1.e4. Type [[ to link another note.')
+
+    await user.type(comment, 'See [[[[')
+    const search = await screen.findByRole('combobox', { name: 'Find a note to link' })
+    await waitFor(() => expect(search).toHaveFocus())
+    // The picker taking focus neither saves nor closes the Comment.
+    expect(onComment).not.toHaveBeenCalled()
+    await user.type(search, 'hang')
+    await user.click(await screen.findByRole('option'))
+
+    await waitFor(() => expect(comment).toHaveValue('See [[note:5]]'))
+    await waitFor(() => expect(comment).toHaveFocus())
+    await user.keyboard('{Enter}')
+    expect(onComment).toHaveBeenCalledWith(2, 'See [[note:5]]')
+    expect(screen.queryByRole('textbox', { name: 'Comment on 1.e4' })).not.toBeInTheDocument()
   })
 
   it('inserts a Link with a label from the keyboard', async () => {
@@ -164,7 +192,7 @@ describe('Inserting a Link', () => {
     const user = userEvent.setup()
     renderEditor()
 
-    await user.type(await screen.findByRole('textbox', { name: 'Comment on 1.e4' }), '[[[[')
+    await user.type(await screen.findByRole('textbox', { name: 'Body after 1.e4' }), '[[[[')
     await user.type(await screen.findByRole('combobox', { name: 'Find a note to link' }), 'this')
 
     expect(await screen.findByText('No other notes match “this”.')).toBeInTheDocument()
@@ -176,10 +204,10 @@ describe('Inserting a Link', () => {
       noteId: null,
       resolve: () => ({ status: 'unresolved' }),
     })
-    const comment = await screen.findByRole('textbox', { name: 'Comment on 1.e4' })
-    expect(comment).toHaveAttribute('placeholder', 'Comment on 1.e4.')
+    const body = await screen.findByRole('textbox', { name: 'Body after 1.e4' })
+    expect(body).toHaveAttribute('placeholder', 'Add a thought that leads to the next move.')
 
-    await user.type(comment, '[[[[')
+    await user.type(body, '[[[[')
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
   })
 })

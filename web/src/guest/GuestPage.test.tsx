@@ -79,6 +79,7 @@ async function startFromPgn(pgn: string, name: string) {
 }
 
 describe('GuestPage', () => {
+  // Typed key by key through a menu and two editors: over the default 5 seconds on a busy run.
   it('lets a Guest write Glyphs, Comments and Bodies without calling the API', async () => {
     renderGuestPage()
     expect(await screen.findByText(/You are writing as a guest/)).toBeInTheDocument()
@@ -88,7 +89,10 @@ describe('GuestPage', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'e5' }))
     await userEvent.click(within(screen.getByRole('group', { name: 'Move Glyph' })).getByRole('button', { name: 'Good move' }))
-    await userEvent.type(screen.getByRole('textbox', { name: 'Comment on 1…e5' }), 'The classical reply.')
+    fireEvent.contextMenu(screen.getByRole('button', { name: 'e5!' }))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Add comment' }))
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Comment on 1…e5' })).toHaveFocus())
+    await userEvent.keyboard('The classical reply.{Enter}')
     await userEvent.type(screen.getByRole('textbox', { name: 'Body after 1…e5' }), 'Now the knight comes out.')
     await userEvent.tab()
 
@@ -98,7 +102,7 @@ describe('GuestPage', () => {
 
     expect(apiCalls).toEqual([])
     expect(fetchSpy).not.toHaveBeenCalled()
-  })
+  }, 15_000)
 
   it('studies a set-up Position with no moves', async () => {
     renderGuestPage()
@@ -127,7 +131,7 @@ describe('GuestPage', () => {
   it('confirms before starting over when something is written', async () => {
     renderGuestPage()
     await startFromPgn('1. c4 *', 'English')
-    await userEvent.type(screen.getByRole('textbox', { name: 'Comment on 1.c4' }), 'Flexible.')
+    await userEvent.type(screen.getByRole('textbox', { name: 'Body after 1.c4' }), 'Flexible.')
     await userEvent.tab()
 
     await userEvent.click(screen.getByRole('button', { name: 'Note actions' }))
@@ -196,8 +200,7 @@ describe('GuestPage', () => {
     await user.click(screen.getByRole('menuitem', { name: 'Add comment' }))
     const comment = screen.getByRole('textbox', { name: 'Comment on 2.Nc3' })
     await waitFor(() => expect(comment).toHaveFocus())
-    await user.type(comment, 'Closed.')
-    await user.tab()
+    await user.type(comment, 'Closed.{Enter}')
 
     fireEvent.contextMenu(screen.getByRole('button', { name: 'Nc3' }))
     await user.click(screen.getByRole('menuitem', { name: 'Delete from here' }))

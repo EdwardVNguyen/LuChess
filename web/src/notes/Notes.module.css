@@ -1168,3 +1168,34 @@
   outline: 2px solid var(--cn-ink);
   outline-offset: 1px;
 }
+
+/* A Comment being written, in the move list where it shows (#97). */
+.inlineEditor {
+  display: block;
+  margin: 4px 0 6px;
+}
+
+.inlineEditor .editorTarget {
+  display: block;
+}
+
+.inlineEditorInput {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 48px;
+  padding: 8px 10px;
+  font-size: 15px;
+  outline: none;
+}
+
+/* The Position's Comment opens a menu to delete it. */
+.comment[data-menu-open] {
+  background: var(--cn-highlight);
+  box-shadow: 0 0 0 4px var(--cn-highlight);
+}
+
+.comment[tabindex]:focus-visible {
+  outline: 2px solid var(--cn-ink);
+  outline-offset: 2px;
+}
