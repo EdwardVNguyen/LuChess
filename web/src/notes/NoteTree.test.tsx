@@ -18,6 +18,8 @@ const createFolder = vi.fn<(token: string, input: { name: string; parentId: numb
 const updateFolder = vi.fn<(token: string, id: number, update: FolderUpdate) => Promise<Folder>>()
 const deleteFolder = vi.fn<(token: string, id: number, confirm: boolean) => Promise<FolderDeleteResult>>()
 const moveNote = vi.fn<(token: string, id: number, folderId: number | null) => Promise<Note>>()
+const renameNote = vi.fn<(token: string, id: number, name: string) => Promise<Note>>()
+const deleteNote = vi.fn<(token: string, id: number) => Promise<void>>()
 vi.mock('../apiClient', () => ({
   api: {
     listNotes: () => listNotes(),
@@ -26,6 +28,8 @@ vi.mock('../apiClient', () => ({
     updateFolder: (token: string, id: number, update: FolderUpdate) => updateFolder(token, id, update),
     deleteFolder: (token: string, id: number, confirm: boolean) => deleteFolder(token, id, confirm),
     moveNote: (token: string, id: number, folderId: number | null) => moveNote(token, id, folderId),
+    renameNote: (token: string, id: number, name: string) => renameNote(token, id, name),
+    deleteNote: (token: string, id: number) => deleteNote(token, id),
   },
 }))
 
@@ -236,8 +240,8 @@ describe('NoteTree right-click menu', () => {
       'Delete',
     ])
     await userEvent.click(screen.getByRole('menuitem', { name: 'Rename' }))
-    const dialog = await screen.findByRole('dialog', { name: 'Rename folder' })
-    expect(within(dialog).getByLabelText(/Folder name/)).toHaveValue('Endgames')
+    expect(await screen.findByRole('textbox', { name: 'Rename folder Endgames' })).toHaveValue('Endgames')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     await userEvent.keyboard('{Escape}')
 
     fireEvent.contextMenu(screen.getByRole('button', { name: 'Endgames' }))
@@ -246,11 +250,74 @@ describe('NoteTree right-click menu', () => {
     expect(router.state.location.search).toEqual({ folder: 3 })
   })
 
-  it('leaves a Note the browser’s own menu', async () => {
+  it('offers a Note’s actions on the Note, in place of the browser’s menu', async () => {
+    renderWithRouter(() => <NoteTree />, '/notes')
+    const note = await screen.findByRole('link', { name: 'At the root' })
+
+    expect(fireEvent.contextMenu(note)).toBe(false)
+    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['Rename', 'Move to folder', 'Delete'])
+    expect(note).toHaveAttribute('data-menu-open')
+  })
+
+  it('opens a Note’s menu on a long-press, without opening the Note', async () => {
+    const router = renderWithRouter(() => <NoteTree />, '/notes')
+    const note = await screen.findByRole('link', { name: 'At the root' })
+    vi.useFakeTimers()
+    try {
+      fireEvent.touchStart(note, { touches: [{ clientX: 40, clientY: 40 }] })
+      vi.advanceTimersByTime(LONG_PRESS_MS)
+      expect(fireEvent.touchEnd(note)).toBe(false)
+    } finally {
+      vi.useRealTimers()
+    }
+    expect(await screen.findByRole('menuitem', { name: 'Move to folder' })).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/notes')
+  })
+
+  it('moves a Note to a Folder with the Move note dialog', async () => {
+    moveNote.mockResolvedValue({ ...summary(3, 'At the root', 3), tags: [], startFen: null })
     renderWithRouter(() => <NoteTree />, '/notes')
 
-    expect(fireEvent.contextMenu(await screen.findByRole('link', { name: 'At the root' }))).toBe(true)
-    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    fireEvent.contextMenu(await screen.findByRole('link', { name: 'At the root' }))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Move to folder' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Move note' })
+    expect(within(dialog).getByLabelText('No folder (top of Your notes)')).toBeChecked()
+    await userEvent.click(within(dialog).getByLabelText('Endgames'))
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Move' }))
+
+    expect(moveNote).toHaveBeenCalledWith('token', 3, 3)
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    // It is now filed in Endgames, not at the root
+    expect(screen.queryByRole('link', { name: 'At the root' })).not.toBeInTheDocument()
+  })
+
+  it('deletes another Note after confirming, and stays on the open one', async () => {
+    deleteNote.mockResolvedValue()
+    const router = renderWithRouter(() => <NoteTree />, '/notes/1')
+
+    fireEvent.contextMenu(await screen.findByRole('link', { name: 'At the root' }))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Delete' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Delete note' })
+    expect(deleteNote).not.toHaveBeenCalled()
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Delete note' }))
+
+    expect(deleteNote).toHaveBeenCalledWith('token', 3)
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(screen.queryByRole('link', { name: 'At the root' })).not.toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/notes/1')
+  })
+
+  it('leaves for the list of Notes after deleting the open one', async () => {
+    deleteNote.mockResolvedValue()
+    const router = renderWithRouter(() => <NoteTree />, '/notes/3')
+
+    fireEvent.contextMenu(await screen.findByRole('link', { name: 'At the root' }))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Delete' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Delete note' })
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Delete note' }))
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/notes'))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
   })
 
   it('opens on a long-press, and the lifted finger isn’t a tap', async () => {
@@ -307,5 +374,127 @@ describe('MoveNoteDialog', () => {
 
     expect(moveNote).toHaveBeenCalledWith('token', 2, null)
     await waitFor(() => expect(onClose).toHaveBeenCalled())
+  })
+})
+
+describe('NoteTree inline rename', () => {
+  const renamed = (id: number, name: string, folderId: number | null): Note => ({
+    ...summary(id, name, folderId),
+    tags: [],
+    startFen: null,
+  })
+
+  it('renames a Note from its menu: Enter saves, and focus goes back to the row', async () => {
+    renameNote.mockResolvedValue(renamed(3, 'Opposition', null))
+    renderWithRouter(() => <NoteTree />, '/notes')
+
+    fireEvent.contextMenu(await screen.findByRole('link', { name: 'At the root' }))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Rename' }))
+    const field = await screen.findByRole('textbox', { name: 'Rename note At the root' })
+    expect(field).toHaveFocus()
+    expect(field).toHaveAttribute('maxLength', '200')
+    // The row is the field now, not a link
+    expect(screen.queryByRole('link', { name: 'At the root' })).not.toBeInTheDocument()
+
+    await userEvent.clear(field)
+    await userEvent.type(field, '  Opposition {Enter}')
+
+    expect(renameNote).toHaveBeenCalledWith('token', 3, 'Opposition')
+    const row = await screen.findByRole('link', { name: 'Opposition' })
+    await waitFor(() => expect(row).toHaveFocus())
+  })
+
+  it('renames a Note on a double-click, and saves when the field is left', async () => {
+    renameNote.mockResolvedValue(renamed(3, 'Opposition', null))
+    const router = renderWithRouter(() => <NoteTree />, '/notes')
+
+    await userEvent.dblClick(await screen.findByRole('link', { name: 'At the root' }))
+    // The first click opened the Note, as a single click does
+    expect(router.state.location.pathname).toBe('/notes/3')
+    const field = await screen.findByRole('textbox', { name: 'Rename note At the root' })
+    await userEvent.clear(field)
+    await userEvent.type(field, 'Opposition')
+    await userEvent.click(screen.getByRole('button', { name: 'New folder' }))
+
+    expect(renameNote).toHaveBeenCalledWith('token', 3, 'Opposition')
+    expect(await screen.findByRole('link', { name: 'Opposition' })).toBeInTheDocument()
+  })
+
+  it('renames a Folder on a double-click, leaving it as open as it was', async () => {
+    updateFolder.mockResolvedValue({ id: 3, parentId: null, name: 'Endings' })
+    renderWithRouter(() => <NoteTree />, '/notes')
+
+    await userEvent.dblClick(await screen.findByRole('button', { name: 'Endgames' }))
+    const field = await screen.findByRole('textbox', { name: 'Rename folder Endgames' })
+    expect(screen.queryByRole('link', { name: 'Lucena' })).not.toBeInTheDocument()
+    await userEvent.clear(field)
+    await userEvent.type(field, 'Endings{Enter}')
+
+    expect(updateFolder).toHaveBeenCalledWith('token', 3, { name: 'Endings' })
+    expect(await screen.findByRole('button', { name: 'Endings' })).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it('renames a Folder in place from its “…” menu', async () => {
+    updateFolder.mockResolvedValue({ id: 3, parentId: null, name: 'Endings' })
+    renderWithRouter(() => <NoteTree />, '/notes')
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Folder actions: Endgames' }))
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Rename' }))
+    const field = await screen.findByRole('textbox', { name: 'Rename folder Endgames' })
+    await waitFor(() => expect(field).toHaveFocus())
+    await userEvent.clear(field)
+    await userEvent.type(field, 'Endings{Enter}')
+
+    expect(updateFolder).toHaveBeenCalledWith('token', 3, { name: 'Endings' })
+    expect(await screen.findByRole('button', { name: 'Endings' })).toBeInTheDocument()
+  })
+
+  it('cancels on Escape, and on an empty or unchanged name', async () => {
+    renderWithRouter(() => <NoteTree />, '/notes')
+    const rename = async () => {
+      await userEvent.dblClick(await screen.findByRole('button', { name: 'Endgames' }))
+      return screen.findByRole('textbox', { name: 'Rename folder Endgames' })
+    }
+
+    await userEvent.type(await rename(), ' changed{Escape}')
+    expect(await screen.findByRole('button', { name: 'Endgames' })).toHaveFocus()
+
+    const field = await rename()
+    await userEvent.clear(field)
+    await userEvent.type(field, '   {Enter}')
+    expect(await screen.findByRole('button', { name: 'Endgames' })).toBeInTheDocument()
+
+    await userEvent.type(await rename(), '{Enter}')
+    expect(await screen.findByRole('button', { name: 'Endgames' })).toBeInTheDocument()
+
+    expect(updateFolder).not.toHaveBeenCalled()
+  })
+
+  it('keeps the field open with the error when the save fails', async () => {
+    renameNote.mockRejectedValueOnce(new Error('Could not rename the note'))
+    renameNote.mockResolvedValueOnce(renamed(3, 'Opposition', null))
+    renderWithRouter(() => <NoteTree />, '/notes')
+
+    fireEvent.contextMenu(await screen.findByRole('link', { name: 'At the root' }))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Rename' }))
+    const field = await screen.findByRole('textbox', { name: 'Rename note At the root' })
+    await userEvent.clear(field)
+    await userEvent.type(field, 'Opposition{Enter}')
+
+    expect(await screen.findByText('Could not rename the note')).toBeInTheDocument()
+    expect(field).toHaveValue('Opposition')
+
+    await userEvent.type(field, '{Enter}')
+    expect(await screen.findByRole('link', { name: 'Opposition' })).toBeInTheDocument()
+    expect(renameNote).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps the browser’s own menu in the field', async () => {
+    renderWithRouter(() => <NoteTree />, '/notes')
+
+    await userEvent.dblClick(await screen.findByRole('button', { name: 'Endgames' }))
+    const field = await screen.findByRole('textbox', { name: 'Rename folder Endgames' })
+    expect(fireEvent.contextMenu(field)).toBe(true)
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
   })
 })

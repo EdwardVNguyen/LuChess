@@ -1,7 +1,7 @@
 import { Menu, Text, TextInput, UnstyledButton } from '@mantine/core'
-import { useNavigate } from '@tanstack/react-router'
+import { useNavigate, useParams } from '@tanstack/react-router'
 import { useState } from 'react'
-import type { Note } from '../api'
+import type { Note, NoteSummary } from '../api'
 import { errorMessage } from '../errors'
 import { ConfirmDialog, ResponsiveDialog, useOverlaySize } from '../overlay'
 import { MoreIcon } from './icons'
@@ -34,7 +34,7 @@ export function NoteActions({ note }: { note: Note }) {
       </Menu>
       {dialog === 'rename' && <RenameDialog note={note} size={size} onClose={() => setDialog(null)} />}
       {dialog === 'move' && <MoveNoteDialog note={note} size={size} onClose={() => setDialog(null)} />}
-      {dialog === 'delete' && <DeleteDialog note={note} size={size} onClose={() => setDialog(null)} />}
+      {dialog === 'delete' && <DeleteNoteDialog note={note} size={size} onClose={() => setDialog(null)} />}
     </>
   )
 }
@@ -83,9 +83,13 @@ function RenameDialog({ note, size, onClose }: DialogProps) {
   )
 }
 
-function DeleteDialog({ note, size, onClose }: DialogProps) {
+// Deleting a Note, from the menu beside its title or its row in Your notes.
+// Deleting the open Note leaves it for the list of Notes; deleting another stays put.
+export function DeleteNoteDialog({ note, size, onClose }: Omit<DialogProps, 'note'> & { note: NoteSummary }) {
   const remove = useDeleteNote(note.id)
   const navigate = useNavigate()
+  const { noteId } = useParams({ strict: false })
+  const isOpen = noteId === String(note.id)
 
   return (
     <ConfirmDialog
@@ -107,7 +111,14 @@ function DeleteDialog({ note, size, onClose }: DialogProps) {
         </>
       }
       confirmLabel="Delete note"
-      onConfirm={() => remove.mutate(undefined, { onSuccess: () => void navigate({ to: '/notes' }) })}
+      onConfirm={() =>
+        remove.mutate(undefined, {
+          onSuccess: () => {
+            if (isOpen) void navigate({ to: '/notes' })
+            onClose()
+          },
+        })
+      }
       confirmLoading={remove.isPending}
       destructive
     />

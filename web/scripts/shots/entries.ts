@@ -571,12 +571,39 @@ export const entries: ShotEntry[] = [
       await page.getByRole('menuitem', { name: 'New note', exact: true }).waitFor()
     },
   },
+  // Renaming in place (#99, #100): a Folder from its menu, a Note from its
+  // right-click menu, and the Note's menu itself. No design; the field is the
+  // site's text input, in the row.
   {
     name: 'FolderRename',
     route: '/notes/1',
     fixtures: 'session',
     setup: async (page) => {
-      await openFolderAction(page, 'Openings', 'Rename')
+      await openTree(page)
+      await page.getByRole('button', { name: 'Folder actions: Openings' }).click()
+      await page.getByRole('menuitem', { name: 'Rename' }).click()
+      await page.getByRole('textbox', { name: 'Rename folder Openings' }).fill('Openings to study')
+    },
+  },
+  {
+    name: 'NoteContextMenu',
+    route: '/notes/1',
+    fixtures: 'session',
+    setup: async (page) => {
+      await openTree(page)
+      await openFirstNoteMenu(page)
+      await page.getByRole('menuitem', { name: 'Move to folder' }).waitFor()
+    },
+  },
+  {
+    name: 'NoteTreeRename',
+    route: '/notes/1',
+    fixtures: 'session',
+    setup: async (page) => {
+      await openTree(page)
+      const name = await openFirstNoteMenu(page)
+      await page.getByRole('menuitem', { name: 'Rename' }).click()
+      await page.getByRole('textbox', { name: `Rename note ${name}` }).waitFor()
     },
   },
   {
@@ -1099,6 +1126,14 @@ async function openTree(page: Page) {
   const button = page.getByRole('button', { name: 'All notes' })
   if (await button.isVisible()) await button.click()
   await page.getByRole('button', { name: 'New folder' }).waitFor()
+}
+
+/** Right-clicks the first Note in Your notes, and gives its name. */
+async function openFirstNoteMenu(page: Page) {
+  const note = page.locator('a[data-row^="note-"]:visible').first()
+  const name = (await note.textContent())!.trim()
+  await note.click({ button: 'right' })
+  return name
 }
 
 async function openFolderAction(page: Page, folder: string, action: string, openFirst?: string) {

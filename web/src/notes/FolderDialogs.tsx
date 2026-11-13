@@ -1,6 +1,6 @@
 import { Loader, Radio, Text, TextInput } from '@mantine/core'
 import { useState } from 'react'
-import type { Folder, Note } from '../api'
+import type { Folder, NoteSummary } from '../api'
 import { errorMessage } from '../errors'
 import { ConfirmDialog, ResponsiveDialog, type OverlaySize } from '../overlay'
 import { folderChoices, folderContents } from './folders'
@@ -40,22 +40,6 @@ export function NewFolderDialog({ size, onClose, parent, onCreated }: DialogProp
           },
         )
       }
-    />
-  )
-}
-
-export function RenameFolderDialog({ size, onClose, folder }: DialogProps & { folder: Folder }) {
-  const update = useUpdateFolder(folder.id)
-  return (
-    <FolderNameDialog
-      size={size}
-      onClose={onClose}
-      title="Rename folder"
-      initialName={folder.name}
-      confirmLabel="Rename"
-      pending={update.isPending}
-      error={update.isError ? errorMessage(update.error) : null}
-      onSubmit={(name) => (name === folder.name ? onClose() : update.mutate({ name }, { onSuccess: onClose }))}
     />
   )
 }
@@ -212,7 +196,7 @@ function MoveDialog({
   )
 }
 
-export function MoveNoteDialog({ size, onClose, note }: DialogProps & { note: Note }) {
+export function MoveNoteDialog({ size, onClose, note }: DialogProps & { note: NoteSummary }) {
   const move = useMoveNote(note.id)
   return (
     <MoveDialog
