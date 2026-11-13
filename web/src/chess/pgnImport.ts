@@ -86,8 +86,8 @@ function writingOf(
   atRoot: boolean,
 ): Writing {
   const parts = (after ?? '').split(SEPARATOR).map(cleanComment)
-  // At the root, a single comment opens the Note as its Body.
-  if (atRoot && parts.length === 1) parts.unshift('')
+  // At the root, every comment opens the Note as its Body: Comments are on Moves (#97).
+  if (atRoot) parts.unshift('')
   const [first = '', ...rest] = parts
   const comment = [cleanComment(before ?? ''), first].filter(Boolean).join(' ')
   const body = rest.filter(Boolean).join('\n\n')
