@@ -86,3 +86,13 @@ FOR UPDATE;
 UPDATE notes
 SET updated_at = sqlc.arg(now)
 WHERE id = sqlc.arg(id);
+
+-- name: ResetNotePosition :one
+-- A new Position for the Note (ADR 0010). Its PGN tags described the old
+-- game, so they go; the name and Folder stay.
+UPDATE notes
+SET start_fen = sqlc.narg(start_fen),
+    tags = '[]',
+    updated_at = sqlc.arg(now)
+WHERE id = sqlc.arg(id)
+RETURNING *;

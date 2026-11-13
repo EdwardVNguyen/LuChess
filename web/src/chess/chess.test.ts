@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   checkedKing,
   fenAt,
+  castlingAllowed,
   fenFromPlacement,
   gameFromMoves,
   gameResult,
@@ -14,6 +15,7 @@ import {
   START_FEN,
   tryMove,
   validateFen,
+  withCastling,
   type Game,
 } from './chess'
 import { fischerSpassky1972Game6 } from './fixtures'
@@ -125,6 +127,18 @@ describe('set-up FEN', () => {
     const fen = fenFromPlacement(placement, 'b')
     expect(fen).toBe('1nbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBN1 b Qk - 0 1')
     expect(validateFen(fen).ok).toBe(true)
+  })
+
+  it('lists the castling rights a placement allows, in FEN order', () => {
+    expect(castlingAllowed(placementFromFen(START_FEN))).toEqual(['K', 'Q', 'k', 'q'])
+    expect(castlingAllowed({ e1: 'wK', a1: 'wR', e8: 'bK', h8: 'bR', a8: 'bN' })).toEqual(['Q', 'k'])
+    expect(castlingAllowed({ e1: 'wK', e8: 'bK' })).toEqual([])
+  })
+
+  it('replaces the castling rights of a FEN, keeping only those the placement allows', () => {
+    expect(withCastling(START_FEN, ['K', 'q'])).toBe('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w Kq - 0 1')
+    expect(withCastling(START_FEN, [])).toBe('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w - - 0 1')
+    expect(withCastling('4k3/8/8/8/8/8/8/R3K3 b - - 0 1', ['K', 'Q', 'k'])).toBe('4k3/8/8/8/8/8/8/R3K3 b Q - 0 1')
   })
 
   it('reports why a set-up position is not valid', () => {

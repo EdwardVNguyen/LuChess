@@ -8,15 +8,18 @@ import { MoreIcon } from './icons'
 import styles from './Notes.module.css'
 import { MoveNoteDialog } from './FolderDialogs'
 import { useDeleteNote } from './queries'
+import { useOpenEditPosition } from './useEditPosition'
 
 // The menu beside a Note's title: Rename, which renames the title in place,
-// and Move to folder and Delete, each in a dialog.
+// Move to folder and Delete, each in a dialog, and Edit position, a page of
+// its own.
 export function NoteActions({ note, onRename }: { note: Note; onRename: () => void }) {
   const [dialog, setDialog] = useState<'move' | 'delete' | null>(null)
   // Closing, the menu puts focus back on its button, which would take it from
   // the title's field and end the rename at once: not when Rename was chosen.
   const [renaming, setRenaming] = useState(false)
   const size = useOverlaySize()
+  const editPosition = useOpenEditPosition()
 
   return (
     <>
@@ -36,6 +39,7 @@ export function NoteActions({ note, onRename }: { note: Note; onRename: () => vo
             Rename
           </Menu.Item>
           <Menu.Item onClick={() => setDialog('move')}>Move to folder</Menu.Item>
+          <Menu.Item onClick={() => editPosition(note.id)}>Edit position</Menu.Item>
           <Menu.Item color="accent.6" onClick={() => setDialog('delete')}>
             Delete
           </Menu.Item>

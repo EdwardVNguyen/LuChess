@@ -62,7 +62,7 @@ const notes = [summary(1, 'Tartakower', 2), summary(2, 'Lucena', 3), summary(3, 
 
 function renderWithRouter(component: () => React.ReactNode, path = '/notes/1') {
   const root = createRootRoute()
-  const routes = ['/notes', '/notes/import', '/notes/$noteId'].map((p) =>
+  const routes = ['/notes', '/notes/import', '/notes/$noteId', '/notes/$noteId/position'].map((p) =>
     createRoute({ getParentRoute: () => root, path: p, component }),
   )
   const router = createRouter({
@@ -279,8 +279,22 @@ describe('NoteTree right-click menu', () => {
     const note = await screen.findByRole('link', { name: 'At the root' })
 
     expect(fireEvent.contextMenu(note)).toBe(false)
-    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['Rename', 'Move to folder', 'Delete'])
+    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
+      'Rename',
+      'Move to folder',
+      'Edit position',
+      'Delete',
+    ])
     expect(note).toHaveAttribute('data-menu-open')
+  })
+
+  it('opens Edit position for a Note from its menu', async () => {
+    const router = renderWithRouter(() => <NoteTree />, '/notes')
+
+    fireEvent.contextMenu(await screen.findByRole('link', { name: 'At the root' }))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Edit position' }))
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/notes/3/position'))
   })
 
   it('opens a Note’s menu on a long-press, without opening the Note', async () => {
@@ -520,5 +534,97 @@ describe('NoteTree inline rename', () => {
     const field = await screen.findByRole('textbox', { name: 'Rename folder Endgames' })
     expect(fireEvent.contextMenu(field)).toBe(true)
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  })
+})
+
+describe('NoteTree drag and drop', () => {
+  // jsdom has no DataTransfer; the tree only sets what is dragged on it.
+  const dataTransfer = () => ({ setData: vi.fn(), dropEffect: 'none', effectAllowed: 'all' })
+
+  /** Drags `from` onto `to`, and says whether `to` took the drop. */
+  function drag(from: HTMLElement, to: HTMLElement) {
+    const transfer = dataTransfer()
+    fireEvent.dragStart(from, { dataTransfer: transfer })
+    const accepted = !fireEvent.dragOver(to, { dataTransfer: transfer })
+    fireEvent.drop(to, { dataTransfer: transfer })
+    fireEvent.dragEnd(from, { dataTransfer: transfer })
+    return accepted
+  }
+
+  it('moves a Note onto a Folder, and opens it to show the Note there', async () => {
+    moveNote.mockResolvedValue({ ...summary(3, 'At the root', 3), tags: [], startFen: null })
+    renderWithRouter(() => <NoteTree dragToMove />, '/notes')
+
+    const note = await screen.findByRole('link', { name: 'At the root' })
+    expect(drag(note, screen.getByRole('button', { name: 'Endgames' }))).toBe(true)
+
+    await waitFor(() => expect(moveNote).toHaveBeenCalledWith('token', 3, 3))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Endgames' })).toHaveAttribute('aria-expanded', 'true'))
+    expect(within(screen.getByRole('list', { name: 'Endgames' })).getByRole('link', { name: 'At the root' })).toBeInTheDocument()
+  })
+
+  it('moves a Note out of every Folder when dropped on the root', async () => {
+    moveNote.mockResolvedValue({ ...summary(1, 'Tartakower', null), tags: [], startFen: null })
+    renderWithRouter(() => <NoteTree dragToMove />, '/notes/1')
+
+    const note = await screen.findByRole('link', { name: 'Tartakower' })
+    expect(drag(note, screen.getByRole('button', { name: 'New folder' }))).toBe(true)
+
+    await waitFor(() => expect(moveNote).toHaveBeenCalledWith('token', 1, null))
+  })
+
+  it('moves a Folder onto another Folder', async () => {
+    updateFolder.mockResolvedValue({ id: 2, parentId: 3, name: 'Queen’s Gambit Declined' })
+    renderWithRouter(() => <NoteTree dragToMove />, '/notes/1')
+
+    const qgd = await screen.findByRole('button', { name: 'Queen’s Gambit Declined' })
+    expect(drag(qgd, screen.getByRole('button', { name: 'Endgames' }))).toBe(true)
+    await waitFor(() => expect(updateFolder).toHaveBeenCalledWith('token', 2, { parentId: 3 }))
+  })
+
+  it('moves a Folder to the root, and does nothing where it already is', async () => {
+    updateFolder.mockResolvedValue({ id: 2, parentId: null, name: 'Queen’s Gambit Declined' })
+    renderWithRouter(() => <NoteTree dragToMove />, '/notes/1')
+
+    const openings = await screen.findByRole('button', { name: 'Openings' })
+    expect(drag(openings, screen.getByRole('button', { name: 'New folder' }))).toBe(false)
+    expect(drag(screen.getByRole('button', { name: 'Queen’s Gambit Declined' }), openings)).toBe(false)
+    expect(updateFolder).not.toHaveBeenCalled()
+
+    expect(drag(screen.getByRole('button', { name: 'Queen’s Gambit Declined' }), screen.getByRole('button', { name: 'New folder' }))).toBe(true)
+    await waitFor(() => expect(updateFolder).toHaveBeenCalledWith('token', 2, { parentId: null }))
+    expect(updateFolder).toHaveBeenCalledTimes(1)
+  })
+
+  it('never drops a Folder into itself or a Folder inside it', async () => {
+    renderWithRouter(() => <NoteTree dragToMove />, '/notes/1')
+
+    const openings = await screen.findByRole('button', { name: 'Openings' })
+    expect(drag(openings, openings)).toBe(false)
+    expect(drag(openings, screen.getByRole('button', { name: 'Queen’s Gambit Declined' }))).toBe(false)
+    // Nor through what those Folders hold
+    expect(drag(openings, screen.getByRole('link', { name: 'Tartakower' }))).toBe(false)
+
+    // Only a drop it allows reaches the API
+    updateFolder.mockResolvedValue({ id: 1, parentId: 3, name: 'Openings' })
+    expect(drag(openings, screen.getByRole('button', { name: 'Endgames' }))).toBe(true)
+    await waitFor(() => expect(updateFolder).toHaveBeenCalledWith('token', 1, { parentId: 3 }))
+    expect(updateFolder).toHaveBeenCalledTimes(1)
+  })
+
+  it('says when a move fails', async () => {
+    moveNote.mockRejectedValue(new Error('Could not move the note'))
+    renderWithRouter(() => <NoteTree dragToMove />, '/notes')
+
+    const note = await screen.findByRole('link', { name: 'At the root' })
+    expect(drag(note, screen.getByRole('button', { name: 'Endgames' }))).toBe(true)
+    expect(await screen.findByRole('alert')).toBeInTheDocument()
+  })
+
+  it('leaves only Move to folder where there is no sidebar', async () => {
+    renderWithRouter(() => <NoteTree />, '/notes')
+
+    expect(await screen.findByRole('link', { name: 'At the root' })).not.toHaveAttribute('draggable', 'true')
+    expect(screen.getByRole('button', { name: 'Endgames' }).closest('[draggable="true"]')).toBeNull()
   })
 })

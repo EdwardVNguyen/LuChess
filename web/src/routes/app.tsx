@@ -1,4 +1,5 @@
 import { createLazyRoute } from '@tanstack/react-router'
+import { EditPositionPage } from '../notes/EditPositionPage'
 import { ImportPage } from '../notes/ImportPage'
 import { NoteScreen } from '../notes/NoteScreen'
 import { NotesIndex } from '../notes/NotesIndex'
@@ -11,4 +12,5 @@ export const notesRoute = createLazyRoute('/notes')({ component: NotesLayout })
 export const notesIndexRoute = createLazyRoute('/notes/')({ component: NotesIndex })
 export const importRoute = createLazyRoute('/notes/import')({ component: ImportPage })
 export const noteRoute = createLazyRoute('/notes/$noteId')({ component: NoteScreen })
+export const notePositionRoute = createLazyRoute('/notes/$noteId/position')({ component: EditPositionPage })
 export const settingsRoute = createLazyRoute('/settings')({ component: SettingsPage })

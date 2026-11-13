@@ -154,10 +154,11 @@ describe('GuestPage', () => {
     expect(fetchSpy).not.toHaveBeenCalled()
   }, 15_000)
 
-  it('studies a set-up Position with no moves', async () => {
+  it('studies a Position given in FEN with no moves', async () => {
     renderGuestPage()
     await openImport()
-    await userEvent.click(await screen.findByText('Set up a position'))
+    await userEvent.click(within(await screen.findByRole('radiogroup', { name: 'Start from' })).getByText('FEN'))
+    await userEvent.type(screen.getByRole('textbox', { name: 'FEN' }), '4k3/8/8/8/8/8/8/4K3 w - - 0 1')
     await userEvent.type(screen.getByRole('textbox', { name: 'Name' }), 'A position')
     await userEvent.click(screen.getByRole('button', { name: 'Start writing' }))
 
@@ -300,4 +301,55 @@ describe('GuestPage', () => {
     await user.click(within(tools).getByRole('button', { name: 'Copy PGN' }))
     expect(await navigator.clipboard.readText()).toBe('1. e4 e5 *')
   })
+
+  it('gives the Guest’s Note a new Position, asking first, with no API call', async () => {
+    const router = renderGuestPage()
+    await startFromPgn('1. e4 e5 *', 'Open games')
+    await userEvent.type(screen.getByRole('textbox', { name: 'Body after 1…e5' }), 'Symmetry.')
+    await userEvent.tab()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Note actions' }))
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Edit position' }))
+    expect(await screen.findByRole('heading', { name: 'Edit position' })).toBeInTheDocument()
+    expect(router.state.location.search).toEqual({ edit: 'position' })
+    expect(screen.getByTestId('setup-fen')).toHaveTextContent('8/8/8/8/8/8/8/8 w - - 0 1')
+
+    await userEvent.click(screen.getByRole('radio', { name: 'White king' }))
+    await userEvent.click(square('e1'))
+    await userEvent.click(screen.getByRole('radio', { name: 'Black king' }))
+    await userEvent.click(square('e8'))
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    const dialog = await screen.findByRole('dialog', { name: "Replace this note's position?" })
+    expect(dialog).toHaveTextContent('This deletes its 2 Moves and all its writing. The name stays.')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Replace position' }))
+
+    expect(await screen.findByText('No moves yet. This note studies the position alone.')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Open games' })).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'FEN' })).toHaveValue('4k3/8/8/8/8/8/8/4K3 w - - 0 1')
+    expect(router.state.location.search).toEqual({})
+    expect(apiCalls).toEqual([])
+    expect(fetchSpy).not.toHaveBeenCalled()
+  }, 15_000)
+
+  it('keeps the Guest’s Note as it was on Cancel, and saves at once when there is nothing to lose', async () => {
+    renderGuestPage()
+    await userEvent.click(await screen.findByRole('button', { name: 'Note actions' }))
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Edit position' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Cancel' }))
+    expect(await screen.findByRole('heading', { name: 'Untitled' })).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'FEN' })).toHaveValue('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Note actions' }))
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Edit position' }))
+    await userEvent.click(await screen.findByRole('radio', { name: 'White king' }))
+    await userEvent.click(square('a1'))
+    await userEvent.click(screen.getByRole('radio', { name: 'Black king' }))
+    await userEvent.click(square('h8'))
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(await screen.findByRole('heading', { name: 'Untitled' })).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'FEN' })).toHaveValue('7k/8/8/8/8/8/8/K7 w - - 0 1')
+  }, 15_000)
 })

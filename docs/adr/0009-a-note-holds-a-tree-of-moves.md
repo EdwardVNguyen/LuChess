@@ -1,5 +1,7 @@
 # A Note holds a tree of Moves, stored as rows, with writing on any Move
 
+_Amended by ADR 0010: a Note's Position can change after creation, as a reset that keeps its name, Folder and id, and a PGN or FEN can be applied to an existing Note._
+
 Playing a different move partway through a Note adds a Variation, Variations nest to any depth, and every Move takes the same writing as the Main line (#69, #70). This supersedes ADR 0003's rule that writing lives only on the main line and that side-lines are written as text, and its rule that the client reports the first changed Ply. It keeps ADR 0003's server-enforced confirmation before writing is deleted.
 
 The tree lives in the database as one row per Move (its parent, its place among its siblings, and its SAN), plus a root row per Note for the Position. Comments, Bodies, Glyphs and Drawings are columns on the row they belong to, and Links are keyed by that row's id and part. The first child continues a line: the Main line follows first children from the Position, and a Variation is any later child with its own continuation. Because writing is keyed by id, Promote to main line only reorders siblings (every ancestor of the Move becomes its parent's first child), and writing stays on its Moves. Delete from here removes the Move and its whole subtree. If anything would go, meaning Comments, Bodies, Glyphs, Drawings and the Links inside them, the API answers 409 with the count until the request is confirmed.

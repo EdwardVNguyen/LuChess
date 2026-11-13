@@ -356,6 +356,32 @@ describe('api client moves', () => {
     expect(fetchFn.mock.calls[1][1].method).toBe('DELETE')
   })
 
+  it('resets a Note to a Position, turning a 409 into a request for confirmation with the counts', async () => {
+    const counts = { moves: 14, comments: 2, bodies: 1, glyphs: 0, drawings: 0 }
+    const fen = '4k3/8/8/8/8/8/4P3/4K3 w - - 0 1'
+    const note = {
+      id: 3,
+      name: 'Italian',
+      folderId: 7,
+      createdAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-01-02T00:00:00Z',
+      tags: [],
+      startFen: fen,
+    }
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ error: 'This will delete 14 Moves, 2 Comments and 1 Body', ...counts }, 409))
+      .mockResolvedValueOnce(jsonResponse(note))
+    const api = createApiClient(baseUrl, fetchFn)
+
+    await expect(api.resetPosition('t', 3, fen, false)).resolves.toEqual({ status: 'needsConfirmation', ...counts })
+    await expect(api.resetPosition('t', 3, fen, true)).resolves.toEqual({ status: 'reset', note })
+    expect(fetchFn.mock.calls[0][0]).toBe('http://localhost:8080/api/notes/3/position')
+    expect(fetchFn.mock.calls[1][0]).toBe('http://localhost:8080/api/notes/3/position?confirm=true')
+    expect(fetchFn.mock.calls[1][1].method).toBe('PUT')
+    expect(JSON.parse(fetchFn.mock.calls[1][1].body)).toEqual({ startFen: fen })
+  })
+
   it('still throws other errors', async () => {
     const fetchFn = vi.fn().mockResolvedValue(jsonResponse({ error: 'Move not found' }, 404))
     const api = createApiClient(baseUrl, fetchFn)

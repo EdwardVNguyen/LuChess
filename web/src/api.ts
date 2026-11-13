@@ -119,6 +119,13 @@ const deleteConflictSchema = z.object({
   drawings: z.number().int().nonnegative(),
 })
 
+/** What resetting a Note to a Position would delete: its Moves, and its writing by kind. */
+export type ResetCounts = { moves: number } & WritingCounts
+/** A reset either happened, or was refused until confirmed because it would delete Moves or writing. */
+export type PositionResetResult = { status: 'reset'; note: Note } | ({ status: 'needsConfirmation' } & ResetCounts)
+
+const resetConflictSchema = deleteConflictSchema.extend({ moves: z.number().int().nonnegative() })
+
 /** A Folder's new name, parent (null for the root), or both. */
 export type FolderUpdate = { name?: string; parentId?: number | null }
 /**
@@ -304,6 +311,35 @@ export function createApiClient(baseUrl: string, fetchFn: typeof fetch = fetch) 
         if (conflict && conflict.success) {
           const { error: message, ...counts } = conflict.data
           return { status: 'needsConfirmation', message, ...counts }
+        }
+        throw error
+      }
+    },
+
+    /**
+     * Gives a Note a new Position (null for the standard start), which resets
+     * it: every Move, all its writing and its PGN tags go; the name, Folder
+     * and id stay (docs/adr/0010). Without `confirm`, a reset that would
+     * delete any Moves or writing is refused with how many.
+     */
+    async resetPosition(
+      accessToken: string,
+      noteId: number,
+      startFen: string | null,
+      confirm: boolean,
+    ): Promise<PositionResetResult> {
+      try {
+        const res = await request(`/api/notes/${noteId}/position${confirm ? '?confirm=true' : ''}`, {
+          method: 'PUT',
+          body: { startFen },
+          accessToken,
+        })
+        return { status: 'reset', note: noteSchema.parse(await res.json()) }
+      } catch (error) {
+        const conflict = error instanceof ApiError && error.status === 409 && resetConflictSchema.safeParse(error.body)
+        if (conflict && conflict.success) {
+          const { moves, comments, bodies, glyphs, drawings } = conflict.data
+          return { status: 'needsConfirmation', moves, comments, bodies, glyphs, drawings }
         }
         throw error
       }

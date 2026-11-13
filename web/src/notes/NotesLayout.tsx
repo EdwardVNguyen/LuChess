@@ -46,7 +46,7 @@ export function NotesLayout() {
           focusRequests={sidebar.focusRequests}
           controls={sidebarId}
         />
-        {!sidebar.collapsed && <NoteTree />}
+        {!sidebar.collapsed && <NoteTree dragToMove />}
       </nav>
       <PaneEdge pane="sidebar" onCollapsed={sidebar.focusToggle} />
       <div className={styles.main}>

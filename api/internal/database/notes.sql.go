@@ -209,6 +209,42 @@ func (q *Queries) RenameNote(ctx context.Context, arg RenameNoteParams) (Note, e
 	return i, err
 }
 
+const resetNotePosition = `-- name: ResetNotePosition :one
+UPDATE notes
+SET start_fen = $1,
+    tags = '[]',
+    updated_at = $2
+WHERE id = $3
+RETURNING id, user_id, name, start_fen, created_at, updated_at, folder_id, tags, white, black, game_date
+`
+
+type ResetNotePositionParams struct {
+	StartFen sql.NullString
+	Now      time.Time
+	ID       int64
+}
+
+// A new Position for the Note (ADR 0010). Its PGN tags described the old
+// game, so they go; the name and Folder stay.
+func (q *Queries) ResetNotePosition(ctx context.Context, arg ResetNotePositionParams) (Note, error) {
+	row := q.db.QueryRowContext(ctx, resetNotePosition, arg.StartFen, arg.Now, arg.ID)
+	var i Note
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Name,
+		&i.StartFen,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.FolderID,
+		&i.Tags,
+		&i.White,
+		&i.Black,
+		&i.GameDate,
+	)
+	return i, err
+}
+
 const searchNotes = `-- name: SearchNotes :many
 WITH RECURSIVE paths AS (
   SELECT f.id, ARRAY[f.name::text] AS names

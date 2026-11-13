@@ -53,6 +53,38 @@ func (q *Queries) AddMove(ctx context.Context, arg AddMoveParams) (Move, error) 
 	return i, err
 }
 
+const addRoot = `-- name: AddRoot :one
+INSERT INTO moves(note_id, created_at, updated_at)
+VALUES ($1, $2, $2)
+RETURNING id, note_id, parent_id, ord, san, comment, body, move_glyph, position_glyph, drawings, created_at, updated_at
+`
+
+type AddRootParams struct {
+	NoteID int64
+	Now    time.Time
+}
+
+// A Note's root, the Position, with no writing.
+func (q *Queries) AddRoot(ctx context.Context, arg AddRootParams) (Move, error) {
+	row := q.db.QueryRowContext(ctx, addRoot, arg.NoteID, arg.Now)
+	var i Move
+	err := row.Scan(
+		&i.ID,
+		&i.NoteID,
+		&i.ParentID,
+		&i.Ord,
+		&i.San,
+		&i.Comment,
+		&i.Body,
+		&i.MoveGlyph,
+		&i.PositionGlyph,
+		&i.Drawings,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const countMoves = `-- name: CountMoves :one
 SELECT count(*)
 FROM moves
@@ -121,6 +153,18 @@ func (q *Queries) DeleteMove(ctx context.Context, arg DeleteMoveParams) (int64, 
 	return result.RowsAffected()
 }
 
+const deleteTree = `-- name: DeleteTree :exec
+DELETE FROM moves
+WHERE note_id = $1 AND parent_id IS NULL
+`
+
+// Deletes a Note's whole tree: its root and, by cascade, every Move and the
+// Links in their writing. Only to replace it with a new root, on a reset.
+func (q *Queries) DeleteTree(ctx context.Context, noteID int64) error {
+	_, err := q.db.ExecContext(ctx, deleteTree, noteID)
+	return err
+}
+
 const getChildBySAN = `-- name: GetChildBySAN :one
 SELECT id, note_id, parent_id, ord, san, comment, body, move_glyph, position_glyph, drawings, created_at, updated_at
 FROM moves
@@ -165,6 +209,33 @@ type GetMoveParams struct {
 
 func (q *Queries) GetMove(ctx context.Context, arg GetMoveParams) (Move, error) {
 	row := q.db.QueryRowContext(ctx, getMove, arg.ID, arg.NoteID)
+	var i Move
+	err := row.Scan(
+		&i.ID,
+		&i.NoteID,
+		&i.ParentID,
+		&i.Ord,
+		&i.San,
+		&i.Comment,
+		&i.Body,
+		&i.MoveGlyph,
+		&i.PositionGlyph,
+		&i.Drawings,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getRoot = `-- name: GetRoot :one
+SELECT id, note_id, parent_id, ord, san, comment, body, move_glyph, position_glyph, drawings, created_at, updated_at
+FROM moves
+WHERE note_id = $1 AND parent_id IS NULL
+`
+
+// A Note's root, the Position.
+func (q *Queries) GetRoot(ctx context.Context, noteID int64) (Move, error) {
+	row := q.db.QueryRowContext(ctx, getRoot, noteID)
 	var i Move
 	err := row.Scan(
 		&i.ID,

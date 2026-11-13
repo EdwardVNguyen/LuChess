@@ -1,6 +1,5 @@
-import { Box, Button, Group, Loader, SegmentedControl, Stack, Text, Textarea, TextInput, Title } from '@mantine/core'
+import { Button, Group, Loader, SegmentedControl, Stack, Text, Textarea, TextInput, Title } from '@mantine/core'
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
-import { Board } from '../board'
 import { START_FEN, validateFen, type Result } from '../chess/chess'
 import { loadPgnImport, tagRecord, type ImportedNote, type PgnImport, type TagPair } from '../chess/pgn'
 import { newTree } from '../chess/tree'
@@ -8,7 +7,7 @@ import { suggestedName } from './details'
 import type { NoteStart } from './newNote'
 import styles from './Notes.module.css'
 
-type Source = 'pgn' | 'fen' | 'position'
+type Source = 'pgn' | 'fen'
 
 const MAX_NAME_LENGTH = 200
 
@@ -28,8 +27,8 @@ type Props = {
 }
 
 // Import… (#106), which has no design (#6): a page in the house style with
-// three ways to bring in a Note: a game in PGN, a position in FEN, or one set
-// up on the board. (New note itself starts on a blank board.) The client
+// two ways to bring in a Note: a game in PGN or a position in FEN. (New note
+// itself starts on a blank board, and Edit position sets one up, #108.) The client
 // reads the PGN, with its Variations and writing, into a tree of Moves; the
 // API trusts it (ADR 0009).
 // Shared by the Import page and a Guest's Import… (#13), so both import alike.
@@ -38,7 +37,6 @@ export function NoteStartForm({ title, submitLabel, onSubmit, pending = false, e
   const [name, setName] = useState('')
   const [pgn, setPgn] = useState('')
   const [fenText, setFenText] = useState('')
-  const [fen, setFen] = useState(START_FEN)
   const [submitted, setSubmitted] = useState(false)
   const [reader, loadReader] = usePgnReader()
   // Create was pressed while the PGN reader was still loading.
@@ -75,11 +73,6 @@ export function NoteStartForm({ title, submitLabel, onSubmit, pending = false, e
         if (typed === '') return { ok: false, error: 'Paste a position in FEN.' }
         const valid = validateFen(typed)
         return valid.ok ? atPosition(typed) : { ok: false, error: valid.error }
-      }
-      case 'position': {
-        const valid = validateFen(fen)
-        if (!valid.ok) return { ok: false, error: 'Set up a legal position first.' }
-        return atPosition(fen)
       }
     }
   }
@@ -128,7 +121,6 @@ export function NoteStartForm({ title, submitLabel, onSubmit, pending = false, e
             data={[
               { value: 'pgn', label: 'PGN' },
               { value: 'fen', label: 'FEN' },
-              { value: 'position', label: 'Set up a position' },
             ]}
           />
 
@@ -170,12 +162,6 @@ export function NoteStartForm({ title, submitLabel, onSubmit, pending = false, e
               autoComplete="off"
               styles={{ input: { fontFamily: 'var(--mantine-font-family-monospace)', fontSize: '14px' } }}
             />
-          )}
-
-          {source === 'position' && (
-            <Box className={styles.newBoard}>
-              <Board mode="setup" fen={fen} onFenChange={(next) => setFen(next)} />
-            </Box>
           )}
 
           <TextInput

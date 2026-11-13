@@ -274,13 +274,34 @@ export function fenFromPlacement(placement: Placement, turn: Color): string {
     rows.push(row)
   }
 
-  const castling =
-    [
-      placement.e1 === 'wK' && placement.h1 === 'wR' ? 'K' : '',
-      placement.e1 === 'wK' && placement.a1 === 'wR' ? 'Q' : '',
-      placement.e8 === 'bK' && placement.h8 === 'bR' ? 'k' : '',
-      placement.e8 === 'bK' && placement.a8 === 'bR' ? 'q' : '',
-    ].join('') || '-'
-
+  const castling = castlingAllowed(placement).join('') || '-'
   return `${rows.join('/')} ${turn} ${castling} - 0 1`
+}
+
+/** A castling right, as FEN writes it: K and Q for White's O-O and O-O-O, k and q for Black's. */
+export type CastlingRight = 'K' | 'Q' | 'k' | 'q'
+
+export const CASTLING_RIGHTS: readonly CastlingRight[] = ['K', 'Q', 'k', 'q']
+
+const CASTLING_SQUARES: Record<CastlingRight, [king: string, rook: string, color: Color]> = {
+  K: ['e1', 'h1', 'w'],
+  Q: ['e1', 'a1', 'w'],
+  k: ['e8', 'h8', 'b'],
+  q: ['e8', 'a8', 'b'],
+}
+
+/** The castling rights a placement allows: those whose king and rook stand on their home squares, in FEN order. */
+export function castlingAllowed(placement: Placement): CastlingRight[] {
+  return CASTLING_RIGHTS.filter((right) => {
+    const [king, rook, color] = CASTLING_SQUARES[right]
+    return placement[king] === `${color}K` && placement[rook] === `${color}R`
+  })
+}
+
+/** The FEN with its castling rights replaced by `rights`, leaving out any its placement doesn't allow. */
+export function withCastling(fen: string, rights: readonly CastlingRight[]): string {
+  const fields = fen.split(' ')
+  const allowed = castlingAllowed(placementFromFen(fen))
+  fields[2] = allowed.filter((right) => rights.includes(right)).join('') || '-'
+  return fields.join(' ')
 }

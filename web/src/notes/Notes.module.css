@@ -204,6 +204,17 @@
   outline-offset: -2px;
 }
 
+/* Where a dragged Note or Folder would land: a Folder's row, or the whole tree for the root. */
+.folderRow[data-drop-target] > .item,
+.list[data-drop-target] {
+  background: var(--cn-highlight);
+  box-shadow: inset 0 0 0 2px var(--cn-accent);
+}
+
+.list[data-drop-target] {
+  border-radius: var(--cn-radius-button);
+}
+
 .item[aria-current='page'] {
   background: var(--cn-avatar);
   font-weight: 600;

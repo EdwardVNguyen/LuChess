@@ -512,6 +512,54 @@ export const entries: ShotEntry[] = [
       await page.getByRole('menuitem', { name: 'Delete' }).click()
     },
   },
+  // Edit position (#108): no design; a page in the house style, like starting
+  // a Note. The title menu offering it, the page on its empty board, a
+  // position set up with a castling right taken away, the confirmation on
+  // Save, and the Guest's.
+  {
+    name: 'NoteActionsMenu',
+    route: '/notes/1',
+    fixtures: 'session',
+    setup: async (page) => {
+      await page.getByRole('button', { name: 'Note actions' }).click()
+      await page.getByRole('menuitem', { name: 'Edit position' }).waitFor()
+    },
+  },
+  { name: 'EditPosition', route: '/notes/1/position', fixtures: 'session' },
+  {
+    name: 'EditPositionSetUp',
+    route: '/notes/1/position',
+    fixtures: 'session',
+    setup: async (page) => {
+      await page.getByRole('button', { name: 'Start position' }).click()
+      await page.getByRole('checkbox', { name: 'White O-O-O' }).click()
+      // Clicking scrolled the page; a full-page shot would catch the fixed header mid-page.
+      await page.evaluate(() => window.scrollTo(0, 0))
+    },
+  },
+  {
+    name: 'EditPositionConfirm',
+    route: '/notes/1/position',
+    fixtures: 'session',
+    setup: async (page) => {
+      await page.getByRole('button', { name: 'Start position' }).click()
+      await page.getByRole('button', { name: 'Save' }).click()
+      await page.getByRole('dialog', { name: "Replace this note's position?" }).waitFor()
+      await page.evaluate(() => window.scrollTo(0, 0))
+    },
+  },
+  {
+    name: 'GuestEditPosition',
+    route: '/try',
+    fixtures: 'guest',
+    setup: async (page) => {
+      await startGuestNote(page)
+      await page.getByRole('button', { name: 'Note actions' }).click()
+      await page.getByRole('menuitem', { name: 'Edit position' }).click()
+      await page.getByRole('heading', { name: 'Edit position' }).waitFor()
+      await page.evaluate(() => window.scrollTo(0, 0))
+    },
+  },
   // Folders (#11). NewFolder matches design/screenshots/NewFolder*.png, with
   // the Folder tree behind it in place of the Library (not in v1). The rest
   // have no design: the tree opened down to a subfolder and an empty Folder,
@@ -604,6 +652,23 @@ export const entries: ShotEntry[] = [
       const name = await openFirstNoteMenu(page)
       await page.getByRole('menuitem', { name: 'Rename' }).click()
       await page.getByRole('textbox', { name: `Rename note ${name}` }).waitFor()
+    },
+  },
+  // Dragging onto a Folder (#107), desktop only: tablet and mobile have no
+  // sidebar and keep Move to folder, so there these shots match `Note`. No
+  // design; the Folder that would take the drop is outlined.
+  {
+    name: 'NoteTreeDragOver',
+    route: '/notes/1',
+    fixtures: 'session',
+    setup: async (page) => {
+      const sidebar = page.getByRole('navigation', { name: 'Notes' })
+      if (!(await sidebar.isVisible())) return
+      const from = (await sidebar.getByRole('link').first().boundingBox())!
+      const to = (await sidebar.getByRole('button', { name: 'Endgames', exact: true }).boundingBox())!
+      await page.mouse.move(from.x + 40, from.y + from.height / 2)
+      await page.mouse.down()
+      await page.mouse.move(to.x + 60, to.y + to.height / 2, { steps: 8 })
     },
   },
   {
@@ -862,14 +927,6 @@ export const entries: ShotEntry[] = [
       await page.getByText('FEN', { exact: true }).click()
       await page.getByRole('textbox', { name: 'FEN' }).fill('8/8/8/8/8/8/8/8 w - - 0 1')
       await page.getByRole('button', { name: 'Create note' }).click()
-    },
-  },
-  {
-    name: 'ImportPosition',
-    route: '/notes/import',
-    fixtures: 'session',
-    setup: async (page) => {
-      await page.getByText('Set up a position').click()
     },
   },
   // The PGN reader loads as its own chunk (#84): a pasted game while it is
