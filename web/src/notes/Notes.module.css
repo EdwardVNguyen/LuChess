@@ -194,6 +194,7 @@
 }
 
 .item:hover,
+.item[data-menu-open],
 .folderRow[data-menu-open] > .item {
   background: var(--cn-highlight);
 }
@@ -212,6 +213,26 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* A row whose name is being edited in place: the field sits where the name was. */
+.renameRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  box-sizing: border-box;
+  min-height: 40px;
+  padding: 6px 6px 6px calc(12px + var(--depth, 0) * var(--cn-tree-indent));
+}
+
+.renameRow > .treeSlot {
+  height: 28px;
+  align-items: center;
+}
+
+.renameField {
+  flex: 1;
+  min-width: 0;
 }
 
 /* The chevron of a Folder, or the same space before a Note, so names line up. */

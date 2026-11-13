@@ -4,9 +4,12 @@ import { useState, type CSSProperties } from 'react'
 import type { Folder, NoteSummary } from '../api'
 import { errorMessage } from '../errors'
 import { ContextMenu, useContextMenu, useOverlaySize } from '../overlay'
-import { DeleteFolderDialog, MoveFolderDialog, NewFolderDialog, RenameFolderDialog } from './FolderDialogs'
+import { DeleteFolderDialog, MoveFolderDialog, MoveNoteDialog, NewFolderDialog } from './FolderDialogs'
 import { buildTree, foldersToOpen, type FolderNode } from './folders'
 import { ChevronIcon, FolderPlusIcon, MoreIcon } from './icons'
+import { InlineRename } from './InlineRename'
+import { rowKey, useInlineRename, type RenameEnd, type RenameTarget } from './useInlineRename'
+import { DeleteNoteDialog } from './NoteActions'
 import styles from './Notes.module.css'
 import { useFolders, useNoteList } from './queries'
 
@@ -19,10 +22,11 @@ type Props = {
 
 type Dialog =
   | { kind: 'new'; parent: Folder | null }
-  | { kind: 'rename' | 'move' | 'delete'; folder: Folder }
+  | { kind: 'move' | 'delete'; folder: Folder }
+  | { kind: 'moveNote' | 'deleteNote'; note: NoteSummary }
 
-/** What a right-click menu opens on: a Folder, or the empty space around the tree (null). */
-type MenuTarget = Folder | null
+/** What a right-click menu opens on: a Folder, a Note, or the empty space around the tree (null). */
+type MenuTarget = { kind: 'folder'; folder: Folder } | { kind: 'note'; note: NoteSummary } | null
 type TriggerProps = ReturnType<typeof useContextMenu<MenuTarget>>['triggerProps']
 
 const depthStyle = (depth: number) => ({ '--depth': depth }) as CSSProperties
@@ -39,7 +43,11 @@ export function NoteTree({ onNavigate, showHeading = true }: Props) {
   const [open, setOpen] = useState<ReadonlySet<number>>(new Set())
   const [dialog, setDialog] = useState<Dialog | null>(null)
   const menu = useContextMenu<MenuTarget>()
+  const rename = useInlineRename()
   const navigate = useNavigate()
+  const opened = menu.opened?.value ?? null
+  const menuOpenOn =
+    opened && rowKey(opened.kind === 'folder' ? { kind: 'folder', id: opened.folder.id } : { kind: 'note', id: opened.note.id })
 
   const newNote = (folder: Folder | null) => {
     onNavigate?.()
@@ -109,7 +117,9 @@ export function NoteTree({ onNavigate, showHeading = true }: Props) {
                 onAction={setDialog}
                 onNavigate={onNavigate}
                 menuTarget={menu.triggerProps}
-                menuOpenOn={menu.opened?.value?.id ?? null}
+                menuOpenOn={menuOpenOn}
+                rename={rename}
+                onRenameEnd={rename.end}
               />
             </ul>
           )}
@@ -121,10 +131,18 @@ export function NoteTree({ onNavigate, showHeading = true }: Props) {
       )}
 
       <ContextMenu at={menu.opened} onClose={menu.close}>
-        {menu.opened?.value ? (
+        {opened?.kind === 'folder' ? (
           <>
-            <Menu.Item onClick={() => newNote(menu.opened!.value)}>New note here</Menu.Item>
-            <FolderMenuItems folder={menu.opened.value} onAction={setDialog} />
+            <Menu.Item onClick={() => newNote(opened.folder)}>New note here</Menu.Item>
+            <FolderMenuItems folder={opened.folder} onAction={setDialog} onRename={rename.start} />
+          </>
+        ) : opened?.kind === 'note' ? (
+          <>
+            <Menu.Item onClick={() => rename.start({ kind: 'note', id: opened.note.id })}>Rename</Menu.Item>
+            <Menu.Item onClick={() => setDialog({ kind: 'moveNote', note: opened.note })}>Move to folder</Menu.Item>
+            <Menu.Item color="accent.6" onClick={() => setDialog({ kind: 'deleteNote', note: opened.note })}>
+              Delete
+            </Menu.Item>
           </>
         ) : (
           <>
@@ -142,9 +160,10 @@ export function NoteTree({ onNavigate, showHeading = true }: Props) {
           onCreated={(folder) => folder.parentId !== null && setOpen((ids) => new Set([...ids, folder.parentId!]))}
         />
       )}
-      {dialog?.kind === 'rename' && <RenameFolderDialog size={size} folder={dialog.folder} onClose={() => setDialog(null)} />}
       {dialog?.kind === 'move' && <MoveFolderDialog size={size} folder={dialog.folder} onClose={() => setDialog(null)} />}
       {dialog?.kind === 'delete' && <DeleteFolderDialog size={size} folder={dialog.folder} onClose={() => setDialog(null)} />}
+      {dialog?.kind === 'moveNote' && <MoveNoteDialog size={size} note={dialog.note} onClose={() => setDialog(null)} />}
+      {dialog?.kind === 'deleteNote' && <DeleteNoteDialog size={size} note={dialog.note} onClose={() => setDialog(null)} />}
     </div>
   )
 }
@@ -158,8 +177,10 @@ type LevelProps = {
   onAction: (dialog: Dialog) => void
   onNavigate?: () => void
   menuTarget: TriggerProps
-  /** The Folder whose right-click menu is open, if any. */
-  menuOpenOn: number | null
+  /** The row whose right-click menu is open, if any, by its `rowKey`. */
+  menuOpenOn: string | null
+  rename: ReturnType<typeof useInlineRename>
+  onRenameEnd: (how: RenameEnd) => void
 }
 
 function Level({ folders, notes, depth, ...rest }: LevelProps) {
@@ -170,19 +191,27 @@ function Level({ folders, notes, depth, ...rest }: LevelProps) {
       ))}
       {notes.map((note) => (
         <li key={note.id}>
-          <Link
-            to="/notes/$noteId"
-            params={{ noteId: String(note.id) }}
-            className={styles.item}
-            style={depthStyle(depth)}
-            activeProps={{ 'aria-current': 'page' }}
-            onClick={rest.onNavigate}
-            // A Note has no menu of its own: leave the browser's, e.g. to open it in a new tab.
-            onContextMenu={(event) => event.stopPropagation()}
-          >
-            <span className={styles.treeSlot} />
-            <span className={styles.itemName}>{note.name}</span>
-          </Link>
+          {rest.rename.isRenaming('note', note.id) ? (
+            <InlineRename item={{ kind: 'note', note }} depth={depth} onDone={rest.onRenameEnd} />
+          ) : (
+            // Its own menu replaces the browser's; a middle-click still opens it in a new tab.
+            <Link
+              to="/notes/$noteId"
+              params={{ noteId: String(note.id) }}
+              className={styles.item}
+              style={depthStyle(depth)}
+              activeProps={{ 'aria-current': 'page' }}
+              onClick={rest.onNavigate}
+              // The first click has opened it already; the second renames it.
+              onDoubleClick={() => rest.rename.start({ kind: 'note', id: note.id })}
+              data-row={rowKey({ kind: 'note', id: note.id })}
+              data-menu-open={rest.menuOpenOn === rowKey({ kind: 'note', id: note.id }) || undefined}
+              {...rest.menuTarget({ kind: 'note', note })}
+            >
+              <span className={styles.treeSlot} />
+              <span className={styles.itemName}>{note.name}</span>
+            </Link>
+          )}
         </li>
       ))}
     </>
@@ -193,32 +222,49 @@ function FolderItem({ node, depth, ...rest }: Omit<LevelProps, 'folders' | 'note
   const { folder } = node
   const isOpen = rest.open.has(folder.id)
   const empty = node.folders.length === 0 && node.notes.length === 0
+  const key = rowKey({ kind: 'folder', id: folder.id })
 
   return (
     <li>
-      <div className={styles.folderRow} data-menu-open={rest.menuOpenOn === folder.id || undefined} {...rest.menuTarget(folder)}>
-        <UnstyledButton
-          className={styles.item}
-          style={depthStyle(depth)}
-          aria-expanded={isOpen}
-          onClick={() => rest.onToggle(folder.id)}
+      {rest.rename.isRenaming('folder', folder.id) ? (
+        <InlineRename
+          item={{ kind: 'folder', folder }}
+          depth={depth}
+          slot={<ChevronIcon open={isOpen} />}
+          onDone={rest.onRenameEnd}
+        />
+      ) : (
+        <div
+          className={styles.folderRow}
+          data-menu-open={rest.menuOpenOn === key || undefined}
+          {...rest.menuTarget({ kind: 'folder', folder })}
         >
-          <span className={styles.treeSlot}>
-            <ChevronIcon open={isOpen} />
-          </span>
-          <span className={styles.itemName}>{folder.name}</span>
-        </UnstyledButton>
-        <Menu position="bottom-end" width={180} withinPortal>
-          <Menu.Target>
-            <UnstyledButton className={styles.folderActions} aria-label={`Folder actions: ${folder.name}`}>
-              <MoreIcon size={16} />
-            </UnstyledButton>
-          </Menu.Target>
-          <Menu.Dropdown>
-            <FolderMenuItems folder={folder} onAction={rest.onAction} />
-          </Menu.Dropdown>
-        </Menu>
-      </div>
+          <UnstyledButton
+            className={styles.item}
+            style={depthStyle(depth)}
+            aria-expanded={isOpen}
+            onClick={() => rest.onToggle(folder.id)}
+            // Its two clicks have opened and closed it again: nothing else changes.
+            onDoubleClick={() => rest.rename.start({ kind: 'folder', id: folder.id })}
+            data-row={key}
+          >
+            <span className={styles.treeSlot}>
+              <ChevronIcon open={isOpen} />
+            </span>
+            <span className={styles.itemName}>{folder.name}</span>
+          </UnstyledButton>
+          <Menu position="bottom-end" width={180} withinPortal>
+            <Menu.Target>
+              <UnstyledButton className={styles.folderActions} aria-label={`Folder actions: ${folder.name}`}>
+                <MoreIcon size={16} />
+              </UnstyledButton>
+            </Menu.Target>
+            <Menu.Dropdown>
+              <FolderMenuItems folder={folder} onAction={rest.onAction} onRename={rest.rename.start} />
+            </Menu.Dropdown>
+          </Menu>
+        </div>
+      )}
       {isOpen && (
         <ul className={styles.items} aria-label={folder.name}>
           {empty ? (
@@ -234,12 +280,21 @@ function FolderItem({ node, depth, ...rest }: Omit<LevelProps, 'folders' | 'note
   )
 }
 
-// A Folder's actions, in its "…" menu and its right-click menu.
-function FolderMenuItems({ folder, onAction }: { folder: Folder; onAction: (dialog: Dialog) => void }) {
+// A Folder's actions, in its "…" menu and its right-click menu. Rename edits
+// the name in place, in the row.
+function FolderMenuItems({
+  folder,
+  onAction,
+  onRename,
+}: {
+  folder: Folder
+  onAction: (dialog: Dialog) => void
+  onRename: (target: RenameTarget) => void
+}) {
   return (
     <>
       <Menu.Item onClick={() => onAction({ kind: 'new', parent: folder })}>New subfolder</Menu.Item>
-      <Menu.Item onClick={() => onAction({ kind: 'rename', folder })}>Rename</Menu.Item>
+      <Menu.Item onClick={() => onRename({ kind: 'folder', id: folder.id })}>Rename</Menu.Item>
       <Menu.Item onClick={() => onAction({ kind: 'move', folder })}>Move</Menu.Item>
       <Menu.Item color="accent.6" onClick={() => onAction({ kind: 'delete', folder })}>
         Delete
