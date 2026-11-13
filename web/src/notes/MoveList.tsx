@@ -1,5 +1,5 @@
 import { Menu, UnstyledButton } from '@mantine/core'
-import { useState, type ReactNode } from 'react'
+import { useState, type MouseEvent, type ReactNode } from 'react'
 import type { Writing } from '../chess/pgn'
 import { moveOf, onMainLine, type MoveId, type MoveTree, type TreeMove } from '../chess/tree'
 import { ContextMenu, useContextMenu } from '../overlay'
@@ -31,7 +31,9 @@ export type MoveMenu = {
   onDelete: (move: MoveId) => void
 }
 
-type TriggerProps = ReturnType<ReturnType<typeof useContextMenu<MoveId>>['triggerProps']>
+type TriggerProps = ReturnType<ReturnType<typeof useContextMenu<MoveId>>['triggerProps']> & {
+  onMouseDown?: (event: MouseEvent<HTMLElement>) => void
+}
 
 const noWriting: ReadonlyMap<MoveId, Writing> = new Map()
 
@@ -51,7 +53,9 @@ type Run = { moves: ReactNode[]; variations: TreeMove[]; body: { move: MoveId; t
 // the Position, from an older Note, still shows, and its menu only deletes it.
 export function MoveList({ tree, current, onMoveChange, writing = noWriting, menu }: Props) {
   const contextMenu = useContextMenu<MoveId>()
-  const [editing, setEditing] = useState<MoveId | null>(null)
+  // The Move whose Comment is being written, and how many times its menu has
+  // asked to link a Note (#101).
+  const [editing, setEditing] = useState<{ move: MoveId; links: number } | null>(null)
   const canLink = useLinking().noteId !== null
   const root = moveOf(tree, tree.root)
   const start = writing.get(root.id)
@@ -79,8 +83,17 @@ export function MoveList({ tree, current, onMoveChange, writing = noWriting, men
           menu={menu}
           onComment={(move) => {
             onMoveChange(move)
-            setEditing(move)
+            setEditing({ move, links: 0 })
           }}
+          // Linking needs a saved Note, so a Guest or an unsaved Note isn't offered it.
+          onLink={
+            canLink
+              ? (move) => {
+                  onMoveChange(move)
+                  setEditing((was) => ({ move, links: was?.move === move ? was.links + 1 : 1 }))
+                }
+              : undefined
+          }
         />
       )}
     </ContextMenu>
@@ -96,10 +109,19 @@ export function MoveList({ tree, current, onMoveChange, writing = noWriting, men
     )
   }
 
+  // A right-click doesn't take focus from a Comment being written, so its
+  // Move's menu can open over it without saving and closing it (#101).
+  const moveTrigger = (id: MoveId): TriggerProps => ({
+    ...contextMenu.triggerProps(id),
+    onMouseDown(event) {
+      if (editing && event.button === 2) event.preventDefault()
+    },
+  })
+
   // A Move's Comment, or its editor while it is being written.
   function commentOn(m: TreeMove): ReactNode {
     const comment = writing.get(m.id)?.comment
-    if (menu && editing === m.id) {
+    if (menu && editing?.move === m.id) {
       const label = `${m.moveNumber}${m.color === 'w' ? '.' : '…'}${m.san}`
       return (
         <TextEditor
@@ -109,6 +131,8 @@ export function MoveList({ tree, current, onMoveChange, writing = noWriting, men
           saved={comment ?? ''}
           onSave={(text) => menu.onComment(m.id, text)}
           onClose={() => setEditing(null)}
+          linkRequest={editing.links}
+          held={contextMenu.opened?.value === m.id}
         />
       )
     }
@@ -123,7 +147,7 @@ export function MoveList({ tree, current, onMoveChange, writing = noWriting, men
       current={m.id === current}
       written={writing.get(m.id)}
       onClick={onMoveChange}
-      menuTrigger={menu && contextMenu.triggerProps(m.id)}
+      menuTrigger={menu && moveTrigger(m.id)}
       menuOpen={contextMenu.opened?.value === m.id}
     />
   )
@@ -215,13 +239,15 @@ export function MoveList({ tree, current, onMoveChange, writing = noWriting, men
 }
 
 // A Move's right-click menu. Promote is there but off for a Move already on
-// the Main line. The Position's offers only to delete its Comment.
+// the Main line. Link a note opens the Comment editor with the picker to link
+// another Note (#101). The Position's offers only to delete its Comment.
 function MoveMenuItems({
   tree,
   move,
   hasComment,
   menu,
   onComment,
+  onLink,
 }: {
   tree: MoveTree
   move: MoveId
@@ -229,6 +255,8 @@ function MoveMenuItems({
   menu: MoveMenu
   /** Opens the Move's Comment editor. */
   onComment: (move: MoveId) => void
+  /** Opens the Move's Comment editor with the picker to link a Note; left out when Links can't be made. */
+  onLink: ((move: MoveId) => void) | undefined
 }) {
   if (move === tree.root) {
     return (
@@ -240,6 +268,7 @@ function MoveMenuItems({
   return (
     <>
       <Menu.Item onClick={() => onComment(move)}>{hasComment ? 'Edit comment' : 'Add comment'}</Menu.Item>
+      {onLink && <Menu.Item onClick={() => onLink(move)}>Link a note…</Menu.Item>}
       <Menu.Item disabled={onMainLine(tree, move)} onClick={() => menu.onPromote(move)}>
         Promote to main line
       </Menu.Item>

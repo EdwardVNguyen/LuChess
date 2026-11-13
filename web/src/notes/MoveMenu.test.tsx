@@ -1,11 +1,11 @@
 import { MantineProvider } from '@mantine/core'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMemoryHistory, createRootRoute, createRoute, createRouter, RouterProvider } from '@tanstack/react-router'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
-import type { MoveDeleteResult, MoveRow, Note, NoteLinks, WritingInput } from '../api'
+import type { MoveDeleteResult, MoveRow, Note, NoteLinks, NoteSearchResult, WritingInput } from '../api'
 import { importPgn } from '../chess/pgnImport'
 import { moveOf, type MoveId } from '../chess/tree'
 import { LONG_PRESS_MS } from '../overlay'
@@ -27,6 +27,9 @@ vi.mock('../apiClient', () => ({
     promoteMove: (token: string, id: number, moveId: number) => promoteMove(token, id, moveId),
     deleteMove: (token: string, id: number, moveId: number, confirm: boolean) => deleteMove(token, id, moveId, confirm),
     putWriting: (token: string, id: number, moveId: number, writing: WritingInput) => putWriting(token, id, moveId, writing),
+    searchNotes: async (): Promise<NoteSearchResult[]> => [
+      { id: 5, name: 'Hanging pawns', white: null, black: null, date: null, folderPath: [] },
+    ],
     listNotes: async () => [],
     listFolders: async () => [],
   },
@@ -113,6 +116,12 @@ function renderNote() {
 }
 
 const move = (name: string) => screen.getByRole('button', { name })
+// A right-click as a browser does it: the press takes focus unless the page
+// prevents it, then the menu opens. (user-event's right-click also closes it.)
+function rightClick(element: HTMLElement) {
+  if (fireEvent.mouseDown(element, { button: 2 })) act(() => element.focus())
+  fireEvent.contextMenu(element)
+}
 const menuItems = () => screen.getAllByRole('menuitem').map((item) => item.textContent)
 // The PGN under the board, on one line.
 const pgn = () => (screen.getByRole('textbox', { name: 'PGN' }) as HTMLTextAreaElement).value.replace(/\s+/g, ' ')
@@ -145,12 +154,12 @@ beforeEach(() => {
 })
 
 describe('The right-click menu on a Move', () => {
-  it('offers Add comment, Promote to main line and Delete from here, instead of the browser’s menu', async () => {
+  it('offers Add comment, Link a note…, Promote to main line and Delete from here, instead of the browser’s menu', async () => {
     rows = rowsOf('1. e4 e5 (1... c5) 2. Nf3 *')
     renderNote()
 
     expect(fireEvent.contextMenu(await screen.findByRole('button', { name: 'c5' }))).toBe(false)
-    expect(menuItems()).toEqual(['Add comment', 'Promote to main line', 'Delete from here'])
+    expect(menuItems()).toEqual(['Add comment', 'Link a note…', 'Promote to main line', 'Delete from here'])
     expect(screen.getByRole('menuitem', { name: 'Promote to main line' })).toBeEnabled()
   })
 
@@ -314,7 +323,7 @@ describe('The right-click menu on a Move', () => {
     // jsdom has no keyboard-made contextmenu event, so these are the keys themselves.
     move('e5').focus()
     expect(fireEvent.keyDown(move('e5'), { key: 'F10', shiftKey: true })).toBe(false)
-    expect(menuItems()).toEqual(['Add comment', 'Promote to main line', 'Delete from here'])
+    expect(menuItems()).toEqual(['Add comment', 'Link a note…', 'Promote to main line', 'Delete from here'])
     await user.keyboard('{Escape}')
     await waitFor(() => expect(screen.queryByRole('menuitem')).not.toBeInTheDocument())
 
@@ -395,7 +404,7 @@ describe('Writing a Comment in the move list (#97)', () => {
     renderNote()
 
     fireEvent.contextMenu(await screen.findByRole('button', { name: 'e5' }))
-    expect(menuItems()).toEqual(['Edit comment', 'Promote to main line', 'Delete from here'])
+    expect(menuItems()).toEqual(['Edit comment', 'Link a note…', 'Promote to main line', 'Delete from here'])
     await user.click(screen.getByRole('menuitem', { name: 'Edit comment' }))
     await waitFor(() => expect(comment('1…e5')).toHaveFocus())
     expect(comment('1…e5')).toHaveValue('Symmetry.')
@@ -429,6 +438,79 @@ describe('Writing a Comment in the move list (#97)', () => {
 
     await user.click(await screen.findByText('Symmetry.'))
     expect(screen.queryByRole('textbox', { name: /^Comment on/ })).not.toBeInTheDocument()
+  })
+
+  it('Link a note… on the Move being written keeps its text and puts the Link after it (#101)', async () => {
+    const user = userEvent.setup()
+    renderNote()
+
+    fireEvent.contextMenu(await screen.findByRole('button', { name: 'e5' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Add comment' }))
+    await waitFor(() => expect(comment('1…e5')).toHaveFocus())
+    await user.type(comment('1…e5'), 'Symmetry, as in')
+
+    fireEvent.contextMenu(move('e5'))
+    await user.click(screen.getByRole('menuitem', { name: 'Link a note…' }))
+    const search = await screen.findByRole('combobox', { name: 'Find a note to link' })
+    await waitFor(() => expect(search).toHaveFocus())
+    await user.type(search, 'hang')
+    await user.click(await screen.findByRole('option'))
+
+    await waitFor(() => expect(comment('1…e5')).toHaveValue('Symmetry, as in [[note:5]]'))
+    await waitFor(() => expect(comment('1…e5')).toHaveFocus())
+    await user.keyboard('{Enter}')
+    await waitFor(() => expect(savedComment('e5')).toBe('Symmetry, as in [[note:5]]'))
+  })
+
+  it('right-clicking the Move being written saves nothing until the editor closes (#101)', async () => {
+    const user = userEvent.setup()
+    renderNote()
+
+    fireEvent.contextMenu(await screen.findByRole('button', { name: 'e5' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Add comment' }))
+    await waitFor(() => expect(comment('1…e5')).toHaveFocus())
+    await user.type(comment('1…e5'), 'Symmetry, as in')
+
+    rightClick(move('e5'))
+    await user.click(await screen.findByRole('menuitem', { name: 'Link a note…' }))
+    const search = await screen.findByRole('combobox', { name: 'Find a note to link' })
+    await waitFor(() => expect(search).toHaveFocus())
+    expect(putWriting).not.toHaveBeenCalled()
+    await user.type(search, 'hang')
+    await user.click(await screen.findByRole('option'))
+
+    await waitFor(() => expect(comment('1…e5')).toHaveValue('Symmetry, as in [[note:5]]'))
+    await waitFor(() => expect(comment('1…e5')).toHaveFocus())
+    expect(putWriting).not.toHaveBeenCalled()
+    await user.keyboard('{Escape}')
+    expect(putWriting).not.toHaveBeenCalled()
+  })
+
+  it('closing the menu of the Move being written goes back to its editor, unsaved', async () => {
+    const user = userEvent.setup()
+    renderNote()
+
+    fireEvent.contextMenu(await screen.findByRole('button', { name: 'e5' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Add comment' }))
+    await waitFor(() => expect(comment('1…e5')).toHaveFocus())
+    await user.type(comment('1…e5'), 'Symmetry')
+
+    rightClick(move('e5'))
+    await screen.findByRole('menuitem', { name: 'Link a note…' })
+    await user.keyboard('{Escape}')
+
+    await waitFor(() => expect(comment('1…e5')).toHaveFocus())
+    expect(comment('1…e5')).toHaveValue('Symmetry')
+    expect(putWriting).not.toHaveBeenCalled()
+  })
+
+  it('offers no Link a note… on the Position', async () => {
+    rows = rowsOf('1. e4 e5 *')
+    rows[0] = { ...rows[0], comment: 'An older Comment.' }
+    renderNote()
+
+    fireEvent.contextMenu(await screen.findByText('An older Comment.'))
+    expect(menuItems()).toEqual(['Delete comment'])
   })
 
   it('offers only Delete comment on an older Comment on the Position', async () => {
