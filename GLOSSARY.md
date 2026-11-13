@@ -9,7 +9,7 @@ One chess game or position, with the user's writing on it, belonging to a single
 _Avoid_: Game, chess note, study, file, page
 
 **Position**:
-The starting point of a Note: the standard start or a custom setup. A Note with no moves is a study of a position alone.
+The starting point of a Note: the standard start or a custom setup. A Note with no moves is a study of a position alone. Giving a Note a new Position resets it: its Moves and writing go, and its name, Folder and Links to it stay.
 _Avoid_: Setup, board state
 
 **Move**:

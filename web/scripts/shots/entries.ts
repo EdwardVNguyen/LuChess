@@ -512,6 +512,54 @@ export const entries: ShotEntry[] = [
       await page.getByRole('menuitem', { name: 'Delete' }).click()
     },
   },
+  // Edit position (#108): no design; a page in the house style, like starting
+  // a Note. The title menu offering it, the page on its empty board, a
+  // position set up with a castling right taken away, the confirmation on
+  // Save, and the Guest's.
+  {
+    name: 'NoteActionsMenu',
+    route: '/notes/1',
+    fixtures: 'session',
+    setup: async (page) => {
+      await page.getByRole('button', { name: 'Note actions' }).click()
+      await page.getByRole('menuitem', { name: 'Edit position' }).waitFor()
+    },
+  },
+  { name: 'EditPosition', route: '/notes/1/position', fixtures: 'session' },
+  {
+    name: 'EditPositionSetUp',
+    route: '/notes/1/position',
+    fixtures: 'session',
+    setup: async (page) => {
+      await page.getByRole('button', { name: 'Start position' }).click()
+      await page.getByRole('checkbox', { name: 'White O-O-O' }).click()
+      // Clicking scrolled the page; a full-page shot would catch the fixed header mid-page.
+      await page.evaluate(() => window.scrollTo(0, 0))
+    },
+  },
+  {
+    name: 'EditPositionConfirm',
+    route: '/notes/1/position',
+    fixtures: 'session',
+    setup: async (page) => {
+      await page.getByRole('button', { name: 'Start position' }).click()
+      await page.getByRole('button', { name: 'Save' }).click()
+      await page.getByRole('dialog', { name: "Replace this note's position?" }).waitFor()
+      await page.evaluate(() => window.scrollTo(0, 0))
+    },
+  },
+  {
+    name: 'GuestEditPosition',
+    route: '/try',
+    fixtures: 'guest',
+    setup: async (page) => {
+      await startGuestNote(page)
+      await page.getByRole('button', { name: 'Note actions' }).click()
+      await page.getByRole('menuitem', { name: 'Edit position' }).click()
+      await page.getByRole('heading', { name: 'Edit position' }).waitFor()
+      await page.evaluate(() => window.scrollTo(0, 0))
+    },
+  },
   // Folders (#11). NewFolder matches design/screenshots/NewFolder*.png, with
   // the Folder tree behind it in place of the Library (not in v1). The rest
   // have no design: the tree opened down to a subfolder and an empty Folder,

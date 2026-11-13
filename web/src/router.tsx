@@ -62,8 +62,17 @@ const noteRoute = createRoute({
   // The Move to open at, e.g. where a Backlink's Comment or Body is.
   validateSearch: z.object({ move: z.number().int().positive().optional().catch(undefined) }),
 }).lazy(() => app().then((m) => m.noteRoute))
+// Edit position: a new Position for the Note, which resets it (#108).
+const notePositionRoute = createRoute({ getParentRoute: () => notesRoute, path: '/$noteId/position' }).lazy(() =>
+  app().then((m) => m.notePositionRoute),
+)
 
-const tryRoute = createRoute({ getParentRoute: () => rootRoute, path: '/try' }).lazy(() =>
+const tryRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/try',
+  // The Guest's Note is open in Edit position, so Back cancels it (#108).
+  validateSearch: z.object({ edit: z.literal('position').optional().catch(undefined) }),
+}).lazy(() =>
   import('./routes/guest').then((m) => m.tryRoute),
 )
 
@@ -91,7 +100,7 @@ const devRoutes = import.meta.env.DEV || import.meta.env.MODE === 'shots'
   : []
 
 export const router = createRouter({
-  routeTree: rootRoute.addChildren([homeRoute, signUpRoute, loginRoute, verifyEmailRoute, forgotPasswordRoute, resetPasswordRoute, settingsRoute, tryRoute, notesRoute.addChildren([notesIndexRoute, importRoute, noteRoute]), ...devRoutes]),
+  routeTree: rootRoute.addChildren([homeRoute, signUpRoute, loginRoute, verifyEmailRoute, forgotPasswordRoute, resetPasswordRoute, settingsRoute, tryRoute, notesRoute.addChildren([notesIndexRoute, importRoute, noteRoute, notePositionRoute]), ...devRoutes]),
   // While a page's chunk loads, its loading state shows straight away (and
   // for no longer than the chunk takes), never an empty page body. Hovering
   // or focusing a link starts loading its chunk, so moving to another group

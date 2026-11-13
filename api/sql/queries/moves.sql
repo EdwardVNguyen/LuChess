@@ -97,3 +97,21 @@ WHERE m.id = up.id AND m.parent_id IS NOT NULL
     SELECT 1 FROM moves s
     WHERE s.parent_id = m.parent_id AND (s.ord < m.ord OR (s.ord = m.ord AND s.id < m.id))
   );
+
+-- name: GetRoot :one
+-- A Note's root, the Position.
+SELECT *
+FROM moves
+WHERE note_id = sqlc.arg(note_id) AND parent_id IS NULL;
+
+-- name: DeleteTree :exec
+-- Deletes a Note's whole tree: its root and, by cascade, every Move and the
+-- Links in their writing. Only to replace it with a new root, on a reset.
+DELETE FROM moves
+WHERE note_id = sqlc.arg(note_id) AND parent_id IS NULL;
+
+-- name: AddRoot :one
+-- A Note's root, the Position, with no writing.
+INSERT INTO moves(note_id, created_at, updated_at)
+VALUES (sqlc.arg(note_id), sqlc.arg(now), sqlc.arg(now))
+RETURNING *;

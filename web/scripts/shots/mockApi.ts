@@ -220,6 +220,23 @@ export async function installApiMocks(
       }
     }
 
+    // A new Position resets the Note (docs/adr/0010): refused with the counts
+    // while it has Moves or writing, until confirmed.
+    const positionMatch = /^\/api\/notes\/(\d+)\/position$/.exec(pathname)
+    if (positionMatch && method === 'PUT') {
+      if (fixtures !== 'session') return json(401, { error: 'Unauthorized' })
+      const id = Number(positionMatch[1])
+      const note = notes.find((n) => n.id === id)
+      if (!note) return json(404, { error: 'Note not found' })
+      const confirm = new URL(request.url()).searchParams.get('confirm') === 'true'
+      const counts = moves.resetCounts(id)
+      if (Object.values(counts).some((n) => n > 0) && !confirm) return json(409, { error: 'This will delete them', ...counts })
+      moves.reset(id)
+      const body = request.postDataJSON() as { startFen: string | null }
+      Object.assign(note, { startFen: body.startFen, tags: [], updatedAt: new Date().toISOString() })
+      return json(200, note)
+    }
+
     const noteMatch = /^\/api\/notes(?:\/(\d+))?$/.exec(pathname)
     if (noteMatch) {
       if (fixtures !== 'session') return json(401, { error: 'Unauthorized' })
@@ -388,6 +405,18 @@ class MoveStore {
       counts.drawings += at.drawings.length
     }
     return counts
+  }
+
+  /** What resetting a Note to a new Position would delete: every Move, and all the writing. */
+  resetCounts(noteId: number): Counts & { moves: number } {
+    const root = [...this.rows.values()].find((row) => row.noteId === noteId && row.parentId === null) as Stored
+    return { moves: this.subtree(root).length - 1, ...this.writingUnder(root) }
+  }
+
+  /** A Note's tree replaced by a new, empty root. */
+  reset(noteId: number) {
+    for (const row of [...this.rows.values()]) if (row.noteId === noteId) this.rows.delete(row.id)
+    this.insert(noteId, null, null, 0)
   }
 
   remove(row: Stored) {

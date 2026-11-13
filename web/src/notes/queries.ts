@@ -206,6 +206,30 @@ export function usePromoteMove(noteId: number) {
   })
 }
 
+/**
+ * Gives a Note a new Position, resetting it (docs/adr/0010). A refused reset
+ * changes nothing; a done one replaced the whole tree, every Move id with it,
+ * and may have deleted Links and the tags search reads.
+ */
+export function useResetPosition(noteId: number) {
+  const { authorized } = useSession()
+  const queryClient = useQueryClient()
+  return useMutation({
+    scope: movesScope(noteId),
+    mutationFn: ({ startFen, confirm }: { startFen: string | null; confirm: boolean }) =>
+      authorized((token) => api.resetPosition(token, noteId, startFen, confirm)),
+    onSuccess: (result) => {
+      if (result.status !== 'reset') return
+      // The Note opens on its new tree, loaded afresh, never on the old one's Move ids.
+      queryClient.removeQueries({ queryKey: keys.moves(noteId), exact: true })
+      queryClient.setQueryData(keys.note(noteId), result.note)
+      queryClient.setQueryData<NoteSummary[]>(keys.list, (list) => putFirst(list, result.note))
+      void queryClient.invalidateQueries({ queryKey: searchKeys.all })
+      invalidateLinks(queryClient)
+    },
+  })
+}
+
 export function useNoteLinks(noteId: number) {
   const { state, authorized } = useSession()
   return useQuery({

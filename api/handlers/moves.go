@@ -468,18 +468,29 @@ func (cfg *ApiConfig) HandleDeleteMove(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// "2 Comments, 1 Body and 3 Glyphs", leaving out what there is none of.
-func describeWriting(c database.CountSubtreeWritingRow) string {
-	var parts []string
-	for _, k := range []struct {
-		n         int64
-		one, many string
-	}{
+// A number of things of one kind, named in the singular and the plural.
+type count struct {
+	n         int64
+	one, many string
+}
+
+func writingCounts(c database.CountSubtreeWritingRow) []count {
+	return []count{
 		{c.Comments, "Comment", "Comments"},
 		{c.Bodies, "Body", "Bodies"},
 		{c.Glyphs, "Glyph", "Glyphs"},
 		{c.Drawings, "Drawing", "Drawings"},
-	} {
+	}
+}
+
+// "2 Comments, 1 Body and 3 Glyphs", leaving out what there is none of.
+func describeWriting(c database.CountSubtreeWritingRow) string {
+	return describeCounts(writingCounts(c))
+}
+
+func describeCounts(counts []count) string {
+	var parts []string
+	for _, k := range counts {
 		if k.n > 0 {
 			parts = append(parts, fmt.Sprintf("%d %s", k.n, plural(k.n, k.one, k.many)))
 		}

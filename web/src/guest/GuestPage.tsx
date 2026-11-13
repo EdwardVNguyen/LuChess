@@ -1,10 +1,13 @@
 import { Button, Loader, Menu, Text, UnstyledButton } from '@mantine/core'
-import { Link, Navigate, useNavigate } from '@tanstack/react-router'
+import { Link, Navigate, useNavigate, useRouter, useSearch } from '@tanstack/react-router'
 import { useState } from 'react'
 import type { Writing } from '../chess/pgn'
-import { addMove, deleteSubtree, nextId, promote, subtree, type MoveId, type MoveTree } from '../chess/tree'
+import { START_FEN } from '../chess/chess'
+import { addMove, deleteSubtree, newTree, nextId, promote, subtree, type MoveId, type MoveTree } from '../chess/tree'
 import { ConfirmDialog, ResponsiveDialog, useOverlaySize, type OverlaySize } from '../overlay'
 import { DeleteWritingDialog } from '../notes/DeleteWritingDialog'
+import { EditPosition } from '../notes/EditPosition'
+import { resetCounts, resetLoss } from '../notes/editPosition'
 import { BookmarkIcon, MoreIcon } from '../notes/icons'
 import noteStyles from '../notes/Notes.module.css'
 import { blankNote, type NoteStart } from '../notes/newNote'
@@ -66,6 +69,9 @@ function GuestStudy() {
           onSave={() => setPrompting(true)}
           onImport={() => setImporting(true)}
           onStartOver={() => start(blankNote())}
+          onReset={(startFen) =>
+            start({ name: started.note.name, startFen, tags: [], tree: newTree(startFen ?? START_FEN, 0), writing: new Map() })
+          }
         />
       </div>
       <SignUpPrompt size={size} opened={prompting} onClose={() => setPrompting(false)} />
@@ -96,6 +102,8 @@ type GuestNoteProps = {
   onSave: () => void
   onImport: () => void
   onStartOver: () => void
+  /** Gives the Note a new Position (null for the standard start), deleting its Moves and writing. */
+  onReset: (startFen: string | null) => void
 }
 
 /** What leaving the Guest's Note would lose, asked before it does. */
@@ -104,10 +112,11 @@ type Leaving = 'startOver' | 'import'
 // The Guest's tree, the one they started with and the moves they play on it,
 // and their writing on it, including what an imported PGN brought, are kept
 // here in the browser.
-function GuestNote({ note, size, onSave, onImport, onStartOver }: GuestNoteProps) {
+function GuestNote({ note, size, onSave, onImport, onStartOver, onReset }: GuestNoteProps) {
   const [tree, setTree] = useState<MoveTree>(note.tree)
   const [writing, setWriting] = useState<ReadonlyMap<MoveId, Writing>>(note.writing)
   const [confirming, setConfirming] = useState<Leaving | null>(null)
+  const navigate = useNavigate()
   const [confirmingDelete, setConfirmingDelete] = useState<{ move: MoveId; message: string; done: (deleted: boolean) => void } | null>(null)
 
   // The same merge as a saved Note (useSaveWriting), applied in memory.
@@ -140,6 +149,16 @@ function GuestNote({ note, size, onSave, onImport, onStartOver }: GuestNoteProps
     return new Promise((done) => setConfirmingDelete({ move, message: `This will delete ${describeWriting(counts)}`, done }))
   }
 
+  const { edit } = useSearch({ strict: false })
+  if (edit === 'position') {
+    return <GuestEditPosition note={note} tree={tree} writing={writing} onReset={onReset} />
+  }
+
+  // Its own page, as for a saved Note: Back cancels it.
+  function openEditPosition() {
+    void navigate({ to: '/try', search: { edit: 'position' } })
+  }
+
   const leave = { startOver: onStartOver, import: onImport }
   function confirmLeaving(how: Leaving) {
     if (writing.size > 0 || tree !== note.tree) setConfirming(how)
@@ -165,6 +184,7 @@ function GuestNote({ note, size, onSave, onImport, onStartOver }: GuestNoteProps
                 </UnstyledButton>
               </Menu.Target>
               <Menu.Dropdown>
+                <Menu.Item onClick={openEditPosition}>Edit position</Menu.Item>
                 <Menu.Item onClick={() => confirmLeaving('import')}>Import…</Menu.Item>
                 <Menu.Item onClick={() => confirmLeaving('startOver')}>Start over</Menu.Item>
               </Menu.Dropdown>
@@ -212,6 +232,51 @@ function GuestNote({ note, size, onSave, onImport, onStartOver }: GuestNoteProps
         }}
       />
     </>
+  )
+}
+
+// Edit position on the Guest's Note: the same page and confirmation as a
+// saved Note, with nothing sent. Save and Cancel go back to the Note.
+function GuestEditPosition({
+  note,
+  tree,
+  writing,
+  onReset,
+}: {
+  note: NoteStart
+  tree: MoveTree
+  writing: ReadonlyMap<MoveId, Writing>
+  onReset: (startFen: string | null) => void
+}) {
+  const [confirming, setConfirming] = useState<{ startFen: string | null; loss: string } | null>(null)
+  const router = useRouter()
+  const navigate = useNavigate()
+
+  function leave() {
+    if (router.history.canGoBack()) router.history.back()
+    else void navigate({ to: '/try', replace: true })
+  }
+
+  function reset(startFen: string | null) {
+    onReset(startFen)
+    leave()
+  }
+
+  function save(startFen: string | null) {
+    const loss = resetLoss(resetCounts(tree, writing))
+    if (loss === null) reset(startFen)
+    else setConfirming({ startFen, loss })
+  }
+
+  return (
+    <EditPosition
+      name={note.name}
+      onSave={save}
+      onCancel={leave}
+      confirming={confirming && { loss: confirming.loss, keeps: 'The name stays.' }}
+      onConfirm={() => confirming && reset(confirming.startFen)}
+      onDismiss={() => setConfirming(null)}
+    />
   )
 }
 

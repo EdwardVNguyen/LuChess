@@ -12,6 +12,7 @@ import { rowKey, useInlineRename, type RenameEnd, type RenameTarget } from './us
 import { DeleteNoteDialog } from './NoteActions'
 import styles from './Notes.module.css'
 import { useDropInFolder, useFolders, useNoteList } from './queries'
+import { useOpenEditPosition } from './useEditPosition'
 import { useNewNote } from './useNewNote'
 
 type Props = {
@@ -54,6 +55,7 @@ export function NoteTree({ onNavigate, showHeading = true, dragToMove = false }:
   const menu = useContextMenu<MenuTarget>()
   const rename = useInlineRename()
   const navigate = useNavigate()
+  const editPosition = useOpenEditPosition()
   const opened = menu.opened?.value ?? null
   const menuOpenOn =
     opened && rowKey(opened.kind === 'folder' ? { kind: 'folder', id: opened.folder.id } : { kind: 'note', id: opened.note.id })
@@ -180,6 +182,14 @@ export function NoteTree({ onNavigate, showHeading = true, dragToMove = false }:
           <>
             <Menu.Item onClick={() => rename.start({ kind: 'note', id: opened.note.id })}>Rename</Menu.Item>
             <Menu.Item onClick={() => setDialog({ kind: 'moveNote', note: opened.note })}>Move to folder</Menu.Item>
+            <Menu.Item
+              onClick={() => {
+                onNavigate?.()
+                editPosition(opened.note.id)
+              }}
+            >
+              Edit position
+            </Menu.Item>
             <Menu.Item color="accent.6" onClick={() => setDialog({ kind: 'deleteNote', note: opened.note })}>
               Delete
             </Menu.Item>

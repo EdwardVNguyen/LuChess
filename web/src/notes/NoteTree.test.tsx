@@ -62,7 +62,7 @@ const notes = [summary(1, 'Tartakower', 2), summary(2, 'Lucena', 3), summary(3, 
 
 function renderWithRouter(component: () => React.ReactNode, path = '/notes/1') {
   const root = createRootRoute()
-  const routes = ['/notes', '/notes/import', '/notes/$noteId'].map((p) =>
+  const routes = ['/notes', '/notes/import', '/notes/$noteId', '/notes/$noteId/position'].map((p) =>
     createRoute({ getParentRoute: () => root, path: p, component }),
   )
   const router = createRouter({
@@ -279,8 +279,22 @@ describe('NoteTree right-click menu', () => {
     const note = await screen.findByRole('link', { name: 'At the root' })
 
     expect(fireEvent.contextMenu(note)).toBe(false)
-    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['Rename', 'Move to folder', 'Delete'])
+    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
+      'Rename',
+      'Move to folder',
+      'Edit position',
+      'Delete',
+    ])
     expect(note).toHaveAttribute('data-menu-open')
+  })
+
+  it('opens Edit position for a Note from its menu', async () => {
+    const router = renderWithRouter(() => <NoteTree />, '/notes')
+
+    fireEvent.contextMenu(await screen.findByRole('link', { name: 'At the root' }))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Edit position' }))
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/notes/3/position'))
   })
 
   it('opens a Note’s menu on a long-press, without opening the Note', async () => {
