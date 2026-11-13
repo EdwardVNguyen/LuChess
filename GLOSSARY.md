@@ -1,4 +1,4 @@
-# ChessNotes
+# LuChess
 
 A chess study tool where players write about games and positions and connect them to one another, in the manner of Luhmann's note-taking method, so they learn chess through connections between ideas and not through rote memorization.
 

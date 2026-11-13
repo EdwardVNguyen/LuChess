@@ -1,17 +1,14 @@
 import { Menu, UnstyledButton } from '@mantine/core'
 import { Link } from '@tanstack/react-router'
-import type { User } from '../api'
 import styles from './Header.module.css'
 
-// The avatar opens a menu with Settings and Log out.
-export function UserMenu({ user, onLogOut }: { user: User; onLogOut: () => void }) {
-  const initial = user.name.trim().charAt(0).toUpperCase() || '?'
-
+// The avatar (the default profile picture) opens a menu with Settings and Log out.
+export function UserMenu({ onLogOut }: { onLogOut: () => void }) {
   return (
     <Menu width={180} position="bottom-end" withinPortal>
       <Menu.Target>
         <UnstyledButton aria-label="Account and settings" className={styles.avatar}>
-          {initial}
+          <img src="/profile-icon.svg" alt="" className={styles.avatarImage} />
         </UnstyledButton>
       </Menu.Target>
       <Menu.Dropdown>
