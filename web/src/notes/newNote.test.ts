@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { importPgn } from '../chess/pgnImport'
-import { newNoteInput } from './newNote'
+import { blankNote, newNoteInput } from './newNote'
 
 describe('newNoteInput', () => {
   it('lists the Moves depth first, each naming its parent by index, with their writing', () => {
@@ -20,6 +20,17 @@ describe('newNoteInput', () => {
         { parent: 0, san: 'c5' },
         { parent: 3, san: 'Nf3' },
       ],
+    })
+  })
+
+  it('makes a blank Note: Untitled, at the standard start, with no Moves or writing', () => {
+    expect(newNoteInput(blankNote(), null)).toEqual({
+      name: 'Untitled',
+      startFen: null,
+      tags: [],
+      folderId: null,
+      position: {},
+      moves: [],
     })
   })
 })

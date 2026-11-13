@@ -1,14 +1,14 @@
 import { Box, Button, Group, Loader, SegmentedControl, Stack, Text, Textarea, TextInput, Title } from '@mantine/core'
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { Board } from '../board'
-import { gameFromMoves, plyLabel, START_FEN, validateFen, type LegalMove, type Result } from '../chess/chess'
+import { START_FEN, validateFen, type Result } from '../chess/chess'
 import { loadPgnImport, tagRecord, type ImportedNote, type PgnImport, type TagPair } from '../chess/pgn'
-import { addMove, newTree, type MoveId, type MoveTree } from '../chess/tree'
+import { newTree } from '../chess/tree'
 import { suggestedName } from './details'
 import type { NoteStart } from './newNote'
 import styles from './Notes.module.css'
 
-type Source = 'pgn' | 'play' | 'position'
+type Source = 'pgn' | 'fen' | 'position'
 
 const MAX_NAME_LENGTH = 200
 
@@ -23,17 +23,21 @@ type Props = {
   error?: ReactNode
   /** More fields, after the name. */
   children?: ReactNode
+  /** Shown as a Cancel button beside submit, e.g. to go back to the Note being studied. */
+  onCancel?: () => void
 }
 
-// Starting a Note has no design (#6): a page in the house style with three
-// ways to start. The client reads the PGN, with its Variations and writing,
-// into a tree of Moves; the API trusts it (ADR 0009).
-// Shared by the New note page and a Guest's start (#13), so both start alike.
-export function NoteStartForm({ title, submitLabel, onSubmit, pending = false, error, children }: Props) {
+// Import… (#106), which has no design (#6): a page in the house style with
+// three ways to bring in a Note: a game in PGN, a position in FEN, or one set
+// up on the board. (New note itself starts on a blank board.) The client
+// reads the PGN, with its Variations and writing, into a tree of Moves; the
+// API trusts it (ADR 0009).
+// Shared by the Import page and a Guest's Import… (#13), so both import alike.
+export function NoteStartForm({ title, submitLabel, onSubmit, pending = false, error, children, onCancel }: Props) {
   const [source, setSource] = useState<Source>('pgn')
   const [name, setName] = useState('')
   const [pgn, setPgn] = useState('')
-  const [moves, setMoves] = useState<LegalMove[]>([])
+  const [fenText, setFenText] = useState('')
   const [fen, setFen] = useState(START_FEN)
   const [submitted, setSubmitted] = useState(false)
   const [reader, loadReader] = usePgnReader()
@@ -66,15 +70,16 @@ export function NoteStartForm({ title, submitLabel, onSubmit, pending = false, e
         const { startFen, tags, tree, writing } = pasted.value
         return { ok: true, value: { startFen: startFen === START_FEN ? null : startFen, tags, tree, writing } }
       }
-      case 'play': {
-        const tree = playedTree(moves.map((move) => move.san))
-        return tree.ok ? { ok: true, value: { startFen: null, tags: [], tree: tree.value, writing: new Map() } } : tree
+      case 'fen': {
+        const typed = fenText.trim().replace(/\s+/g, ' ')
+        if (typed === '') return { ok: false, error: 'Paste a position in FEN.' }
+        const valid = validateFen(typed)
+        return valid.ok ? atPosition(typed) : { ok: false, error: valid.error }
       }
       case 'position': {
         const valid = validateFen(fen)
         if (!valid.ok) return { ok: false, error: 'Set up a legal position first.' }
-        const tags: TagPair[] = fen === START_FEN ? [] : [['SetUp', '1'], ['FEN', fen]]
-        return { ok: true, value: { startFen: fen === START_FEN ? null : fen, tags, tree: newTree(fen, 0), writing: new Map() } }
+        return atPosition(fen)
       }
     }
   }
@@ -93,6 +98,9 @@ export function NoteStartForm({ title, submitLabel, onSubmit, pending = false, e
     if (!ready.current.ok || ready.finalName === '') return
     onSubmit({ name: ready.finalName, ...ready.current.value })
   }
+
+  const fenError =
+    source === 'fen' && (submitted || fenText.trim() !== '') && !current.ok ? current.error : undefined
 
   const pgnError =
     reader.status === 'failed'
@@ -118,8 +126,8 @@ export function NoteStartForm({ title, submitLabel, onSubmit, pending = false, e
             onChange={(value) => setSource(value as Source)}
             aria-label="Start from"
             data={[
-              { value: 'pgn', label: 'Paste a PGN' },
-              { value: 'play', label: 'Play moves' },
+              { value: 'pgn', label: 'PGN' },
+              { value: 'fen', label: 'FEN' },
               { value: 'position', label: 'Set up a position' },
             ]}
           />
@@ -151,8 +159,17 @@ export function NoteStartForm({ title, submitLabel, onSubmit, pending = false, e
             </Stack>
           )}
 
-          {source === 'play' && (
-            <PlayMoves moves={moves} onChange={setMoves} error={submitted && !current.ok ? current.error : null} />
+          {source === 'fen' && (
+            <TextInput
+              label="FEN"
+              description="A position exported from a database or another site. The note studies it with no moves."
+              value={fenText}
+              onChange={(event) => setFenText(event.currentTarget.value)}
+              error={fenError}
+              spellCheck={false}
+              autoComplete="off"
+              styles={{ input: { fontFamily: 'var(--mantine-font-family-monospace)', fontSize: '14px' } }}
+            />
           )}
 
           {source === 'position' && (
@@ -175,6 +192,11 @@ export function NoteStartForm({ title, submitLabel, onSubmit, pending = false, e
           {error}
 
           <Group justify="flex-end">
+            {onCancel && (
+              <Button variant="default" onClick={onCancel}>
+                Cancel
+              </Button>
+            )}
             <Button type="submit" loading={pending || waiting}>
               {submitLabel}
             </Button>
@@ -220,60 +242,8 @@ function usePgnReader(): [PgnReader, () => Promise<PgnImport | null>] {
   ]
 }
 
-function PlayMoves({
-  moves,
-  onChange,
-  error,
-}: {
-  moves: LegalMove[]
-  onChange: (moves: LegalMove[]) => void
-  error: string | null
-}) {
-  const played = gameFromMoves(
-    START_FEN,
-    moves.map((move) => move.san),
-  )
-  const labels = played.ok ? played.value.plies.slice(1).map(plyLabel) : []
-
-  return (
-    <Stack gap="md">
-      <Box className={styles.newBoard}>
-        <Board
-          mode="play"
-          fen={START_FEN}
-          moves={moves}
-          onMove={(move) => onChange([...moves, move])}
-        />
-      </Box>
-      <Text className={styles.playedMoves} aria-live="polite">
-        {labels.length > 0 ? labels.join(' ') : 'Drag or click a piece to play a move. With no moves, the note studies the start position.'}
-      </Text>
-      <Group gap="xs">
-        <Button variant="default" size="xs" disabled={moves.length === 0} onClick={() => onChange(moves.slice(0, -1))}>
-          Take back
-        </Button>
-        <Button variant="default" size="xs" disabled={moves.length === 0} onClick={() => onChange([])}>
-          Start over
-        </Button>
-      </Group>
-      {error && (
-        <Text c="accent" size="sm" role="alert">
-          {error}
-        </Text>
-      )}
-    </Stack>
-  )
-}
-
-/** The Main line of moves played from the start. */
-function playedTree(sans: readonly string[]): Result<MoveTree> {
-  let tree = newTree(START_FEN, 0)
-  let parent: MoveId = 0
-  for (const san of sans) {
-    const added = addMove(tree, parent, san, parent + 1)
-    if (!added.ok) return added
-    tree = added.value.tree
-    parent = added.value.id
-  }
-  return { ok: true, value: tree }
+/** A Note at a Position, with no Moves. */
+function atPosition(fen: string): Result<Omit<NoteStart, 'name'>> {
+  const tags: TagPair[] = fen === START_FEN ? [] : [['SetUp', '1'], ['FEN', fen]]
+  return { ok: true, value: { startFen: fen === START_FEN ? null : fen, tags, tree: newTree(fen, 0), writing: new Map() } }
 }

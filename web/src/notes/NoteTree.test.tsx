@@ -4,7 +4,7 @@ import { createMemoryHistory, createRootRoute, createRoute, createRouter, Router
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { Folder, FolderDeleteResult, FolderUpdate, Note, NoteSummary } from '../api'
+import type { Folder, FolderDeleteResult, FolderUpdate, NewNoteInput, Note, NoteSummary } from '../api'
 import type { Session } from '../session'
 import { SessionProvider } from '../session'
 import { LONG_PRESS_MS } from '../overlay'
@@ -20,8 +20,10 @@ const deleteFolder = vi.fn<(token: string, id: number, confirm: boolean) => Prom
 const moveNote = vi.fn<(token: string, id: number, folderId: number | null) => Promise<Note>>()
 const renameNote = vi.fn<(token: string, id: number, name: string) => Promise<Note>>()
 const deleteNote = vi.fn<(token: string, id: number) => Promise<void>>()
+const createNote = vi.fn<(token: string, input: NewNoteInput) => Promise<Note>>()
 vi.mock('../apiClient', () => ({
   api: {
+    createNote: (token: string, input: NewNoteInput) => createNote(token, input),
     listNotes: () => listNotes(),
     listFolders: () => listFolders(),
     createFolder: (token: string, input: { name: string; parentId: number | null }) => createFolder(token, input),
@@ -60,7 +62,7 @@ const notes = [summary(1, 'Tartakower', 2), summary(2, 'Lucena', 3), summary(3, 
 
 function renderWithRouter(component: () => React.ReactNode, path = '/notes/1') {
   const root = createRootRoute()
-  const routes = ['/notes', '/notes/new', '/notes/$noteId'].map((p) =>
+  const routes = ['/notes', '/notes/import', '/notes/$noteId'].map((p) =>
     createRoute({ getParentRoute: () => root, path: p, component }),
   )
   const router = createRouter({
@@ -84,6 +86,15 @@ beforeEach(() => {
   vi.resetAllMocks()
   listNotes.mockResolvedValue(notes)
   listFolders.mockResolvedValue(folders)
+  createNote.mockImplementation(async (_token, input) => ({
+    id: 9,
+    name: input.name,
+    folderId: input.folderId ?? null,
+    tags: input.tags,
+    startFen: input.startFen,
+    createdAt: '',
+    updatedAt: '',
+  }))
 })
 
 describe('NoteTree', () => {
@@ -211,21 +222,28 @@ describe('NoteTree', () => {
 
 describe('NoteTree right-click menu', () => {
   it('offers a new Note or Folder on the empty space', async () => {
-    const router = renderWithRouter(() => <NoteTree />, '/notes')
+    // A Note in a Folder is open, but New note here files at the root.
+    const router = renderWithRouter(() => <NoteTree />, '/notes/1')
     await screen.findByRole('button', { name: 'Openings' })
 
     // The browser's own menu is held back
     expect(fireEvent.contextMenu(screen.getByRole('button', { name: 'New folder' }).parentElement!)).toBe(false)
-    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['New note', 'New folder'])
+    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['New note', 'Import…', 'New folder'])
 
     await userEvent.click(screen.getByRole('menuitem', { name: 'New folder' }))
     expect(await screen.findByRole('dialog', { name: 'New folder' })).toBeInTheDocument()
     await userEvent.keyboard('{Escape}')
 
     fireEvent.contextMenu(screen.getByRole('button', { name: 'New folder' }).parentElement!)
-    await userEvent.click(await screen.findByRole('menuitem', { name: 'New note' }))
-    await waitFor(() => expect(router.state.location.pathname).toBe('/notes/new'))
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Import…' }))
+    await waitFor(() => expect(router.state.location.pathname).toBe('/notes/import'))
     expect(router.state.location.search).toEqual({})
+
+    fireEvent.contextMenu(screen.getByRole('button', { name: 'New folder' }).parentElement!)
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'New note' }))
+    await waitFor(() => expect(router.state.location.pathname).toBe('/notes/9'))
+    expect(createNote).toHaveBeenCalledTimes(1)
+    expect(createNote.mock.calls[0][1]).toMatchObject({ name: 'Untitled', folderId: null, moves: [] })
   })
 
   it('offers a Folder’s actions on the Folder, and a new Note in it', async () => {
@@ -234,6 +252,7 @@ describe('NoteTree right-click menu', () => {
     fireEvent.contextMenu(await screen.findByRole('button', { name: 'Endgames' }))
     expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
       'New note here',
+      'Import here…',
       'New subfolder',
       'Rename',
       'Move',
@@ -245,9 +264,14 @@ describe('NoteTree right-click menu', () => {
     await userEvent.keyboard('{Escape}')
 
     fireEvent.contextMenu(screen.getByRole('button', { name: 'Endgames' }))
-    await userEvent.click(await screen.findByRole('menuitem', { name: 'New note here' }))
-    await waitFor(() => expect(router.state.location.pathname).toBe('/notes/new'))
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Import here…' }))
+    await waitFor(() => expect(router.state.location.pathname).toBe('/notes/import'))
     expect(router.state.location.search).toEqual({ folder: 3 })
+
+    fireEvent.contextMenu(screen.getByRole('button', { name: 'Endgames' }))
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'New note here' }))
+    await waitFor(() => expect(router.state.location.pathname).toBe('/notes/9'))
+    expect(createNote.mock.calls[0][1]).toMatchObject({ name: 'Untitled', folderId: 3, moves: [] })
   })
 
   it('offers a Note’s actions on the Note, in place of the browser’s menu', async () => {

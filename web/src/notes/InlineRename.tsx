@@ -55,25 +55,49 @@ function FolderName({ folder, ...rest }: FieldProps & { folder: Folder }) {
   )
 }
 
-// The name in a row of the Folder tree, as a field: Enter or leaving the
-// field saves it, Escape keeps the old one. An empty or unchanged name saves
-// nothing. A failed save keeps the field open with the error under it.
-function InlineNameField({
-  label,
-  initialName,
-  pending,
-  error,
-  depth,
-  slot,
-  onSubmit,
-  onDone,
-}: FieldProps & {
+// The name in a row of the Folder tree, as a field, after the row's slot.
+function InlineNameField({ depth, slot, ...rest }: FieldProps & Omit<NameFieldProps, 'className' | 'size' | 'classNames' | 'styles'>) {
+  return (
+    <div className={styles.renameRow} style={{ '--depth': depth } as CSSProperties}>
+      <span className={styles.treeSlot}>{slot}</span>
+      <NameField className={styles.renameField} size="xs" {...rest} />
+    </div>
+  )
+}
+
+export type NameFieldProps = {
   label: string
   initialName: string
   pending: boolean
   error: string | null
   onSubmit: (name: string, how: RenameEnd) => void
-}) {
+  onDone: (how: RenameEnd) => void
+  className?: string
+  size?: string
+  classNames?: { input?: string }
+  /** Inline input styles, which win over the theme's own (e.g. its font size). */
+  styles?: { input?: CSSProperties }
+}
+
+/**
+ * A name as a field, to rename it in place: in a row of the Folder tree, and
+ * a Note's title in the study view (#106). It opens with the name selected,
+ * so typing replaces it. Enter or leaving the field saves it, Escape keeps
+ * the old one. An empty or unchanged name saves nothing. A failed save keeps
+ * the field open with the error under it.
+ */
+export function NameField({
+  label,
+  initialName,
+  pending,
+  error,
+  onSubmit,
+  onDone,
+  className,
+  size,
+  classNames,
+  styles: inputStyles,
+}: NameFieldProps) {
   const [name, setName] = useState(initialName)
   // Escape, then the blur as the field goes, must not also save.
   const ended = useRef(false)
@@ -91,35 +115,34 @@ function InlineNameField({
   }
 
   return (
-    <div className={styles.renameRow} style={{ '--depth': depth } as CSSProperties}>
-      <span className={styles.treeSlot}>{slot}</span>
-      <TextInput
-        className={styles.renameField}
-        size="xs"
-        aria-label={label}
-        value={name}
-        onChange={(event) => setName(event.currentTarget.value)}
-        maxLength={MAX_NAME_LENGTH}
-        readOnly={pending}
-        error={error ?? undefined}
-        autoFocus
-        onFocus={(event) => event.currentTarget.select()}
-        onBlur={() => commit('blur')}
-        onKeyDown={(event) => {
-          // Neither the tree nor an overlay it is in acts on these keys.
-          event.stopPropagation()
-          if (event.key === 'Enter') {
-            event.preventDefault()
-            commit('keyboard')
-          } else if (event.key === 'Escape') {
-            event.preventDefault()
-            end('keyboard')
-          }
-        }}
-        // The field keeps the browser's own menu, to cut, copy and paste.
-        onContextMenu={(event) => event.stopPropagation()}
-        onTouchStart={(event) => event.stopPropagation()}
-      />
-    </div>
+    <TextInput
+      className={className}
+      classNames={classNames}
+      styles={inputStyles}
+      size={size}
+      aria-label={label}
+      value={name}
+      onChange={(event) => setName(event.currentTarget.value)}
+      maxLength={MAX_NAME_LENGTH}
+      readOnly={pending}
+      error={error ?? undefined}
+      autoFocus
+      onFocus={(event) => event.currentTarget.select()}
+      onBlur={() => commit('blur')}
+      onKeyDown={(event) => {
+        // Neither the tree nor an overlay it is in acts on these keys.
+        event.stopPropagation()
+        if (event.key === 'Enter') {
+          event.preventDefault()
+          commit('keyboard')
+        } else if (event.key === 'Escape') {
+          event.preventDefault()
+          end('keyboard')
+        }
+      }}
+      // The field keeps the browser's own menu, to cut, copy and paste.
+      onContextMenu={(event) => event.stopPropagation()}
+      onTouchStart={(event) => event.stopPropagation()}
+    />
   )
 }

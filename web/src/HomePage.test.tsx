@@ -34,7 +34,7 @@ function sessionIn(state: SessionState): Session {
 }
 
 // The routes the landing page links to, so a link to anything else shows up.
-const ROUTES = ['/try', '/signup', '/login', '/notes', '/notes/new', '/settings']
+const ROUTES = ['/try', '/signup', '/login', '/notes', '/notes/import', '/settings']
 
 function renderAt(state: SessionState, path = '/') {
   const root = createRootRoute({ component: Layout })

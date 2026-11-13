@@ -51,10 +51,12 @@ function putFirst(list: NoteSummary[] | undefined, note: Note): NoteSummary[] | 
   return list && [summary(note), ...list.filter((other) => other.id !== note.id)]
 }
 
-export function useCreateNote() {
+/** Creates a Note; `mutationKey` lets callers tell their creates apart, e.g. to make only one at a time. */
+export function useCreateNote(mutationKey?: readonly unknown[]) {
   const { authorized } = useSession()
   const queryClient = useQueryClient()
   return useMutation({
+    mutationKey,
     mutationFn: (input: NewNoteInput) => authorized((token) => api.createNote(token, input)),
     onSuccess: (note) => {
       queryClient.setQueryData(keys.note(note.id), note)

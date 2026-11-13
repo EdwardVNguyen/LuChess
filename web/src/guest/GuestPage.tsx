@@ -7,7 +7,7 @@ import { ConfirmDialog, ResponsiveDialog, useOverlaySize, type OverlaySize } fro
 import { DeleteWritingDialog } from '../notes/DeleteWritingDialog'
 import { BookmarkIcon, MoreIcon } from '../notes/icons'
 import noteStyles from '../notes/Notes.module.css'
-import type { NoteStart } from '../notes/newNote'
+import { blankNote, type NoteStart } from '../notes/newNote'
 import { NoteStartForm } from '../notes/NoteStartForm'
 import { CurrentMoveEditor, StudyView, WritingView } from '../notes/StudyView'
 import { describeWriting, mergeWriting, withWriting, writingUnder, type WritingChange } from '../notes/writing'
@@ -30,26 +30,44 @@ export function GuestPage() {
   }
   // Not yet known to be a Guest (GLOSSARY.md); the shell shows the error with a Retry button.
   if (state.status === 'restore-failed') return null
-  // Someone logged in can write a Note that is saved.
-  if (state.status === 'authenticated') return <Navigate to="/notes/new" replace />
+  // Someone logged in can write a Note that is saved. Not to a new one: a redirect never creates a Note.
+  if (state.status === 'authenticated') return <Navigate to="/notes" replace />
   return <GuestStudy />
 }
 
+// A Guest starts on a blank board at the standard start, as New note does
+// (#106), and can import a game or a position in its place with Import….
 function GuestStudy() {
-  const [note, setNote] = useState<NoteStart | null>(null)
+  // Each Note started gets a new key, so nothing of the last one carries over.
+  const [started, setStarted] = useState(() => ({ key: 0, note: blankNote() }))
+  const [importing, setImporting] = useState(false)
   const [prompting, setPrompting] = useState(false)
   const size = useOverlaySize()
+
+  const start = (note: NoteStart) => {
+    setStarted(({ key }) => ({ key: key + 1, note }))
+    setImporting(false)
+  }
 
   return (
     <div className={styles.page}>
       <GuestBanner />
-      {note === null ? (
+      {importing && (
         <div className={styles.start}>
-          <NoteStartForm title="Try a note" submitLabel="Start writing" onSubmit={setNote} />
+          <NoteStartForm title="Import" submitLabel="Start writing" onSubmit={start} onCancel={() => setImporting(false)} />
         </div>
-      ) : (
-        <GuestNote note={note} size={size} onSave={() => setPrompting(true)} onStartOver={() => setNote(null)} />
       )}
+      {/* Kept while importing, so Cancel goes back to it as it was. */}
+      <div hidden={importing} className={styles.study}>
+        <GuestNote
+          key={started.key}
+          note={started.note}
+          size={size}
+          onSave={() => setPrompting(true)}
+          onImport={() => setImporting(true)}
+          onStartOver={() => start(blankNote())}
+        />
+      </div>
       <SignUpPrompt size={size} opened={prompting} onClose={() => setPrompting(false)} />
     </div>
   )
@@ -76,16 +94,20 @@ type GuestNoteProps = {
   note: NoteStart
   size: OverlaySize
   onSave: () => void
+  onImport: () => void
   onStartOver: () => void
 }
+
+/** What leaving the Guest's Note would lose, asked before it does. */
+type Leaving = 'startOver' | 'import'
 
 // The Guest's tree, the one they started with and the moves they play on it,
 // and their writing on it, including what an imported PGN brought, are kept
 // here in the browser.
-function GuestNote({ note, size, onSave, onStartOver }: GuestNoteProps) {
+function GuestNote({ note, size, onSave, onImport, onStartOver }: GuestNoteProps) {
   const [tree, setTree] = useState<MoveTree>(note.tree)
   const [writing, setWriting] = useState<ReadonlyMap<MoveId, Writing>>(note.writing)
-  const [confirmingStartOver, setConfirmingStartOver] = useState(false)
+  const [confirming, setConfirming] = useState<Leaving | null>(null)
   const [confirmingDelete, setConfirmingDelete] = useState<{ move: MoveId; message: string; done: (deleted: boolean) => void } | null>(null)
 
   // The same merge as a saved Note (useSaveWriting), applied in memory.
@@ -118,9 +140,10 @@ function GuestNote({ note, size, onSave, onStartOver }: GuestNoteProps) {
     return new Promise((done) => setConfirmingDelete({ move, message: `This will delete ${describeWriting(counts)}`, done }))
   }
 
-  function startOver() {
-    if (writing.size > 0 || tree !== note.tree) setConfirmingStartOver(true)
-    else onStartOver()
+  const leave = { startOver: onStartOver, import: onImport }
+  function confirmLeaving(how: Leaving) {
+    if (writing.size > 0 || tree !== note.tree) setConfirming(how)
+    else leave[how]()
   }
 
   return (
@@ -142,7 +165,8 @@ function GuestNote({ note, size, onSave, onStartOver }: GuestNoteProps) {
                 </UnstyledButton>
               </Menu.Target>
               <Menu.Dropdown>
-                <Menu.Item onClick={startOver}>Start over</Menu.Item>
+                <Menu.Item onClick={() => confirmLeaving('import')}>Import…</Menu.Item>
+                <Menu.Item onClick={() => confirmLeaving('startOver')}>Start over</Menu.Item>
               </Menu.Dropdown>
             </Menu>
           </div>
@@ -158,12 +182,19 @@ function GuestNote({ note, size, onSave, onStartOver }: GuestNoteProps) {
       </StudyView>
       <ConfirmDialog
         size={size}
-        opened={confirmingStartOver}
-        onClose={() => setConfirmingStartOver(false)}
-        title="Start over"
-        message="Everything you have written on this note, and the moves you have played, will be lost."
-        confirmLabel="Start over"
-        onConfirm={onStartOver}
+        opened={confirming !== null}
+        onClose={() => setConfirming(null)}
+        title={confirming === 'import' ? 'Import a note' : 'Start over'}
+        message={
+          confirming === 'import'
+            ? 'The note you import takes the place of this one. Everything you have written on it, and the moves you have played, will be lost.'
+            : 'Everything you have written on this note, and the moves you have played, will be lost.'
+        }
+        confirmLabel={confirming === 'import' ? 'Continue' : 'Start over'}
+        onConfirm={() => {
+          if (confirming) leave[confirming]()
+          setConfirming(null)
+        }}
         destructive
       />
       <DeleteWritingDialog

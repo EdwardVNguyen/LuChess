@@ -1,6 +1,6 @@
 import { Alert, Button, Loader, Stack, Text, Title } from '@mantine/core'
 import { useDisclosure } from '@mantine/hooks'
-import { Link, useParams, useSearch } from '@tanstack/react-router'
+import { Link, useLocation, useNavigate, useParams, useSearch } from '@tanstack/react-router'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ApiError, type MoveRow, type Note } from '../api'
 import { START_FEN, type Game } from '../chess/chess'
@@ -17,6 +17,7 @@ import { folderPath } from './folders'
 import { NoteTree } from './NoteTree'
 import styles from './Notes.module.css'
 import { NoteMargin } from './NoteMargin'
+import { NoteTitle } from './NoteTitle'
 import {
   useAddMove,
   useDeleteMove,
@@ -82,6 +83,7 @@ function NoteView({ note, rows, initialMove }: { note: Note; rows: MoveRow[]; in
   const save = useSaveWriting(note.id)
   const folders = useFolders()
   const path = folderPath(folders.data ?? [], note.folderId).map((folder) => folder.name)
+  const renaming = useTitleRename()
   const tree = useMemo(() => treeFromRows(note.startFen ?? START_FEN, rows), [note.startFen, rows])
   const writing = useMemo(() => writingByMove(rows), [rows])
   const inReadingOrder = useMemo(
@@ -107,12 +109,13 @@ function NoteView({ note, rows, initialMove }: { note: Note; rows: MoveRow[]; in
       <Strip name={note.name} folder={path.at(-1)} />
       <StudyView
         name={note.name}
+        title={<NoteTitle note={note} {...renaming} />}
         eyebrow={path.length > 0 ? path.join(' / ') : undefined}
         tree={tree.value}
         tags={note.tags}
         writing={writing}
         linkName={linking.name}
-        actions={<NoteActions note={note} />}
+        actions={<NoteActions note={note} onRename={renaming.onStart} />}
         initialMove={initialMove}
         margin={<NoteMargin noteId={note.id} writing={inReadingOrder} />}
         onPlay={playing.onPlay}
@@ -130,6 +133,22 @@ function NoteView({ note, rows, initialMove }: { note: Note; rows: MoveRow[]; in
       {editing.confirmDialog}
     </LinkingContext>
   )
+}
+
+// Whether the Note's title is being renamed in place. A Note New note has
+// just made opens with it so (#106), once: the flag that says so is cleared
+// from the history entry, so going back to it or reloading doesn't again.
+function useTitleRename() {
+  const fresh = useLocation({ select: (location) => location.state.renameNote === true })
+  const [renaming, setRenaming] = useState(fresh)
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    if (!fresh) return
+    void navigate({ to: '.', search: true, params: true, replace: true, state: (state) => ({ ...state, renameNote: undefined }) })
+  }, [fresh, navigate])
+
+  return { renaming, onStart: () => setRenaming(true), onEnd: () => setRenaming(false) }
 }
 
 // Moves played on a Note's board are saved straight away, one add-Move

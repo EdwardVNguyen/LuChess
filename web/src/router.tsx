@@ -50,12 +50,12 @@ const notesRoute = createRoute({ getParentRoute: () => rootRoute, path: '/notes'
 const notesIndexRoute = createRoute({ getParentRoute: () => notesRoute, path: '/' }).lazy(() =>
   app().then((m) => m.notesIndexRoute),
 )
-const newNoteRoute = createRoute({
+const importRoute = createRoute({
   getParentRoute: () => notesRoute,
-  path: '/new',
-  // The Folder to file the new Note in, e.g. from a Folder's "New note here".
+  path: '/import',
+  // The Folder to file the imported Note in, e.g. from a Folder's "Import here…".
   validateSearch: z.object({ folder: z.number().int().positive().optional().catch(undefined) }),
-}).lazy(() => app().then((m) => m.newNoteRoute))
+}).lazy(() => app().then((m) => m.importRoute))
 const noteRoute = createRoute({
   getParentRoute: () => notesRoute,
   path: '/$noteId',
@@ -91,7 +91,7 @@ const devRoutes = import.meta.env.DEV || import.meta.env.MODE === 'shots'
   : []
 
 export const router = createRouter({
-  routeTree: rootRoute.addChildren([homeRoute, signUpRoute, loginRoute, verifyEmailRoute, forgotPasswordRoute, resetPasswordRoute, settingsRoute, tryRoute, notesRoute.addChildren([notesIndexRoute, newNoteRoute, noteRoute]), ...devRoutes]),
+  routeTree: rootRoute.addChildren([homeRoute, signUpRoute, loginRoute, verifyEmailRoute, forgotPasswordRoute, resetPasswordRoute, settingsRoute, tryRoute, notesRoute.addChildren([notesIndexRoute, importRoute, noteRoute]), ...devRoutes]),
   // While a page's chunk loads, its loading state shows straight away (and
   // for no longer than the chunk takes), never an empty page body. Hovering
   // or focusing a link starts loading its chunk, so moving to another group

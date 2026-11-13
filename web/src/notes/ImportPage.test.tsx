@@ -9,7 +9,7 @@ import type { Folder, NewNoteInput, Note } from '../api'
 import type { Session } from '../session'
 import { SessionProvider } from '../session'
 import { theme } from '../theme'
-import { NewNotePage } from './NewNotePage'
+import { ImportPage } from './ImportPage'
 
 const listFolders = vi.fn<() => Promise<Folder[]>>()
 const createNote = vi.fn<(token: string, input: NewNoteInput) => Promise<Note>>()
@@ -42,9 +42,9 @@ function renderAt(path: string) {
   const routes = [
     createRoute({
       getParentRoute: () => root,
-      path: '/notes/new',
+      path: '/notes/import',
       validateSearch: z.object({ folder: z.number().optional() }),
-      component: NewNotePage,
+      component: ImportPage,
     }),
     createRoute({ getParentRoute: () => root, path: '/notes/$noteId', component: () => 'Created' }),
   ]
@@ -85,9 +85,9 @@ beforeEach(() => {
   }))
 })
 
-describe('NewNotePage', () => {
-  it('files the Note in the Folder it was opened from', async () => {
-    renderAt('/notes/new?folder=2')
+describe('ImportPage', () => {
+  it('files the Note in the Folder it was opened from, by Import here…', async () => {
+    renderAt('/notes/import?folder=2')
 
     await waitFor(() =>
       expect(screen.getByLabelText('Folder', { selector: 'input' })).toHaveValue('Openings / Queen’s Gambit Declined'),
@@ -106,12 +106,54 @@ describe('NewNotePage', () => {
   })
 
   it('files the Note at the root otherwise', async () => {
-    renderAt('/notes/new')
+    renderAt('/notes/import')
 
     expect(await screen.findByLabelText('Folder', { selector: 'input' })).toHaveValue('No folder (top of Your notes)')
     await createWithPgn()
 
     await waitFor(() => expect(createNote).toHaveBeenCalled())
     expect(createNote.mock.calls[0][1]).toMatchObject({ folderId: null })
+  })
+
+  it('creates a Note at a Position given in FEN, with no Moves, once it is named', async () => {
+    const fen = '8/8/8/4k3/8/8/4P3/4K3 w - - 0 1'
+    renderAt('/notes/import')
+
+    await userEvent.click(await screen.findByText('FEN'))
+    await userEvent.click(screen.getByRole('textbox', { name: 'FEN' }))
+    await userEvent.paste(fen)
+    await userEvent.click(screen.getByRole('button', { name: 'Create note' }))
+    // FEN has no tags to name it.
+    expect(await screen.findByText('Give the note a name')).toBeInTheDocument()
+    expect(createNote).not.toHaveBeenCalled()
+
+    await userEvent.type(screen.getByRole('textbox', { name: 'Name' }), 'King and pawn')
+    await userEvent.click(screen.getByRole('button', { name: 'Create note' }))
+
+    await waitFor(() => expect(createNote).toHaveBeenCalled())
+    expect(createNote.mock.calls[0][1]).toEqual({
+      name: 'King and pawn',
+      startFen: fen,
+      tags: [
+        ['SetUp', '1'],
+        ['FEN', fen],
+      ],
+      folderId: null,
+      position: {},
+      moves: [],
+    })
+  })
+
+  it('says when the FEN is not a legal position', async () => {
+    renderAt('/notes/import')
+
+    await userEvent.click(await screen.findByText('FEN'))
+    await userEvent.click(screen.getByRole('textbox', { name: 'FEN' }))
+    await userEvent.paste('8/8/8/8/8/8/8/8 w - - 0 1')
+    await userEvent.type(screen.getByRole('textbox', { name: 'Name' }), 'Empty board')
+    await userEvent.click(screen.getByRole('button', { name: 'Create note' }))
+
+    expect(screen.getByRole('textbox', { name: 'FEN' })).toHaveAttribute('aria-invalid', 'true')
+    expect(createNote).not.toHaveBeenCalled()
   })
 })

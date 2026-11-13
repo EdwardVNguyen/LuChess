@@ -50,7 +50,7 @@ function renderGuestPage(state: SessionState = { status: 'guest' }) {
       createRoute({ getParentRoute: () => root, path: '/try', component: GuestPage }),
       createRoute({ getParentRoute: () => root, path: '/signup', component: page('Sign-up page') }),
       createRoute({ getParentRoute: () => root, path: '/login', component: page('Log-in page') }),
-      createRoute({ getParentRoute: () => root, path: '/notes/new', component: page('New note page') }),
+      createRoute({ getParentRoute: () => root, path: '/notes', component: page('Notes page') }),
     ]),
     history: createMemoryHistory({ initialEntries: ['/try'] }),
   })
@@ -72,13 +72,63 @@ function square(name: string): HTMLElement {
   return element
 }
 
+async function openImport() {
+  await userEvent.click(await screen.findByRole('button', { name: 'Note actions' }))
+  await userEvent.click(await screen.findByRole('menuitem', { name: 'Import…' }))
+}
+
 async function startFromPgn(pgn: string, name: string) {
+  await openImport()
   await userEvent.type(await screen.findByRole('textbox', { name: 'PGN' }), pgn)
   await userEvent.type(screen.getByRole('textbox', { name: 'Name' }), name)
   await userEvent.click(screen.getByRole('button', { name: 'Start writing' }))
 }
 
 describe('GuestPage', () => {
+  it('starts a Guest on a blank board at the standard start, and plays on it', async () => {
+    renderGuestPage()
+
+    expect(await screen.findByRole('heading', { name: 'Untitled' })).toBeInTheDocument()
+    expect(screen.getByText('No moves yet. This note studies the position alone.')).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'FEN' })).toHaveValue('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1')
+
+    await userEvent.click(square('e2'))
+    await userEvent.click(square('e4'))
+    expect(screen.getByRole('button', { name: 'e4' })).toHaveAttribute('aria-current', 'step')
+    expect(apiCalls).toEqual([])
+  })
+
+  it('imports a Position from FEN in place of the blank board', async () => {
+    renderGuestPage()
+    await openImport()
+    await userEvent.click(screen.getByRole('radio', { name: 'FEN' }))
+    await userEvent.click(screen.getByRole('textbox', { name: 'FEN' }))
+    await userEvent.paste('8/8/8/4k3/8/8/4P3/4K3 w - - 0 1')
+    await userEvent.type(screen.getByRole('textbox', { name: 'Name' }), 'King and pawn')
+    await userEvent.click(screen.getByRole('button', { name: 'Start writing' }))
+
+    expect(await screen.findByRole('heading', { name: 'King and pawn' })).toBeInTheDocument()
+    expect(within(screen.getByRole('region', { name: 'Tools' })).getByRole('textbox', { name: 'FEN' })).toHaveValue(
+      '8/8/8/4k3/8/8/4P3/4K3 w - - 0 1',
+    )
+  })
+
+  it('asks before Import… replaces what was played, and Cancel goes back to it', async () => {
+    renderGuestPage()
+    await screen.findByRole('heading', { name: 'Untitled' })
+    await userEvent.click(square('d2'))
+    await userEvent.click(square('d4'))
+
+    await openImport()
+    const dialog = await screen.findByRole('dialog', { name: 'Import a note' })
+    expect(dialog).toHaveTextContent('the moves you have played, will be lost')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Continue' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(await screen.findByRole('button', { name: 'd4' })).toBeInTheDocument()
+  })
+
   // Typed key by key through a menu and two editors: over the default 5 seconds on a busy run.
   it('lets a Guest write Glyphs, Comments and Bodies without calling the API', async () => {
     renderGuestPage()
@@ -106,6 +156,7 @@ describe('GuestPage', () => {
 
   it('studies a set-up Position with no moves', async () => {
     renderGuestPage()
+    await openImport()
     await userEvent.click(await screen.findByText('Set up a position'))
     await userEvent.type(screen.getByRole('textbox', { name: 'Name' }), 'A position')
     await userEvent.click(screen.getByRole('button', { name: 'Start writing' }))
@@ -139,7 +190,9 @@ describe('GuestPage', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Start over' })
     await userEvent.click(within(dialog).getByRole('button', { name: 'Start over' }))
 
-    expect(await screen.findByRole('button', { name: 'Start writing' })).toBeInTheDocument()
+    // Back to a blank board.
+    expect(await screen.findByRole('heading', { name: 'Untitled' })).toBeInTheDocument()
+    expect(screen.queryByText('Flexible.')).not.toBeInTheDocument()
   })
 
   it('plays moves on the board in the browser: extending, stepping forward, and Variations', async () => {
@@ -219,9 +272,10 @@ describe('GuestPage', () => {
     expect(apiCalls).toEqual([])
   })
 
-  it('sends someone logged in to the New note page', async () => {
+  it('sends someone logged in to their Notes, never making one', async () => {
     renderGuestPage({ status: 'authenticated', user: { id: 1, email: 'ada@example.com', name: 'Ada' } })
-    expect(await screen.findByText('New note page')).toBeInTheDocument()
+    expect(await screen.findByText('Notes page')).toBeInTheDocument()
+    expect(apiCalls).toEqual([])
   })
 
   it('shows the editor, the current FEN and the PGN under the board, to copy', async () => {

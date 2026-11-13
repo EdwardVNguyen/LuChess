@@ -1,9 +1,10 @@
-import { Button, Group } from '@mantine/core'
+import { Button, Group, Menu, Popover, Text, UnstyledButton } from '@mantine/core'
 import { Link } from '@tanstack/react-router'
 import styles from './Header.module.css'
 import { SECTIONS } from '../landing/sections'
 import { QuickFind } from '../notes/QuickFind'
-import { PlusIcon } from './icons'
+import { useNewNote } from '../notes/useNewNote'
+import { ChevronDownIcon, PlusIcon } from './icons'
 import { UserMenu } from './UserMenu'
 import type { SessionState } from '../session'
 
@@ -42,12 +43,7 @@ export function Header({ state, onLogOut, landing = false }: Props) {
           <div className={styles.spacer} />
           <div className={styles.slots}>
             <QuickFind />
-            <Link to="/notes/new" className={styles.newNote}>
-              New note
-            </Link>
-            <Link to="/notes/new" className={styles.newNoteIcon} aria-label="New note">
-              <PlusIcon />
-            </Link>
+            <NewNoteButton />
             <UserMenu user={user} onLogOut={onLogOut} />
           </div>
         </>
@@ -63,5 +59,49 @@ export function Header({ state, onLogOut, landing = false }: Props) {
         </Group>
       )}
     </div>
+  )
+}
+
+// New note as a split button (#106): New note makes a blank Note and opens it;
+// the menu beside it offers Import…. On mobile, New note is the plus. A failed
+// create says so under the button and stays put.
+function NewNoteButton() {
+  const newNote = useNewNote()
+
+  return (
+    <Popover opened={newNote.error !== null} onChange={(opened) => !opened && newNote.dismissError()} position="bottom-end" width={260} withinPortal>
+      <Popover.Target>
+        <div className={styles.split}>
+          <UnstyledButton className={styles.newNote} disabled={newNote.creating} onClick={() => newNote.start()}>
+            New note
+          </UnstyledButton>
+          <UnstyledButton
+            className={styles.newNoteIcon}
+            disabled={newNote.creating}
+            onClick={() => newNote.start()}
+            aria-label="New note"
+          >
+            <PlusIcon />
+          </UnstyledButton>
+          <Menu position="bottom-end" width={160} withinPortal>
+            <Menu.Target>
+              <UnstyledButton className={styles.newNoteMore} aria-label="Other ways to start a note">
+                <ChevronDownIcon />
+              </UnstyledButton>
+            </Menu.Target>
+            <Menu.Dropdown>
+              <Menu.Item component={Link} to="/notes/import">
+                Import…
+              </Menu.Item>
+            </Menu.Dropdown>
+          </Menu>
+        </div>
+      </Popover.Target>
+      <Popover.Dropdown>
+        <Text size="sm" role="alert">
+          Could not create the note. {newNote.error}
+        </Text>
+      </Popover.Dropdown>
+    </Popover>
   )
 }
