@@ -1214,7 +1214,8 @@
   gap: 8px;
 }
 
-/* Read only: selectable to copy by hand, but it never changes the Note. */
+/* Read only: selectable to copy by hand, but it never changes the Note until
+ * Edit makes it a field (#109). */
 .copyInput {
   width: 100%;
   box-sizing: border-box;
@@ -1232,6 +1233,16 @@
 .copyInput:focus-visible {
   outline: 2px solid var(--cn-ink);
   outline-offset: 1px;
+}
+
+/* Being edited: marked as a field that takes typing, and as wrong when Apply
+ * found it so. */
+.copyField[data-editing] .copyInput {
+  border-color: var(--cn-ink);
+}
+
+.copyField[data-editing] .copyInput[aria-invalid] {
+  border-color: var(--cn-accent);
 }
 
 /* A Comment being written, in the move list where it shows (#97). */

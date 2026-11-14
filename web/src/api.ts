@@ -126,6 +126,30 @@ export type PositionResetResult = { status: 'reset'; note: Note } | ({ status: '
 
 const resetConflictSchema = deleteConflictSchema.extend({ moves: z.number().int().nonnegative() })
 
+/** A reset's new tree, from a PGN with a new Position (#109): listed as for a new Note. */
+export type ResetTree = Pick<NewNoteInput, 'tags' | 'position' | 'moves'>
+
+/** Whether the PGN shows a Move's Comment and Body as the export wrote them, so the stored ones, Links and all, are kept. */
+export type KeepWriting = { keepComment: boolean; keepBody: boolean }
+/**
+ * A tree read from a PGN, to apply to a Note with the same Position (#109):
+ * its tags, and its Moves listed as for a new Note, each (and the Position)
+ * saying which of its stored writing the PGN shows unchanged.
+ */
+export type TreeInput = {
+  tags: [string, string][]
+  position: Partial<WritingInput> & KeepWriting
+  moves: (NewNoteInput['moves'][number] & KeepWriting)[]
+}
+/** What applying a tree would delete or replace: Moves, writing by kind, and Links that would become plain text. */
+export type TreeLoss = { moves: number; links: number } & WritingCounts
+/** An apply either happened, answering the Note and its new tree, or was refused until confirmed. */
+export type TreeApplyResult =
+  { status: 'applied'; note: Note; moves: MoveRow[] } | ({ status: 'needsConfirmation' } & TreeLoss)
+
+const treeConflictSchema = resetConflictSchema.extend({ links: z.number().int().nonnegative() })
+const treeAppliedSchema = z.object({ note: noteSchema, moves: z.array(moveRowSchema) })
+
 /** A Folder's new name, parent (null for the root), or both. */
 export type FolderUpdate = { name?: string; parentId?: number | null }
 /**
@@ -320,18 +344,20 @@ export function createApiClient(baseUrl: string, fetchFn: typeof fetch = fetch) 
      * Gives a Note a new Position (null for the standard start), which resets
      * it: every Move, all its writing and its PGN tags go; the name, Folder
      * and id stay (docs/adr/0010). Without `confirm`, a reset that would
-     * delete any Moves or writing is refused with how many.
+     * delete any Moves or writing is refused with how many. A PGN with a new
+     * Position brings its `tree` and tags along, imported in the same reset.
      */
     async resetPosition(
       accessToken: string,
       noteId: number,
       startFen: string | null,
       confirm: boolean,
+      tree?: ResetTree,
     ): Promise<PositionResetResult> {
       try {
         const res = await request(`/api/notes/${noteId}/position${confirm ? '?confirm=true' : ''}`, {
           method: 'PUT',
-          body: { startFen },
+          body: { startFen, ...tree },
           accessToken,
         })
         return { status: 'reset', note: noteSchema.parse(await res.json()) }
@@ -340,6 +366,30 @@ export function createApiClient(baseUrl: string, fetchFn: typeof fetch = fetch) 
         if (conflict && conflict.success) {
           const { moves, comments, bodies, glyphs, drawings } = conflict.data
           return { status: 'needsConfirmation', moves, comments, bodies, glyphs, drawings }
+        }
+        throw error
+      }
+    },
+
+    /**
+     * Applies a tree read from a PGN to a Note with the same Position (#109),
+     * keeping the Moves it matches by their SANs from the Position. Without
+     * `confirm`, an apply that would delete or replace anything is refused
+     * with how much.
+     */
+    async applyTree(accessToken: string, noteId: number, input: TreeInput, confirm: boolean): Promise<TreeApplyResult> {
+      try {
+        const res = await request(`/api/notes/${noteId}/tree${confirm ? '?confirm=true' : ''}`, {
+          method: 'PUT',
+          body: input,
+          accessToken,
+        })
+        return { status: 'applied', ...treeAppliedSchema.parse(await res.json()) }
+      } catch (error) {
+        const conflict = error instanceof ApiError && error.status === 409 && treeConflictSchema.safeParse(error.body)
+        if (conflict && conflict.success) {
+          const { moves, comments, bodies, glyphs, drawings, links } = conflict.data
+          return { status: 'needsConfirmation', moves, comments, bodies, glyphs, drawings, links }
         }
         throw error
       }

@@ -1,11 +1,12 @@
-import { ActionIcon, CopyButton, Text, Tooltip } from '@mantine/core'
+import { ActionIcon, Button, CopyButton, Group, Text, Tooltip } from '@mantine/core'
 import { useId, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Board } from '../board'
 import type { Game, LegalMove } from '../chess/chess'
-import { exportPgn, tagRecord, type Drawing, type TagPair, type Writing } from '../chess/pgn'
+import { exportPgn, loadPgnImport, tagRecord, type Drawing, type TagPair, type Writing } from '../chess/pgn'
 import { lineAsGame, lineThrough, mainLine, moveOf, pathTo, type MoveId, type MoveTree } from '../chess/tree'
+import { planFen, planPgn, type ApplyOutcome, type PgnPlan } from './applying'
 import { noteDetails } from './details'
-import { CheckIcon, CopyIcon } from './icons'
+import { CheckIcon, CopyIcon, PencilIcon } from './icons'
 import { MoveList, Written, type MoveMenu } from './MoveList'
 import { PaneEdge } from './PaneEdge'
 import { PaneToggle } from './PaneToggle'
@@ -67,6 +68,18 @@ type StudyViewProps = {
   onPromote?: (move: MoveId) => void
   /** Deletes a Move and its subtree, confirming first if writing would go; true once deleted. */
   onDelete?: (move: MoveId) => Promise<boolean> | boolean
+  /**
+   * Gives the Note the Position of a FEN typed under the board (null for the
+   * standard start), which resets it, confirming first if anything would go
+   * (#109). Without it, the FEN can only be copied.
+   */
+  onApplyFen?: (startFen: string | null) => Promise<ApplyOutcome>
+  /**
+   * Applies a PGN typed under the board, already read: a reset when its
+   * Position differs, otherwise matched to the Note, confirming first if
+   * anything would go (#109). Without it, the PGN can only be copied.
+   */
+  onApplyPgn?: (plan: PgnPlan) => Promise<ApplyOutcome>
 }
 
 const noLinkNames = () => null
@@ -135,6 +148,8 @@ export function StudyView({
   onComment,
   onPromote,
   onDelete,
+  onApplyFen,
+  onApplyPgn,
 }: StudyViewProps) {
   // Open at the end of the Main line, so a pasted game shows its final position.
   const [chosen, setChosen] = useState<MoveId>(() =>
@@ -266,6 +281,24 @@ export function StudyView({
     )
   }
 
+  // A FEN always resets the Note, except the Position's own applied unchanged.
+  async function applyFen(typed: string): Promise<ApplyOutcome> {
+    if (!onApplyFen) return 'cancelled'
+    const plan = planFen(typed, { tree, atPosition: current === tree.root && pending.length === 0 })
+    if (!plan.ok) return { error: plan.error }
+    return plan.value ? onApplyFen(plan.value.startFen) : 'applied'
+  }
+
+  // A PGN is read and checked first; one left as it was changes nothing.
+  async function applyPgn(edited: string, original: string): Promise<ApplyOutcome> {
+    if (!onApplyPgn) return 'cancelled'
+    const read = await loadPgnImport().catch(() => null)
+    if (!read) return { error: 'Could not load the PGN reader. Check your connection and try again.' }
+    const plan = planPgn(tree, edited, original, read)
+    if (!plan.ok) return { error: plan.error }
+    return plan.value ? onApplyPgn(plan.value) : 'applied'
+  }
+
   const view: StudyViewState = {
     tree,
     line: saved,
@@ -302,7 +335,12 @@ export function StudyView({
             {playError}
           </Text>
         )}
-        <BoardTools fen={line.plies[ply].fen} pgn={pgn}>
+        <BoardTools
+          fen={line.plies[ply].fen}
+          pgn={pgn}
+          onApplyFen={onApplyFen && applyFen}
+          onApplyPgn={onApplyPgn && applyPgn}
+        >
           {tools?.(view)}
         </BoardTools>
       </section>
@@ -333,35 +371,135 @@ export function StudyView({
   )
 }
 
-// Under the board: the editor for the current Move,
-// then the current position's FEN and the Note's PGN to copy. The PGN is
-// written from the tree; it can be copied but not edited (ADR 0009).
-function BoardTools({ fen, pgn, children }: { fen: string; pgn: string; children: ReactNode }) {
-  const fenId = useId()
-  const pgnId = useId()
+// Under the board: the editor for the current Move, then the current
+// position's FEN and the Note's PGN, written from the tree, to copy. Where the
+// Note can change, Edit turns either into a field to change it (#109), and
+// nothing applies until Apply, so a stray keystroke can't damage the Note.
+function BoardTools({
+  fen,
+  pgn,
+  onApplyFen,
+  onApplyPgn,
+  children,
+}: {
+  fen: string
+  pgn: string
+  onApplyFen?: (typed: string) => Promise<ApplyOutcome>
+  onApplyPgn?: (edited: string, original: string) => Promise<ApplyOutcome>
+  children: ReactNode
+}) {
   return (
     <div className={styles.boardTools} role="region" aria-label="Tools">
       {children}
       <div className={styles.copyFields}>
-        <div className={styles.copyField}>
-          <div className={styles.copyFieldHead}>
-            <label htmlFor={fenId} className={styles.eyebrow}>
-              FEN
-            </label>
-            <CopyValue value={fen} label="Copy FEN" />
-          </div>
-          <input id={fenId} className={styles.copyInput} value={fen} readOnly spellCheck={false} />
-        </div>
-        <div className={styles.copyField}>
-          <div className={styles.copyFieldHead}>
-            <label htmlFor={pgnId} className={styles.eyebrow}>
-              PGN
-            </label>
-            <CopyValue value={pgn} label="Copy PGN" />
-          </div>
-          <textarea id={pgnId} className={styles.copyInput} value={pgn} readOnly spellCheck={false} rows={4} />
-        </div>
+        <EditableValue name="FEN" value={fen} onApply={onApplyFen} />
+        <EditableValue
+          name="PGN"
+          value={pgn}
+          multiline
+          // The reader is large and loads on its own; start loading it as editing starts.
+          onEdit={() => void loadPgnImport().catch(() => undefined)}
+          onApply={onApplyPgn}
+        />
       </div>
+    </div>
+  )
+}
+
+/** The FEN or PGN under the board: read only with Copy, or, after Edit, a field with Apply and Cancel. */
+function EditableValue({
+  name,
+  value,
+  multiline = false,
+  onEdit,
+  onApply,
+}: {
+  name: 'FEN' | 'PGN'
+  value: string
+  multiline?: boolean
+  onEdit?: () => void
+  /** Applies the text typed, given what the field held when Edit was pressed. */
+  onApply?: (typed: string, original: string) => Promise<ApplyOutcome>
+}) {
+  const id = useId()
+  const errorId = useId()
+  // While editing: what was there when Edit was pressed, and what is typed now.
+  const [editing, setEditing] = useState<{ original: string; typed: string } | null>(null)
+  const [applying, setApplying] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  function edit() {
+    onEdit?.()
+    setError(null)
+    setEditing({ original: value, typed: value })
+  }
+
+  function cancel() {
+    setError(null)
+    setEditing(null)
+  }
+
+  async function apply() {
+    if (!editing || !onApply || applying) return
+    setError(null)
+    setApplying(true)
+    const outcome = await onApply(editing.typed, editing.original)
+    setApplying(false)
+    if (outcome === 'applied') setEditing(null)
+    else if (outcome !== 'cancelled') setError(outcome.error)
+  }
+
+  const field = {
+    id,
+    className: styles.copyInput,
+    spellCheck: false,
+    value: editing ? editing.typed : value,
+    readOnly: !editing || applying,
+    'aria-invalid': error ? true : undefined,
+    'aria-describedby': error ? errorId : undefined,
+    onChange: (event: { currentTarget: { value: string } }) => {
+      const typed = event.currentTarget.value
+      setEditing((current) => current && { ...current, typed })
+    },
+  }
+
+  return (
+    <div className={styles.copyField} data-editing={editing ? true : undefined}>
+      <div className={styles.copyFieldHead}>
+        <label htmlFor={id} className={styles.eyebrow}>
+          {name}
+        </label>
+        {!editing && (
+          <Group gap={2} wrap="nowrap">
+            {onApply && (
+              <Tooltip label={`Edit ${name}`} withArrow position="left">
+                <ActionIcon variant="subtle" color="gray" size="sm" aria-label={`Edit ${name}`} onClick={edit}>
+                  <PencilIcon />
+                </ActionIcon>
+              </Tooltip>
+            )}
+            <CopyValue value={value} label={`Copy ${name}`} />
+          </Group>
+        )}
+      </div>
+      {multiline ? <textarea {...field} rows={editing ? 10 : 4} /> : <input {...field} />}
+      {editing && (
+        <>
+          {error && (
+            <Text id={errorId} c="accent" size="sm" role="alert">
+              {error}
+            </Text>
+          )}
+          <Group justify="flex-end" gap="xs">
+            <Button variant="default" size="xs" onClick={cancel} disabled={applying}>
+              Cancel
+            </Button>
+            <Button size="xs" onClick={() => void apply()} loading={applying} aria-label={`Apply ${name}`}>
+              Apply
+            </Button>
+          </Group>
+        </>
+      )}
     </div>
   )
 }

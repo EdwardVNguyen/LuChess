@@ -560,6 +560,81 @@ export const entries: ShotEntry[] = [
       await page.evaluate(() => window.scrollTo(0, 0))
     },
   },
+  // The FEN and PGN under the board, edited to change the Note (#109). No
+  // design: the PGN being edited, a PGN that can't be read and a FEN that isn't
+  // legal, the confirmations before a PGN deletes Moves and before a FEN
+  // starts the Note again, and a Guest's PGN being edited.
+  {
+    name: 'NoteEditPgn',
+    route: '/notes/1',
+    fixtures: 'session',
+    setup: async (page) => {
+      await page.getByRole('button', { name: 'Edit PGN' }).click()
+      await page.getByRole('textbox', { name: 'PGN' }).focus()
+      // Clicking scrolled the page; a full-page shot would catch the fixed header mid-page.
+      await page.evaluate(() => window.scrollTo(0, 0))
+    },
+  },
+  {
+    name: 'NoteEditPgnError',
+    route: '/notes/1',
+    fixtures: 'session',
+    setup: async (page) => {
+      await page.getByRole('button', { name: 'Edit PGN' }).click()
+      const field = page.getByRole('textbox', { name: 'PGN' })
+      await field.fill((await field.inputValue()).replace('1. c4', '1. c5'))
+      await page.getByRole('button', { name: 'Apply PGN' }).click()
+      await page.getByRole('alert').waitFor()
+      await page.evaluate(() => window.scrollTo(0, 0))
+    },
+  },
+  {
+    name: 'NoteApplyPgnConfirm',
+    route: '/notes/1',
+    fixtures: 'session',
+    setup: async (page) => {
+      await page.getByRole('button', { name: 'Edit PGN' }).click()
+      const field = page.getByRole('textbox', { name: 'PGN' })
+      // Only the tags and the first move are left.
+      await field.fill((await field.inputValue()).replace(/\n\n[\s\S]*$/, '\n\n1. c4 1-0'))
+      await page.getByRole('button', { name: 'Apply PGN' }).click()
+      await page.getByRole('dialog', { name: 'Apply this PGN?' }).waitFor()
+      await page.evaluate(() => window.scrollTo(0, 0))
+    },
+  },
+  {
+    name: 'NoteEditFenError',
+    route: '/notes/1',
+    fixtures: 'session',
+    setup: async (page) => {
+      await page.getByRole('button', { name: 'Edit FEN' }).click()
+      await page.getByRole('textbox', { name: 'FEN' }).fill('8/8/8/8/8/8/8/8 w - - 0 1')
+      await page.getByRole('button', { name: 'Apply FEN' }).click()
+      await page.getByRole('alert').waitFor()
+      await page.evaluate(() => window.scrollTo(0, 0))
+    },
+  },
+  {
+    name: 'NoteApplyFenConfirm',
+    route: '/notes/1',
+    fixtures: 'session',
+    setup: async (page) => {
+      await page.getByRole('button', { name: 'Edit FEN' }).click()
+      await page.getByRole('button', { name: 'Apply FEN' }).click()
+      await page.getByRole('dialog', { name: 'Start the note from this position?' }).waitFor()
+      await page.evaluate(() => window.scrollTo(0, 0))
+    },
+  },
+  {
+    name: 'GuestEditPgn',
+    route: '/try',
+    fixtures: 'guest',
+    setup: async (page) => {
+      await startGuestNote(page)
+      await page.getByRole('button', { name: 'Edit PGN' }).click()
+      await page.evaluate(() => window.scrollTo(0, 0))
+    },
+  },
   // Folders (#11). NewFolder matches design/screenshots/NewFolder*.png, with
   // the Folder tree behind it in place of the Library (not in v1). The rest
   // have no design: the tree opened down to a subfolder and an empty Folder,

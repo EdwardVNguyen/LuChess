@@ -27,22 +27,34 @@ export function blankNote(): NoteStart {
  * parent by its index in the list (null for the Position).
  */
 export function newNoteInput({ name, startFen, tags, tree, writing }: NoteStart, folderId?: number | null): NewNoteInput {
-  const index = new Map<MoveId, number>()
-  const moves: NewNoteInput['moves'] = []
-  const stack = [...moveOf(tree, tree.root).children].reverse()
-  while (stack.length > 0) {
-    const move = moveOf(tree, stack.pop() as MoveId)
-    index.set(move.id, moves.length)
-    const parent = move.parent === tree.root ? null : (index.get(move.parent as MoveId) as number)
-    moves.push({ parent, san: move.san as string, ...writing.get(move.id) })
-    stack.push(...[...move.children].reverse())
-  }
   return {
     name,
     startFen,
     tags,
     ...(folderId === undefined ? {} : { folderId }),
     position: writing.get(tree.root) ?? {},
-    moves,
+    moves: listedMoves(tree, writing).map(({ move }) => move),
   }
+}
+
+/**
+ * A tree's Moves as the API takes them, listed depth first so a parent comes
+ * before its children and siblings keep their order, each naming its parent
+ * by its index in the list (null for the Position), with the id it has here.
+ */
+export function listedMoves(
+  tree: MoveTree,
+  writing: ReadonlyMap<MoveId, Writing>,
+): { id: MoveId; move: NewNoteInput['moves'][number] }[] {
+  const index = new Map<MoveId, number>()
+  const listed: { id: MoveId; move: NewNoteInput['moves'][number] }[] = []
+  const stack = [...moveOf(tree, tree.root).children].reverse()
+  while (stack.length > 0) {
+    const move = moveOf(tree, stack.pop() as MoveId)
+    index.set(move.id, listed.length)
+    const parent = move.parent === tree.root ? null : (index.get(move.parent as MoveId) as number)
+    listed.push({ id: move.id, move: { parent, san: move.san as string, ...writing.get(move.id) } })
+    stack.push(...[...move.children].reverse())
+  }
+  return listed
 }

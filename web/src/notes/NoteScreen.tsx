@@ -2,12 +2,14 @@ import { Alert, Button, Loader, Stack, Text, Title } from '@mantine/core'
 import { useDisclosure } from '@mantine/hooks'
 import { Link, useLocation, useNavigate, useParams, useSearch } from '@tanstack/react-router'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ApiError, type MoveRow, type Note } from '../api'
+import { ApiError, type MoveRow, type Note, type ResetTree } from '../api'
 import { START_FEN, type Game } from '../chess/chess'
 import type { Writing } from '../chess/pgn'
 import { readingOrder, treeFromRows, type MoveId, type MoveTree } from '../chess/tree'
 import { errorMessage } from '../errors'
 import { ResponsivePopover, useOverlaySize } from '../overlay'
+import { useApplyConfirm } from './ApplyConfirm'
+import { describeLoss, resetTree, treeInput, type ApplyOutcome, type PgnPlan } from './applying'
 import { DeleteWritingDialog } from './DeleteWritingDialog'
 import { FolderIcon } from './icons'
 import { LinkingContext, type Linking } from './linking'
@@ -18,14 +20,17 @@ import { NoteTree } from './NoteTree'
 import styles from './Notes.module.css'
 import { NoteMargin } from './NoteMargin'
 import { NoteTitle } from './NoteTitle'
+import { resetLoss } from './positionSetup'
 import {
   useAddMove,
+  useApplyTree,
   useDeleteMove,
   useFolders,
   useMoves,
   useNote,
   useNoteLinks,
   usePromoteMove,
+  useResetPosition,
   useSaveWriting,
 } from './queries'
 import type { MoveMenu } from './MoveList'
@@ -80,6 +85,7 @@ function NoteView({ note, rows, initialMove }: { note: Note; rows: MoveRow[]; in
   const linking = useNoteLinking(note.id)
   const playing = useMovePlaying(note.id)
   const editing = useMoveEditing(note.id)
+  const applying = useApplying(note.id)
   const save = useSaveWriting(note.id)
   const folders = useFolders()
   const path = folderPath(folders.data ?? [], note.folderId).map((folder) => folder.name)
@@ -124,6 +130,8 @@ function NoteView({ note, rows, initialMove }: { note: Note; rows: MoveRow[]; in
         onComment={(move, comment) => save.mutate({ move, comment })}
         onPromote={editing.onPromote}
         onDelete={editing.onDelete}
+        onApplyFen={applying.onApplyFen}
+        onApplyPgn={applying.onApplyPgn}
         tools={(view) => <Editor save={save} writing={writing} {...view} />}
       >
         {(view) => (
@@ -131,6 +139,7 @@ function NoteView({ note, rows, initialMove }: { note: Note; rows: MoveRow[]; in
         )}
       </StudyView>
       {editing.confirmDialog}
+      {applying.confirmDialog}
     </LinkingContext>
   )
 }
@@ -238,6 +247,51 @@ function useMoveEditing(noteId: number) {
         error={confirming && remove.isError ? errorMessage(remove.error) : null}
       />
     ),
+  }
+}
+
+// The FEN and PGN under the board, applied to the Note (#109). A FEN, or a
+// PGN with a new Position, resets the Note; any other PGN is matched to it.
+// The API answers what either would delete until the user confirms it, and
+// only then is it sent again with the confirmation.
+function useApplying(noteId: number) {
+  const reset = useResetPosition(noteId)
+  const apply = useApplyTree(noteId)
+  const size = useOverlaySize()
+  const confirm = useApplyConfirm(size, 'The name and folder stay.')
+
+  async function resetTo(kind: 'fen' | 'position', startFen: string | null, tree?: ResetTree): Promise<ApplyOutcome> {
+    try {
+      const result = await reset.mutateAsync({ startFen, confirm: false, tree })
+      if (result.status !== 'reset') {
+        if (!(await confirm.ask({ kind, loss: resetLoss(result) ?? '' }))) return 'cancelled'
+        await reset.mutateAsync({ startFen, confirm: true, tree })
+      }
+      return 'applied'
+    } catch (error) {
+      return { error: errorMessage(error) }
+    }
+  }
+
+  async function onApplyPgn(plan: PgnPlan): Promise<ApplyOutcome> {
+    if (plan.kind === 'reset') return resetTo('position', plan.startFen, resetTree(plan.note))
+    const input = treeInput(plan)
+    try {
+      const result = await apply.mutateAsync({ input, confirm: false })
+      if (result.status !== 'applied') {
+        if (!(await confirm.ask({ kind: 'pgn', loss: describeLoss(result) ?? '' }))) return 'cancelled'
+        await apply.mutateAsync({ input, confirm: true })
+      }
+      return 'applied'
+    } catch (error) {
+      return { error: errorMessage(error) }
+    }
+  }
+
+  return {
+    onApplyFen: (startFen: string | null) => resetTo('fen', startFen),
+    onApplyPgn,
+    confirmDialog: confirm.dialog,
   }
 }
 

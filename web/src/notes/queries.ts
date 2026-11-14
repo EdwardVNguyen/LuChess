@@ -1,5 +1,15 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
-import { ApiError, type Folder, type FolderUpdate, type MoveRow, type NewNoteInput, type Note, type NoteSummary } from '../api'
+import {
+  ApiError,
+  type Folder,
+  type FolderUpdate,
+  type MoveRow,
+  type NewNoteInput,
+  type Note,
+  type NoteSummary,
+  type ResetTree,
+  type TreeInput,
+} from '../api'
 import { api } from '../apiClient'
 import type { MoveId } from '../chess/tree'
 import { useSession } from '../session'
@@ -207,21 +217,46 @@ export function usePromoteMove(noteId: number) {
 }
 
 /**
- * Gives a Note a new Position, resetting it (docs/adr/0010). A refused reset
- * changes nothing; a done one replaced the whole tree, every Move id with it,
- * and may have deleted Links and the tags search reads.
+ * Gives a Note a new Position, resetting it (docs/adr/0010), with the tree of
+ * the PGN that gave it, if one did (#109). A refused reset changes nothing; a
+ * done one replaced the whole tree, every Move id with it, and may have
+ * deleted Links and changed the tags search reads.
  */
 export function useResetPosition(noteId: number) {
   const { authorized } = useSession()
   const queryClient = useQueryClient()
   return useMutation({
     scope: movesScope(noteId),
-    mutationFn: ({ startFen, confirm }: { startFen: string | null; confirm: boolean }) =>
-      authorized((token) => api.resetPosition(token, noteId, startFen, confirm)),
+    mutationFn: ({ startFen, confirm, tree }: { startFen: string | null; confirm: boolean; tree?: ResetTree }) =>
+      authorized((token) => api.resetPosition(token, noteId, startFen, confirm, tree)),
     onSuccess: (result) => {
       if (result.status !== 'reset') return
-      // The Note opens on its new tree, loaded afresh, never on the old one's Move ids.
-      queryClient.removeQueries({ queryKey: keys.moves(noteId), exact: true })
+      // The Note opens on its new tree, loaded afresh, never on the old one's
+      // Move ids; an open Note shows loading until it has it.
+      void queryClient.resetQueries({ queryKey: keys.moves(noteId), exact: true })
+      queryClient.setQueryData(keys.note(noteId), result.note)
+      queryClient.setQueryData<NoteSummary[]>(keys.list, (list) => putFirst(list, result.note))
+      void queryClient.invalidateQueries({ queryKey: searchKeys.all })
+      invalidateLinks(queryClient)
+    },
+  })
+}
+
+/**
+ * Applies a tree read from a PGN to a Note with the same Position (#109). A
+ * refused apply changes nothing; a done one answers the whole new tree, whose
+ * matched Moves keep their ids, and may have changed Links and tags.
+ */
+export function useApplyTree(noteId: number) {
+  const { authorized } = useSession()
+  const queryClient = useQueryClient()
+  return useMutation({
+    scope: movesScope(noteId),
+    mutationFn: ({ input, confirm }: { input: TreeInput; confirm: boolean }) =>
+      authorized((token) => api.applyTree(token, noteId, input, confirm)),
+    onSuccess: (result) => {
+      if (result.status !== 'applied') return
+      queryClient.setQueryData(keys.moves(noteId), result.moves)
       queryClient.setQueryData(keys.note(noteId), result.note)
       queryClient.setQueryData<NoteSummary[]>(keys.list, (list) => putFirst(list, result.note))
       void queryClient.invalidateQueries({ queryKey: searchKeys.all })

@@ -106,12 +106,21 @@ WHERE note_id = sqlc.arg(note_id) AND parent_id IS NULL;
 
 -- name: DeleteTree :exec
 -- Deletes a Note's whole tree: its root and, by cascade, every Move and the
--- Links in their writing. Only to replace it with a new root, on a reset.
+-- Links in their writing. Only to replace it with a new tree, on a reset.
 DELETE FROM moves
 WHERE note_id = sqlc.arg(note_id) AND parent_id IS NULL;
 
--- name: AddRoot :one
--- A Note's root, the Position, with no writing.
-INSERT INTO moves(note_id, created_at, updated_at)
-VALUES (sqlc.arg(note_id), sqlc.arg(now), sqlc.arg(now))
-RETURNING *;
+-- name: DeleteMoves :exec
+-- Deletes Moves and, by cascade, their subtrees and the Links in their
+-- writing, when a PGN applied to the Note no longer has them. The root is
+-- never deleted this way.
+DELETE FROM moves
+WHERE note_id = sqlc.arg(note_id) AND id = ANY(sqlc.arg(ids)::bigint[]) AND parent_id IS NOT NULL;
+
+-- name: SetMoveOrders :exec
+-- Puts Moves in a new order among their siblings, as an applied PGN lists
+-- them. The rows are a JSON array of {"id", "ord"}.
+UPDATE moves m
+SET ord = r.ord
+FROM jsonb_to_recordset(sqlc.arg(rows)::jsonb) AS r(id bigint, ord int)
+WHERE m.id = r.id AND m.note_id = sqlc.arg(note_id);

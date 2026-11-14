@@ -1,5 +1,5 @@
 import type { Page } from 'playwright'
-import type { Folder, MoveRow, NewNoteInput, Note, WritingInput } from '../../src/api.js'
+import type { Folder, MoveRow, NewNoteInput, Note, ResetTree, TreeInput, WritingInput } from '../../src/api.js'
 import { importPgn } from '../../src/chess/pgnImport.ts'
 import { mainLine, moveOf, type MoveId } from '../../src/chess/tree.ts'
 import { linkTargets } from '../../src/notes/links.js'
@@ -231,10 +231,37 @@ export async function installApiMocks(
       const confirm = new URL(request.url()).searchParams.get('confirm') === 'true'
       const counts = moves.resetCounts(id)
       if (Object.values(counts).some((n) => n > 0) && !confirm) return json(409, { error: 'This will delete them', ...counts })
-      moves.reset(id)
-      const body = request.postDataJSON() as { startFen: string | null }
-      Object.assign(note, { startFen: body.startFen, tags: [], updatedAt: new Date().toISOString() })
+      const body = request.postDataJSON() as { startFen: string | null } & Partial<ResetTree>
+      moves.reset(id, body)
+      Object.assign(note, { startFen: body.startFen, tags: body.tags ?? [], updatedAt: new Date().toISOString() })
       return json(200, note)
+    }
+
+    // A PGN with the same Position, matched to the Note (#109): refused with
+    // what it would delete until confirmed. The writing it would replace isn't
+    // counted here; the shots only need the confirmation to show.
+    const treeMatch = /^\/api\/notes\/(\d+)\/tree$/.exec(pathname)
+    if (treeMatch && method === 'PUT') {
+      if (fixtures !== 'session') return json(401, { error: 'Unauthorized' })
+      const id = Number(treeMatch[1])
+      const note = notes.find((n) => n.id === id)
+      if (!note) return json(404, { error: 'Note not found' })
+      const confirm = new URL(request.url()).searchParams.get('confirm') === 'true'
+      const input = request.postDataJSON() as TreeInput
+      const gone = moves.unmatched(id, input)
+      const counts = { moves: 0, comments: 0, bodies: 0, glyphs: 0, drawings: 0, links: 0 }
+      for (const row of gone) {
+        const under = moves.writingUnder(row)
+        counts.moves += moves.size(row)
+        counts.comments += under.comments
+        counts.bodies += under.bodies
+        counts.glyphs += under.glyphs
+        counts.drawings += under.drawings
+      }
+      if (gone.length > 0 && !confirm) return json(409, { error: 'This will delete them', ...counts })
+      for (const row of gone) moves.remove(row)
+      Object.assign(note, { tags: input.tags, updatedAt: new Date().toISOString() })
+      return json(200, { note, moves: moves.list(id) })
     }
 
     const noteMatch = /^\/api\/notes(?:\/(\d+))?$/.exec(pathname)
@@ -413,10 +440,29 @@ class MoveStore {
     return { moves: this.subtree(root).length - 1, ...this.writingUnder(root) }
   }
 
-  /** A Note's tree replaced by a new, empty root. */
-  reset(noteId: number) {
+  /** A Note's tree replaced by a new one: an empty root, or the tree of the PGN that gave the new Position. */
+  reset(noteId: number, tree: Partial<ResetTree>) {
     for (const row of [...this.rows.values()]) if (row.noteId === noteId) this.rows.delete(row.id)
-    this.insert(noteId, null, null, 0)
+    this.create(noteId, { position: tree.position ?? {}, moves: tree.moves ?? [] } as NewNoteInput)
+  }
+
+  /** The stored Moves an applied tree no longer has, the top of each subtree that would go. */
+  unmatched(noteId: number, input: TreeInput): Stored[] {
+    const root = [...this.rows.values()].find((row) => row.noteId === noteId && row.parentId === null) as Stored
+    const matched: (Stored | undefined)[] = []
+    const kept = new Set<Stored>([root])
+    for (const move of input.moves) {
+      const parent = move.parent === null ? root : matched[move.parent]
+      const row = parent && this.children(parent.id).find((child) => child.san === move.san)
+      matched.push(row)
+      if (row) kept.add(row)
+    }
+    return [...kept].flatMap((row) => this.children(row.id).filter((child) => !kept.has(child)))
+  }
+
+  /** How many Moves are in a Move's subtree, itself included. */
+  size(row: Stored): number {
+    return this.subtree(row).length
   }
 
   remove(row: Stored) {
