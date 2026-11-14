@@ -212,22 +212,29 @@ func (q *Queries) RenameNote(ctx context.Context, arg RenameNoteParams) (Note, e
 const resetNotePosition = `-- name: ResetNotePosition :one
 UPDATE notes
 SET start_fen = $1,
-    tags = '[]',
-    updated_at = $2
-WHERE id = $3
+    tags = $2,
+    updated_at = $3
+WHERE id = $4
 RETURNING id, user_id, name, start_fen, created_at, updated_at, folder_id, tags, white, black, game_date
 `
 
 type ResetNotePositionParams struct {
 	StartFen sql.NullString
+	Tags     json.RawMessage
 	Now      time.Time
 	ID       int64
 }
 
 // A new Position for the Note (ADR 0010). Its PGN tags described the old
-// game, so they go; the name and Folder stay.
+// game, so they are replaced: with none, or with those of the PGN that gave
+// the new Position. The name and Folder stay.
 func (q *Queries) ResetNotePosition(ctx context.Context, arg ResetNotePositionParams) (Note, error) {
-	row := q.db.QueryRowContext(ctx, resetNotePosition, arg.StartFen, arg.Now, arg.ID)
+	row := q.db.QueryRowContext(ctx, resetNotePosition,
+		arg.StartFen,
+		arg.Tags,
+		arg.Now,
+		arg.ID,
+	)
 	var i Note
 	err := row.Scan(
 		&i.ID,
@@ -355,6 +362,40 @@ type SetNoteFolderParams struct {
 // Filing a Note is not writing on it, so updated_at stays.
 func (q *Queries) SetNoteFolder(ctx context.Context, arg SetNoteFolderParams) (Note, error) {
 	row := q.db.QueryRowContext(ctx, setNoteFolder, arg.FolderID, arg.ID, arg.UserID)
+	var i Note
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Name,
+		&i.StartFen,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.FolderID,
+		&i.Tags,
+		&i.White,
+		&i.Black,
+		&i.GameDate,
+	)
+	return i, err
+}
+
+const setNoteTags = `-- name: SetNoteTags :one
+UPDATE notes
+SET tags = $1,
+    updated_at = $2
+WHERE id = $3
+RETURNING id, user_id, name, start_fen, created_at, updated_at, folder_id, tags, white, black, game_date
+`
+
+type SetNoteTagsParams struct {
+	Tags json.RawMessage
+	Now  time.Time
+	ID   int64
+}
+
+// The tags of a PGN applied to the Note (#109); the name stays.
+func (q *Queries) SetNoteTags(ctx context.Context, arg SetNoteTagsParams) (Note, error) {
+	row := q.db.QueryRowContext(ctx, setNoteTags, arg.Tags, arg.Now, arg.ID)
 	var i Note
 	err := row.Scan(
 		&i.ID,

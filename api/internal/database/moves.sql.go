@@ -10,6 +10,8 @@ import (
 	"database/sql"
 	"encoding/json"
 	"time"
+
+	"github.com/lib/pq"
 )
 
 const addMove = `-- name: AddMove :one
@@ -35,38 +37,6 @@ func (q *Queries) AddMove(ctx context.Context, arg AddMoveParams) (Move, error) 
 		arg.San,
 		arg.Now,
 	)
-	var i Move
-	err := row.Scan(
-		&i.ID,
-		&i.NoteID,
-		&i.ParentID,
-		&i.Ord,
-		&i.San,
-		&i.Comment,
-		&i.Body,
-		&i.MoveGlyph,
-		&i.PositionGlyph,
-		&i.Drawings,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
-const addRoot = `-- name: AddRoot :one
-INSERT INTO moves(note_id, created_at, updated_at)
-VALUES ($1, $2, $2)
-RETURNING id, note_id, parent_id, ord, san, comment, body, move_glyph, position_glyph, drawings, created_at, updated_at
-`
-
-type AddRootParams struct {
-	NoteID int64
-	Now    time.Time
-}
-
-// A Note's root, the Position, with no writing.
-func (q *Queries) AddRoot(ctx context.Context, arg AddRootParams) (Move, error) {
-	row := q.db.QueryRowContext(ctx, addRoot, arg.NoteID, arg.Now)
 	var i Move
 	err := row.Scan(
 		&i.ID,
@@ -153,13 +123,31 @@ func (q *Queries) DeleteMove(ctx context.Context, arg DeleteMoveParams) (int64, 
 	return result.RowsAffected()
 }
 
+const deleteMoves = `-- name: DeleteMoves :exec
+DELETE FROM moves
+WHERE note_id = $1 AND id = ANY($2::bigint[]) AND parent_id IS NOT NULL
+`
+
+type DeleteMovesParams struct {
+	NoteID int64
+	Ids    []int64
+}
+
+// Deletes Moves and, by cascade, their subtrees and the Links in their
+// writing, when a PGN applied to the Note no longer has them. The root is
+// never deleted this way.
+func (q *Queries) DeleteMoves(ctx context.Context, arg DeleteMovesParams) error {
+	_, err := q.db.ExecContext(ctx, deleteMoves, arg.NoteID, pq.Array(arg.Ids))
+	return err
+}
+
 const deleteTree = `-- name: DeleteTree :exec
 DELETE FROM moves
 WHERE note_id = $1 AND parent_id IS NULL
 `
 
 // Deletes a Note's whole tree: its root and, by cascade, every Move and the
-// Links in their writing. Only to replace it with a new root, on a reset.
+// Links in their writing. Only to replace it with a new tree, on a reset.
 func (q *Queries) DeleteTree(ctx context.Context, noteID int64) error {
 	_, err := q.db.ExecContext(ctx, deleteTree, noteID)
 	return err
@@ -380,6 +368,25 @@ WHERE m.id = up.id AND m.parent_id IS NOT NULL
 // parent's first child, unless it already is.
 func (q *Queries) PromoteMove(ctx context.Context, id int64) error {
 	_, err := q.db.ExecContext(ctx, promoteMove, id)
+	return err
+}
+
+const setMoveOrders = `-- name: SetMoveOrders :exec
+UPDATE moves m
+SET ord = r.ord
+FROM jsonb_to_recordset($2::jsonb) AS r(id bigint, ord int)
+WHERE m.id = r.id AND m.note_id = $1
+`
+
+type SetMoveOrdersParams struct {
+	NoteID int64
+	Rows   json.RawMessage
+}
+
+// Puts Moves in a new order among their siblings, as an applied PGN lists
+// them. The rows are a JSON array of {"id", "ord"}.
+func (q *Queries) SetMoveOrders(ctx context.Context, arg SetMoveOrdersParams) error {
+	_, err := q.db.ExecContext(ctx, setMoveOrders, arg.NoteID, arg.Rows)
 	return err
 }
 

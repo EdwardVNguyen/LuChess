@@ -352,4 +352,55 @@ describe('GuestPage', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: 'FEN' })).toHaveValue('7k/8/8/8/8/8/8/K7 w - - 0 1')
   }, 15_000)
+
+  it('applies a PGN typed under the board in the browser, asking before Moves go', async () => {
+    renderGuestPage()
+    await startFromPgn('1. e4 e5 2. Nf3 *', 'Open games')
+
+    // Adding a Move asks nothing.
+    await userEvent.click(screen.getByRole('button', { name: 'Edit PGN' }))
+    const field = screen.getByRole('textbox', { name: 'PGN' })
+    await userEvent.clear(field)
+    await userEvent.type(field, '1. e4 e5 2. Nf3 Nc6 *')
+    await userEvent.click(screen.getByRole('button', { name: 'Apply PGN' }))
+    expect(await screen.findByRole('button', { name: 'Nc6' })).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'PGN' })).toHaveAttribute('readonly')
+
+    // Changing the first reply replaces the rest of the line, once confirmed.
+    await userEvent.click(screen.getByRole('button', { name: 'Edit PGN' }))
+    await userEvent.clear(screen.getByRole('textbox', { name: 'PGN' }))
+    await userEvent.type(screen.getByRole('textbox', { name: 'PGN' }), '1. e4 c5 *')
+    await userEvent.click(screen.getByRole('button', { name: 'Apply PGN' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Apply this PGN?' })
+    expect(dialog).toHaveTextContent('This deletes 3 Moves. This cannot be undone.')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Apply' }))
+
+    expect(await screen.findByRole('button', { name: 'c5' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'e5' })).not.toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'PGN' })).toHaveValue('1. e4 c5 *')
+    expect(screen.getByRole('heading', { name: 'Open games' })).toBeInTheDocument()
+    expect(apiCalls).toEqual([])
+  }, 15_000)
+
+  it('starts the Guest’s Note from a FEN typed under the board, asking first', async () => {
+    renderGuestPage()
+    await startFromPgn('1. e4 e5 *', 'Open games')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Edit FEN' }))
+    const field = screen.getByRole('textbox', { name: 'FEN' })
+    expect(field).toHaveValue('rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2')
+    await userEvent.clear(field)
+    await userEvent.type(field, '4k3/8/8/8/8/8/8/4K3 w - - 0 1')
+    await userEvent.click(screen.getByRole('button', { name: 'Apply FEN' }))
+
+    const dialog = await screen.findByRole('dialog', { name: 'Start the note from this position?' })
+    expect(dialog).toHaveTextContent('This deletes its 2 Moves. The name stays.')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Start from here' }))
+
+    expect(await screen.findByText('No moves yet. This note studies the position alone.')).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'FEN' })).toHaveValue('4k3/8/8/8/8/8/8/4K3 w - - 0 1')
+    expect(screen.getByRole('heading', { name: 'Open games' })).toBeInTheDocument()
+    expect(apiCalls).toEqual([])
+  }, 15_000)
 })

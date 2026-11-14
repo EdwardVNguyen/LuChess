@@ -74,3 +74,13 @@ export function CheckIcon({ size = 16 }: IconProps) {
     </svg>
   )
 }
+
+// Edit, beside Copy, on the FEN and PGN under the board (#109).
+export function PencilIcon({ size = 16 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4.5 19.5l1-4L15.5 5.5a2.1 2.1 0 0 1 3 3l-10 10z" />
+      <path d="M13.5 7.5l3 3" />
+    </svg>
+  )
+}

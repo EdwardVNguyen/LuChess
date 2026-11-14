@@ -1,10 +1,12 @@
 import { Button, Loader, Menu, Text, UnstyledButton } from '@mantine/core'
 import { Link, Navigate, useNavigate, useRouter, useSearch } from '@tanstack/react-router'
 import { useState } from 'react'
-import type { Writing } from '../chess/pgn'
+import type { ImportedNote, TagPair, Writing } from '../chess/pgn'
 import { START_FEN } from '../chess/chess'
 import { addMove, deleteSubtree, newTree, nextId, promote, subtree, type MoveId, type MoveTree } from '../chess/tree'
 import { ConfirmDialog, ResponsiveDialog, useOverlaySize, type OverlaySize } from '../overlay'
+import { useApplyConfirm } from '../notes/ApplyConfirm'
+import { applyInBrowser, describeLoss, type ApplyOutcome, type PgnPlan } from '../notes/applying'
 import { DeleteWritingDialog } from '../notes/DeleteWritingDialog'
 import { EditPosition } from '../notes/EditPosition'
 import { resetCounts, resetLoss } from '../notes/positionSetup'
@@ -69,8 +71,14 @@ function GuestStudy() {
           onSave={() => setPrompting(true)}
           onImport={() => setImporting(true)}
           onStartOver={() => start(blankNote())}
-          onReset={(startFen) =>
-            start({ name: started.note.name, startFen, tags: [], tree: newTree(startFen ?? START_FEN, 0), writing: new Map() })
+          onReset={(startFen, imported) =>
+            start({
+              name: started.note.name,
+              startFen,
+              tags: imported?.tags ?? [],
+              tree: imported?.tree ?? newTree(startFen ?? START_FEN, 0),
+              writing: imported?.writing ?? new Map(),
+            })
           }
         />
       </div>
@@ -102,8 +110,12 @@ type GuestNoteProps = {
   onSave: () => void
   onImport: () => void
   onStartOver: () => void
-  /** Gives the Note a new Position (null for the standard start), deleting its Moves and writing. */
-  onReset: (startFen: string | null) => void
+  /**
+   * Gives the Note a new Position (null for the standard start), deleting its
+   * Moves, writing and tags, and starting it with those of the PGN that gave
+   * the Position, if one did.
+   */
+  onReset: (startFen: string | null, imported?: ImportedNote) => void
 }
 
 /** What leaving the Guest's Note would lose, asked before it does. */
@@ -115,6 +127,8 @@ type Leaving = 'startOver' | 'import'
 function GuestNote({ note, size, onSave, onImport, onStartOver, onReset }: GuestNoteProps) {
   const [tree, setTree] = useState<MoveTree>(note.tree)
   const [writing, setWriting] = useState<ReadonlyMap<MoveId, Writing>>(note.writing)
+  const [tags, setTags] = useState<readonly TagPair[]>(note.tags)
+  const confirmApply = useApplyConfirm(size, 'The name stays.')
   const [confirming, setConfirming] = useState<Leaving | null>(null)
   const navigate = useNavigate()
   const [confirmingDelete, setConfirmingDelete] = useState<{ move: MoveId; message: string; done: (deleted: boolean) => void } | null>(null)
@@ -149,6 +163,26 @@ function GuestNote({ note, size, onSave, onImport, onStartOver, onReset }: Guest
     return new Promise((done) => setConfirmingDelete({ move, message: `This will delete ${describeWriting(counts)}`, done }))
   }
 
+  // The FEN and PGN under the board (#109), applied as to a saved Note, with
+  // the same confirmations, in the browser.
+  async function resetTo(kind: 'fen' | 'position', startFen: string | null, imported?: ImportedNote): Promise<ApplyOutcome> {
+    const loss = resetLoss(resetCounts(tree, writing))
+    if (loss !== null && !(await confirmApply.ask({ kind, loss }))) return 'cancelled'
+    onReset(startFen, imported)
+    return 'applied'
+  }
+
+  async function applyPgn(plan: PgnPlan): Promise<ApplyOutcome> {
+    if (plan.kind === 'reset') return resetTo('position', plan.startFen, plan.note)
+    const applied = applyInBrowser(tree, writing, plan)
+    const loss = describeLoss(applied.loss)
+    if (loss !== null && !(await confirmApply.ask({ kind: 'pgn', loss }))) return 'cancelled'
+    setTree(applied.tree)
+    setWriting(applied.writing)
+    setTags(plan.note.tags)
+    return 'applied'
+  }
+
   const { edit } = useSearch({ strict: false })
   if (edit === 'position') {
     return <GuestEditPosition note={note} tree={tree} writing={writing} onReset={onReset} />
@@ -170,7 +204,7 @@ function GuestNote({ note, size, onSave, onImport, onStartOver, onReset }: Guest
       <StudyView
         name={note.name}
         tree={tree}
-        tags={note.tags}
+        tags={tags}
         writing={writing}
         actions={
           <div className={styles.actions}>
@@ -196,6 +230,8 @@ function GuestNote({ note, size, onSave, onImport, onStartOver, onReset }: Guest
         onComment={(move, comment) => write({ move, comment })}
         onPromote={(move) => setTree(promote(tree, move))}
         onDelete={deleteFrom}
+        onApplyFen={(startFen) => resetTo('fen', startFen)}
+        onApplyPgn={applyPgn}
         tools={(view) => <CurrentMoveEditor {...view} writing={writing} editable onSave={write} />}
       >
         {(view) => <WritingView {...view} writing={writing} />}
@@ -217,6 +253,7 @@ function GuestNote({ note, size, onSave, onImport, onStartOver, onReset }: Guest
         }}
         destructive
       />
+      {confirmApply.dialog}
       <DeleteWritingDialog
         size={size}
         message={confirmingDelete?.message ?? null}

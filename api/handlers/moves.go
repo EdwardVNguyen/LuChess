@@ -569,8 +569,9 @@ type linkRow struct {
 }
 
 // importTree checks an imported tree (the writing on the Position and the
-// Moves after it) and inserts it under a new Note, with its Links. Run it in
-// the transaction that creates the Note. A validation error is errBadImport.
+// Moves after it) and inserts it, with its Links, under a Note that has no
+// tree: a new one, or one being reset. Run it in the transaction that creates
+// or resets the Note. A validation error is errBadImport.
 func importTree(ctx context.Context, q *database.Queries, userID int32, noteID int64, now time.Time, position writingInput, moves []importedMove) error {
 	if len(moves) > maxMoves {
 		return badImport(errTooManyMoves)
@@ -633,6 +634,20 @@ func importTree(ctx context.Context, q *database.Queries, userID int32, noteID i
 		}
 	}
 
+	// A new Note cannot be linked from its own writing, since nobody knew its
+	// ID. A Note being reset can be, as any other Note of the user's.
+	if err := insertNewMoves(ctx, q, userID, noteID, now, rows, links); errors.Is(err, errForeignLinkTarget) {
+		return badImport(err)
+	} else if err != nil {
+		return err
+	}
+	return nil
+}
+
+// insertNewMoves inserts Moves that are not yet stored, with the Links in
+// their writing, each of which must point at one of the user's Notes, or it
+// is errForeignLinkTarget. A Move's parent is stored already or among the rows.
+func insertNewMoves(ctx context.Context, q *database.Queries, userID int32, noteID int64, now time.Time, rows []moveRow, links []linkRow) error {
 	if len(links) > 0 {
 		var targets []int64
 		for _, l := range links {
@@ -643,9 +658,8 @@ func importTree(ctx context.Context, q *database.Queries, userID int32, noteID i
 			return err
 		}
 		for _, t := range targets {
-			// A new Note cannot be linked from its own writing, since nobody knew its ID.
 			if !slices.Contains(owned, t) {
-				return badImport(errForeignLinkTarget)
+				return errForeignLinkTarget
 			}
 		}
 	}

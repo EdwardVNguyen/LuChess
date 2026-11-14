@@ -89,10 +89,19 @@ WHERE id = sqlc.arg(id);
 
 -- name: ResetNotePosition :one
 -- A new Position for the Note (ADR 0010). Its PGN tags described the old
--- game, so they go; the name and Folder stay.
+-- game, so they are replaced: with none, or with those of the PGN that gave
+-- the new Position. The name and Folder stay.
 UPDATE notes
 SET start_fen = sqlc.narg(start_fen),
-    tags = '[]',
+    tags = sqlc.arg(tags),
+    updated_at = sqlc.arg(now)
+WHERE id = sqlc.arg(id)
+RETURNING *;
+
+-- name: SetNoteTags :one
+-- The tags of a PGN applied to the Note (#109); the name stays.
+UPDATE notes
+SET tags = sqlc.arg(tags),
     updated_at = sqlc.arg(now)
 WHERE id = sqlc.arg(id)
 RETURNING *;
