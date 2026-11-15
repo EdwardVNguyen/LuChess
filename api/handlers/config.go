@@ -40,6 +40,10 @@ type ApiConfig struct {
 	// CookieSecure marks the refresh cookie Secure. Keep it on everywhere except
 	// where a browser refuses Secure cookies over plain HTTP.
 	CookieSecure bool
+	// TrustProxyHeaders takes the client address for the per-IP rate limits from
+	// CF-Connecting-IP. Turn it on only where nothing reaches the API except
+	// through Cloudflare, or a visitor can claim any address they like.
+	TrustProxyHeaders bool
 	// Now is the clock; nil means time.Now. Tests replace it to exercise expiry.
 	Now func() time.Time
 
