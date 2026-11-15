@@ -13,15 +13,17 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"io/fs"
+	"log"
 	"net/url"
 	"os"
 	"sync"
 	"testing"
 
+	"github.com/EdwardVNguyen/LuChess/api/internal/migrate"
 	"github.com/EdwardVNguyen/LuChess/api/sql/schema"
 	"github.com/lib/pq"
-	"github.com/pressly/goose/v3"
 )
 
 const (
@@ -31,6 +33,8 @@ const (
 
 	templatePrefix = "chessnotes_tpl_"
 	testPrefix     = "chessnotes_test_"
+	// Postgres's own pristine database
+	emptyTemplate = "template0"
 
 	// Serializes template builds and clones across every test process
 	advisoryLockKey = 7243801
@@ -46,7 +50,26 @@ var (
 // dropped when the test ends.
 func New(t testing.TB) *sql.DB {
 	t.Helper()
-	ctx := t.Context()
+	adminURL, admin := connectAdmin(t)
+
+	templateOnce.Do(func() { templateName, templateErr = buildTemplate(t.Context(), adminURL, admin) })
+	if templateErr != nil {
+		t.Fatalf("testdb: building template database: %v", templateErr)
+	}
+	return create(t, adminURL, admin, templateName)
+}
+
+// NewEmpty returns a connection to a new database with nothing in it, not even
+// Goose's version table, for testing the migrations themselves. It is dropped
+// when the test ends.
+func NewEmpty(t testing.TB) *sql.DB {
+	t.Helper()
+	adminURL, admin := connectAdmin(t)
+	return create(t, adminURL, admin, emptyTemplate)
+}
+
+func connectAdmin(t testing.TB) (string, *sql.DB) {
+	t.Helper()
 
 	adminURL := os.Getenv(adminURLEnv)
 	if adminURL == "" {
@@ -58,24 +81,26 @@ func New(t testing.TB) *sql.DB {
 		t.Fatalf("testdb: opening admin connection: %v", err)
 	}
 	t.Cleanup(func() { admin.Close() })
-	if err := admin.PingContext(ctx); err != nil {
+	if err := admin.PingContext(t.Context()); err != nil {
 		t.Fatalf("testdb: cannot reach Postgres at %s (%v)\n"+
 			"Start it with: docker compose -f api/docker-compose.yml up -d --wait\n"+
 			"or point %s at another server.", redact(adminURL), err, adminURLEnv)
 	}
+	return adminURL, admin
+}
 
-	templateOnce.Do(func() { templateName, templateErr = buildTemplate(ctx, adminURL, admin) })
-	if templateErr != nil {
-		t.Fatalf("testdb: building template database: %v", templateErr)
-	}
+// create makes a database as a copy of template, and drops it when the test ends.
+func create(t testing.TB, adminURL string, admin *sql.DB, template string) *sql.DB {
+	t.Helper()
+	ctx := t.Context()
 
 	name := testPrefix + randomSuffix()
 	if err := withLock(ctx, admin, func(conn *sql.Conn) error {
 		_, err := conn.ExecContext(ctx, fmt.Sprintf("CREATE DATABASE %s TEMPLATE %s",
-			pq.QuoteIdentifier(name), pq.QuoteIdentifier(templateName)))
+			pq.QuoteIdentifier(name), pq.QuoteIdentifier(template)))
 		return err
 	}); err != nil {
-		t.Fatalf("testdb: cloning template: %v", err)
+		t.Fatalf("testdb: cloning %s: %v", template, err)
 	}
 
 	db, err := sql.Open("postgres", withDatabase(adminURL, name))
@@ -120,7 +145,7 @@ func buildTemplate(ctx context.Context, adminURL string, admin *sql.DB) (string,
 		if _, err := conn.ExecContext(ctx, "CREATE DATABASE "+pq.QuoteIdentifier(building)); err != nil {
 			return err
 		}
-		if err := migrate(ctx, withDatabase(adminURL, building)); err != nil {
+		if err := migrateDatabase(ctx, withDatabase(adminURL, building)); err != nil {
 			return err
 		}
 		if _, err := conn.ExecContext(ctx, fmt.Sprintf("ALTER DATABASE %s RENAME TO %s",
@@ -133,19 +158,15 @@ func buildTemplate(ctx context.Context, adminURL string, admin *sql.DB) (string,
 	return name, err
 }
 
-func migrate(ctx context.Context, dbURL string) error {
+func migrateDatabase(ctx context.Context, dbURL string) error {
 	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
 		return err
 	}
 	defer db.Close()
 
-	provider, err := goose.NewProvider(goose.DialectPostgres, db, schema.FS)
-	if err != nil {
-		return err
-	}
-	_, err = provider.Up(ctx)
-	return err
+	// The call the API makes when it starts, without its log lines
+	return migrate.Up(ctx, db, log.New(io.Discard, "", 0))
 }
 
 // Templates for older migration sets are useless; remove them. A drop that

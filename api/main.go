@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -11,6 +12,7 @@ import (
 	"github.com/EdwardVNguyen/LuChess/api/internal/database"
 	"github.com/EdwardVNguyen/LuChess/api/handlers"
 	"github.com/EdwardVNguyen/LuChess/api/internal/mailer"
+	"github.com/EdwardVNguyen/LuChess/api/internal/migrate"
 	"github.com/EdwardVNguyen/LuChess/api/internal/password"
 	"github.com/EdwardVNguyen/LuChess/api/internal/session"
 	_ "github.com/lib/pq"
@@ -42,6 +44,11 @@ func main() {
 	// Connect to the database
 	db, err := sql.Open(envDatabaseType, os.Getenv(envDatabaseURL))
 	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Bring the schema up to date before listening; never serve on a partly migrated one
+	if err := migrate.Up(context.Background(), db, log.Default()); err != nil {
 		log.Fatal(err)
 	}
 
