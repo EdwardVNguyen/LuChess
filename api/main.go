@@ -7,7 +7,6 @@ import (
 	"database/sql"
 	"net/http"
 
-	"github.com/joho/godotenv"
 	"github.com/EdwardVNguyen/LuChess/api/internal/database"
 	"github.com/EdwardVNguyen/LuChess/api/handlers"
 	"github.com/EdwardVNguyen/LuChess/api/internal/mailer"
@@ -30,7 +29,7 @@ func main() {
 	)
 
 	// Get environment variables
-	if err := godotenv.Load(); err != nil {
+	if err := loadDotEnv(".env"); err != nil {
 		log.Fatal(err)
 	}	
 
