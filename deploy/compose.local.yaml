@@ -1,0 +1,21 @@
+# The local check in docs/deploy.md, and nothing else: the stack built from
+# this checkout, with web on http://localhost and no tunnel. Run it with
+# local.env, never with the production .env:
+#
+#   docker compose --env-file local.env -f compose.yaml -f compose.local.yaml up -d --build
+
+services:
+  api:
+    build: ../api
+
+  web:
+    build:
+      context: ../web
+      args:
+        VITE_API_URL: http://localhost
+    ports:
+      - "127.0.0.1:80:80"
+
+  # Left out unless asked for by its profile, so no token is needed.
+  cloudflared:
+    profiles: [tunnel]

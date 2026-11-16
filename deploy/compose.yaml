@@ -1,0 +1,91 @@
+# The whole site on the Pi (docs/adr/0011): Postgres, the API, the web
+# container (the frontend, and /api/ passed to the API) and cloudflared. No
+# service publishes a port, so the tunnel is the only way in. The settings
+# come from .env next to this file (see .env.example), and the guide is
+# docs/deploy.md.
+
+name: luchess
+
+# Docker's default log format grows until the disk is full. "local" keeps at
+# most five files of 20 MB per container, compressed.
+x-logging: &logging
+  driver: local
+
+services:
+  db:
+    image: postgres:18
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      POSTGRES_USER: luchess
+      POSTGRES_DB: luchess
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    # Postgres 18 keeps its data in a directory under /var/lib/postgresql
+    # named for its major version, not in /var/lib/postgresql/data, so the
+    # volume goes here.
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U luchess -d luchess"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [data]
+
+  api:
+    image: ghcr.io/edwardvnguyen/luchess-api:${IMAGE_TAG:?set IMAGE_TAG in .env}
+    restart: unless-stopped
+    logging: *logging
+    # It applies pending migrations before it serves, so it needs the
+    # database up first.
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_URL: postgres://luchess:${POSTGRES_PASSWORD}@db:5432/luchess?sslmode=disable
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:?set FRONTEND_ORIGIN in .env}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+      COOKIE_SECURE: ${COOKIE_SECURE:-}
+      MAILER: ${MAILER:?set MAILER in .env}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      # Every request comes through Cloudflare and the web container, so the
+      # visitor's address is in CF-Connecting-IP. Safe because nothing else
+      # can reach the API: it publishes no port, and only web shares a
+      # network with it.
+      TRUST_PROXY_HEADERS: "true"
+    networks: [app, data]
+
+  web:
+    image: ghcr.io/edwardvnguyen/luchess-web:${IMAGE_TAG}
+    restart: unless-stopped
+    logging: *logging
+    depends_on: [api]
+    networks: [edge, app]
+
+  cloudflared:
+    image: cloudflare/cloudflared:2026.10.7
+    restart: unless-stopped
+    logging: *logging
+    # A tunnel managed in Cloudflare's dashboard, whose public hostname
+    # points at http://web:80. The token is all it needs to connect.
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN:?set TUNNEL_TOKEN in .env}
+    depends_on: [web]
+    networks: [edge]
+
+# Each service shares a network only with the ones it talks to: cloudflared
+# reaches web alone, and only the API reaches the database. `data` has no way
+# out to the internet; the API still reaches its SMTP server through `app`.
+networks:
+  edge:
+  app:
+  data:
+    internal: true
+
+volumes:
+  pgdata:
