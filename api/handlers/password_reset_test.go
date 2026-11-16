@@ -10,6 +10,7 @@ import (
 	"time"
 
 	handler "github.com/EdwardVNguyen/LuChess/api/handlers"
+	"github.com/EdwardVNguyen/LuChess/api/internal/password"
 )
 
 const newPassword = "a brand new passphrase"
@@ -160,6 +161,48 @@ func TestResetPasswordTokenWorksOnceEvenWhenUsedTwiceAtTheSameTime(t *testing.T)
 	}
 }
 
+// The check before hashing spends nothing, so the token can be spent after it
+// passes. The reset must then be refused when it comes to spend the token itself.
+func TestResetPasswordRefusesATokenSpentWhileThePasswordWasBeingHashed(t *testing.T) {
+	a := newApp(t)
+	a.verifiedUser("ada@example.com", "Ada", goodPassword)
+	token := a.requestReset("ada@example.com")
+
+	// A rival that has spent the token but not committed: the reset still sees
+	// the token as unused, hashes, and then has to wait for the rival.
+	rival, err := a.db.BeginTx(t.Context(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rival.Rollback()
+	if _, err := rival.ExecContext(t.Context(), `UPDATE email_tokens SET used_at = now() WHERE purpose = 'reset'`); err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan *httptest.ResponseRecorder, 1)
+	go func() { done <- a.post("/api/auth/reset-password", resetBody(token, newPassword)) }()
+	for waiting := false; !waiting; time.Sleep(10 * time.Millisecond) {
+		select {
+		case rec := <-done:
+			t.Fatalf("status = %d without waiting for the rival (body %s)", rec.Code, rec.Body)
+		default:
+		}
+		err := a.db.QueryRowContext(t.Context(),
+			`SELECT EXISTS (SELECT 1 FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock')`).Scan(&waiting)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := rival.Commit(); err != nil {
+		t.Fatal(err)
+	}
+
+	rec := <-done
+	if rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), "This reset link is invalid or has expired") {
+		t.Fatalf("status = %d, body %s; want %d and the invalid link message", rec.Code, rec.Body, http.StatusBadRequest)
+	}
+	loginSession(t, a, "ada@example.com", goodPassword)
+}
+
 func TestResetPasswordTokenExpiresAfterOneHour(t *testing.T) {
 	a := newApp(t)
 	a.verifiedUser("ada@example.com", "Ada", goodPassword)
@@ -211,6 +254,40 @@ func TestResetPasswordRejectsBadTokens(t *testing.T) {
 				t.Fatalf("status = %d, want %d (body %s)", rec.Code, http.StatusBadRequest, rec.Body)
 			}
 			loginSession(t, a, "ada@example.com", goodPassword)
+		})
+	}
+}
+
+func TestResetPasswordRefusesABadTokenWithoutHashingThePassword(t *testing.T) {
+	cases := map[string]func(a *app) string{
+		"an unknown token": func(*app) string { return "not-a-real-token" },
+		"a used token": func(a *app) string {
+			token := a.requestReset("ada@example.com")
+			if rec := a.post("/api/auth/reset-password", resetBody(token, newPassword)); rec.Code != http.StatusNoContent {
+				a.t.Fatalf("first use: status = %d (body %s)", rec.Code, rec.Body)
+			}
+			return token
+		},
+		"an expired token": func(a *app) string {
+			token := a.requestReset("ada@example.com")
+			a.clock.Advance(time.Hour)
+			return token
+		},
+	}
+	for name, token := range cases {
+		t.Run(name, func(t *testing.T) {
+			var cfg *handler.ApiConfig
+			a := newApp(t, func(c *handler.ApiConfig) { cfg = c })
+			a.verifiedUser("ada@example.com", "Ada", goodPassword)
+			bad := token(a)
+			// A Hasher with no settings fails, so a reset that reached it would answer 500
+			cfg.Hasher = password.Hasher{}
+
+			rec := a.post("/api/auth/reset-password", resetBody(bad, "yet another passphrase"))
+
+			if rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), "This reset link is invalid or has expired") {
+				t.Fatalf("status = %d, body %s; want %d and the invalid link message", rec.Code, rec.Body, http.StatusBadRequest)
+			}
 		})
 	}
 }
@@ -273,5 +350,22 @@ func TestForgotPasswordIsRateLimitedPerIP(t *testing.T) {
 
 	if rec := forgotFrom("198.51.100.9", "c@example.com"); rec.Code != http.StatusOK {
 		t.Fatalf("a different IP: status = %d, want %d", rec.Code, http.StatusOK)
+	}
+}
+
+func TestResetPasswordIsRateLimitedPerIP(t *testing.T) {
+	a := newApp(t, func(c *handler.ApiConfig) { c.Limits.ResetPerIP = 2 })
+	a.verifiedUser("ada@example.com", "Ada", goodPassword)
+	token := a.requestReset("ada@example.com")
+	resetFrom := func(ip, token string) *httptest.ResponseRecorder {
+		return a.postFrom(ip, "/api/auth/reset-password", resetBody(token, newPassword))
+	}
+
+	resetFrom("203.0.113.7", "a-made-up-token")
+	resetFrom("203.0.113.7", "another-made-up-token")
+	assertTooManyRequests(t, resetFrom("203.0.113.7", token))
+
+	if rec := resetFrom("198.51.100.9", token); rec.Code != http.StatusNoContent {
+		t.Fatalf("a different IP: status = %d, want %d (body %s)", rec.Code, http.StatusNoContent, rec.Body)
 	}
 }

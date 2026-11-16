@@ -72,3 +72,28 @@ func (q *Queries) DeleteUnusedEmailTokens(ctx context.Context, arg DeleteUnusedE
 	_, err := q.db.ExecContext(ctx, deleteUnusedEmailTokens, arg.UserID, arg.Purpose)
 	return err
 }
+
+const isEmailTokenUsable = `-- name: IsEmailTokenUsable :one
+SELECT EXISTS (
+  SELECT 1 FROM email_tokens
+  WHERE token_hash = $1
+    AND purpose = $2
+    AND used_at IS NULL
+    AND expires_at > $3
+)::boolean AS usable
+`
+
+type IsEmailTokenUsableParams struct {
+	TokenHash []byte
+	Purpose   EmailTokenPurpose
+	Now       time.Time
+}
+
+// Whether ConsumeEmailToken would accept the token right now. Only a cheap
+// early refusal: it spends nothing, so ConsumeEmailToken still decides.
+func (q *Queries) IsEmailTokenUsable(ctx context.Context, arg IsEmailTokenUsableParams) (bool, error) {
+	row := q.db.QueryRowContext(ctx, isEmailTokenUsable, arg.TokenHash, arg.Purpose, arg.Now)
+	var usable bool
+	err := row.Scan(&usable)
+	return usable, err
+}

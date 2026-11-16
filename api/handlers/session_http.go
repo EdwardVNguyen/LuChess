@@ -91,7 +91,7 @@ func (h *sessionHTTP) HandleRefresh(w http.ResponseWriter, r *http.Request) {
 	if !h.requireFrontendOrigin(w, r) {
 		return
 	}
-	if !h.cfg.allow(w, h.cfg.refreshByIP, clientIP(r)) {
+	if !h.cfg.allow(w, h.cfg.refreshByIP, h.cfg.clientIP(r)) {
 		return
 	}
 

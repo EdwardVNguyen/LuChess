@@ -1,5 +1,5 @@
-// Package schema embeds the Goose migrations so tests can apply them without
-// depending on the working directory.
+// Package schema embeds the Goose migrations so the API and the tests can apply
+// them without depending on the working directory.
 package schema
 
 import "embed"

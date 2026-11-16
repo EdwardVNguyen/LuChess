@@ -16,7 +16,7 @@ import (
 const resetTokenTTL = time.Hour
 
 func (cfg *ApiConfig) HandleForgotPassword(w http.ResponseWriter, r *http.Request) {
-	if !cfg.allow(w, cfg.forgotByIP, clientIP(r)) {
+	if !cfg.allow(w, cfg.forgotByIP, cfg.clientIP(r)) {
 		return
 	}
 	var p struct {
@@ -92,6 +92,9 @@ func (cfg *ApiConfig) sendPasswordReset(ctx context.Context, email string) error
 }
 
 func (cfg *ApiConfig) HandleResetPassword(w http.ResponseWriter, r *http.Request) {
+	if !cfg.allow(w, cfg.resetByIP, cfg.clientIP(r)) {
+		return
+	}
 	var p struct {
 		Token    string `json:"token"`
 		Password string `json:"password"`
@@ -102,6 +105,27 @@ func (cfg *ApiConfig) HandleResetPassword(w http.ResponseWriter, r *http.Request
 	// Checked before the token is spent, so a rejected password can be retried with the same link
 	if err := validatePassword(p.Password); err != nil {
 		utils.RespondError(w, http.StatusBadRequest, err.Error(), nil)
+		return
+	}
+	invalid := func() {
+		utils.RespondError(w, http.StatusBadRequest, "This reset link is invalid or has expired", nil)
+	}
+	now := cfg.now()
+	tokenHash := hashToken(p.Token)
+	// Hashing costs 19 MiB, so a token that cannot work is refused before it.
+	// Nothing is spent here: two requests can both pass, and ConsumeEmailToken
+	// below still lets only one of them through.
+	usable, err := cfg.Db.IsEmailTokenUsable(r.Context(), database.IsEmailTokenUsableParams{
+		TokenHash: tokenHash,
+		Purpose:   database.EmailTokenPurposeReset,
+		Now:       now,
+	})
+	if err != nil {
+		utils.RespondError(w, http.StatusInternalServerError, "Could not reset password", err)
+		return
+	}
+	if !usable {
+		invalid()
 		return
 	}
 	hash, err := cfg.Hasher.Hash(p.Password)
@@ -118,14 +142,14 @@ func (cfg *ApiConfig) HandleResetPassword(w http.ResponseWriter, r *http.Request
 	defer tx.Rollback()
 	q := cfg.Db.WithTx(tx)
 
-	now := cfg.now()
 	userID, err := q.ConsumeEmailToken(r.Context(), database.ConsumeEmailTokenParams{
-		TokenHash: hashToken(p.Token),
+		TokenHash: tokenHash,
 		Purpose:   database.EmailTokenPurposeReset,
 		Now:       sql.NullTime{Time: now, Valid: true},
 	})
+	// The token was spent or replaced while this request was hashing
 	if errors.Is(err, sql.ErrNoRows) {
-		utils.RespondError(w, http.StatusBadRequest, "This reset link is invalid or has expired", nil)
+		invalid()
 		return
 	}
 	if err != nil {

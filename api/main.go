@@ -1,18 +1,22 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
 	"database/sql"
-	"net/http"
+	"net"
+	"os/signal"
+	"syscall"
 
-	"github.com/joho/godotenv"
 	"github.com/EdwardVNguyen/LuChess/api/internal/database"
 	"github.com/EdwardVNguyen/LuChess/api/handlers"
 	"github.com/EdwardVNguyen/LuChess/api/internal/mailer"
+	"github.com/EdwardVNguyen/LuChess/api/internal/migrate"
 	"github.com/EdwardVNguyen/LuChess/api/internal/password"
 	"github.com/EdwardVNguyen/LuChess/api/internal/session"
+	"github.com/EdwardVNguyen/LuChess/api/internal/server"
 	_ "github.com/lib/pq"
 )
 
@@ -26,11 +30,12 @@ func main() {
 		envFrontendOrigin = "FRONTEND_ORIGIN"
 		envJWTSecret = "JWT_SECRET"
 		envCookieSecure = "COOKIE_SECURE"
+		envTrustProxyHeaders = "TRUST_PROXY_HEADERS"
 		minJWTSecretLen = 32
 	)
 
 	// Get environment variables
-	if err := godotenv.Load(); err != nil {
+	if err := loadDotEnv(".env"); err != nil {
 		log.Fatal(err)
 	}	
 
@@ -42,6 +47,11 @@ func main() {
 	// Connect to the database
 	db, err := sql.Open(envDatabaseType, os.Getenv(envDatabaseURL))
 	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Bring the schema up to date before listening; never serve on a partly migrated one
+	if err := migrate.Up(context.Background(), db, log.Default()); err != nil {
 		log.Fatal(err)
 	}
 
@@ -73,16 +83,28 @@ func main() {
 		Session: session.New(session.Config{DB: db, Secret: []byte(jwtSecret)}),
 		// On unless explicitly turned off, for a browser that refuses Secure cookies over plain HTTP
 		CookieSecure: os.Getenv(envCookieSecure) != "false",
+		// Off unless explicitly turned on: safe only when nothing reaches the API except through Cloudflare
+		TrustProxyHeaders: os.Getenv(envTrustProxyHeaders) == "true",
 	}
 
-	// Run the server
-	server := &http.Server{
-		Addr: ":" + port,
-		Handler: handler.NewRouter(&apiCfg),
+	// Run the server until a stop signal: Ctrl-C, or the SIGTERM a container stop sends
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	// Listen here so that a port already in use stops the process with its error
+	listener, err := net.Listen("tcp", ":" + port)
+	if err != nil {
+		log.Fatal(err)
 	}
 
 	fmt.Printf("Server running on port %s\n", port)
-	if err := server.ListenAndServe(); err != nil {
+	if err := server.Run(ctx, server.New(handler.NewRouter(&apiCfg)), listener, server.ShutdownGrace); err != nil {
 		log.Fatal(err)
-	} 
+	}
+
+	// Every request has finished or been cut off, so nothing still needs the database
+	if err := db.Close(); err != nil {
+		log.Printf("error: closing the database: %s\n", err)
+	}
+	fmt.Println("Server stopped")
 }

@@ -51,9 +51,17 @@ type publicUser struct {
 	Name  string `json:"name"`
 }
 
-// clientIP is the address of the connection. Behind a reverse proxy this is the
-// proxy's address, so deployment must add trusted forwarded-header handling.
-func clientIP(r *http.Request) string {
+// clientIP is the address the per-IP rate limits count against: the address of
+// the connection, or with TrustProxyHeaders the visitor's address as Cloudflare
+// reports it. No other forwarding header is read, since a visitor can put
+// anything in them.
+func (cfg *ApiConfig) clientIP(r *http.Request) string {
+	if cfg.TrustProxyHeaders {
+		// The parsed form, so two spellings of one address share a budget
+		if ip := net.ParseIP(r.Header.Get("CF-Connecting-IP")); ip != nil {
+			return ip.String()
+		}
+	}
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
 		return r.RemoteAddr
@@ -74,7 +82,7 @@ func (cfg *ApiConfig) allow(w http.ResponseWriter, limiter *ratelimit.Limiter, k
 }
 
 func (cfg *ApiConfig) HandleSignUp(w http.ResponseWriter, r *http.Request) {
-	if !cfg.allow(w, cfg.signupByIP, clientIP(r)) {
+	if !cfg.allow(w, cfg.signupByIP, cfg.clientIP(r)) {
 		return
 	}
 	var p struct {
@@ -194,7 +202,7 @@ func (cfg *ApiConfig) HandleVerifyEmail(w http.ResponseWriter, r *http.Request) 
 }
 
 func (cfg *ApiConfig) HandleResendVerification(w http.ResponseWriter, r *http.Request) {
-	if !cfg.allow(w, cfg.resendByIP, clientIP(r)) {
+	if !cfg.allow(w, cfg.resendByIP, cfg.clientIP(r)) {
 		return
 	}
 	var p struct {

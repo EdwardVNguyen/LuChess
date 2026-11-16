@@ -24,6 +24,8 @@ type RateLimits struct {
 	ForgotPerIP    int
 	// Password attempts to delete an account, per user
 	DeletePerUser int
+	// Attempts to use a reset link, per IP
+	ResetPerIP int
 }
 
 type ApiConfig struct {
@@ -41,6 +43,10 @@ type ApiConfig struct {
 	// CookieSecure marks the refresh cookie Secure. Keep it on everywhere except
 	// where a browser refuses Secure cookies over plain HTTP.
 	CookieSecure bool
+	// TrustProxyHeaders takes the client address for the per-IP rate limits from
+	// CF-Connecting-IP. Turn it on only where nothing reaches the API except
+	// through Cloudflare, or a visitor can claim any address they like.
+	TrustProxyHeaders bool
 	// Now is the clock; nil means time.Now. Tests replace it to exercise expiry.
 	Now func() time.Time
 
@@ -49,6 +55,7 @@ type ApiConfig struct {
 	loginByEmail, loginByIP, refreshByIP  *ratelimit.Limiter
 	forgotByEmail, forgotByIP             *ratelimit.Limiter
 	deleteByUser                          *ratelimit.Limiter
+	resetByIP                             *ratelimit.Limiter
 	sessionHTTP                           *sessionHTTP
 
 	// A valid hash of a throwaway password, checked when a login names no account
@@ -68,6 +75,7 @@ const (
 	defaultForgotPerEmail = 5
 	defaultForgotPerIP    = 20
 	defaultDeletePerUser  = 10
+	defaultResetPerIP     = 20
 )
 
 func (cfg *ApiConfig) buildLimiters() {
@@ -86,6 +94,7 @@ func (cfg *ApiConfig) buildLimiters() {
 	cfg.forgotByEmail = ratelimit.New(orDefault(cfg.Limits.ForgotPerEmail, defaultForgotPerEmail))
 	cfg.forgotByIP = ratelimit.New(orDefault(cfg.Limits.ForgotPerIP, defaultForgotPerIP))
 	cfg.deleteByUser = ratelimit.New(orDefault(cfg.Limits.DeletePerUser, defaultDeletePerUser))
+	cfg.resetByIP = ratelimit.New(orDefault(cfg.Limits.ResetPerIP, defaultResetPerIP))
 }
 
 func (cfg *ApiConfig) now() time.Time {
