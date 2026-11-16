@@ -11,8 +11,7 @@ cd api
 docker compose up -d --wait   # Postgres 18 on localhost:5433 (5432 is left free for a local install)
 cp .env.example .env
 echo "JWT_SECRET=$(openssl rand -base64 48)" >> .env   # signs access tokens; the API refuses to start without one
-goose -dir sql/schema postgres "$(grep ^DB_URL .env | cut -d= -f2-)" up   # apply migrations
-go run .                      # http://localhost:8080
+go run .                      # applies any pending migrations, then http://localhost:8080
 
 # Frontend
 cd web
