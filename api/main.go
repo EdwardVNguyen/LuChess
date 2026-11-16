@@ -6,7 +6,10 @@ import (
 	"log"
 	"os"
 	"database/sql"
-	"net/http"
+	"net"
+	"context"
+	"os/signal"
+	"syscall"
 
 	"github.com/EdwardVNguyen/LuChess/api/internal/database"
 	"github.com/EdwardVNguyen/LuChess/api/handlers"
@@ -14,6 +17,7 @@ import (
 	"github.com/EdwardVNguyen/LuChess/api/internal/migrate"
 	"github.com/EdwardVNguyen/LuChess/api/internal/password"
 	"github.com/EdwardVNguyen/LuChess/api/internal/session"
+	"github.com/EdwardVNguyen/LuChess/api/internal/server"
 	_ "github.com/lib/pq"
 )
 
@@ -79,14 +83,24 @@ func main() {
 		TrustProxyHeaders: os.Getenv(envTrustProxyHeaders) == "true",
 	}
 
-	// Run the server
-	server := &http.Server{
-		Addr: ":" + port,
-		Handler: handler.NewRouter(&apiCfg),
+	// Run the server until a stop signal: Ctrl-C, or the SIGTERM a container stop sends
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	// Listen here so that a port already in use stops the process with its error
+	listener, err := net.Listen("tcp", ":" + port)
+	if err != nil {
+		log.Fatal(err)
 	}
 
 	fmt.Printf("Server running on port %s\n", port)
-	if err := server.ListenAndServe(); err != nil {
+	if err := server.Run(ctx, server.New(handler.NewRouter(&apiCfg)), listener, server.ShutdownGrace); err != nil {
 		log.Fatal(err)
-	} 
+	}
+
+	// Every request has finished or been cut off, so nothing still needs the database
+	if err := db.Close(); err != nil {
+		log.Printf("error: closing the database: %s\n", err)
+	}
+	fmt.Println("Server stopped")
 }
