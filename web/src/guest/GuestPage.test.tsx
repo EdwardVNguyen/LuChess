@@ -4,6 +4,7 @@ import { createMemoryHistory, createRootRoute, createRoute, createRouter, Outlet
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { findMove, findNoteActions, move, moveList, noteActions, square, startForm, tools } from '../notes/testUtils'
 import type { Session, SessionState } from '../session'
 import { SessionProvider } from '../session'
 import { theme } from '../theme'
@@ -66,14 +67,8 @@ function renderGuestPage(state: SessionState = { status: 'guest' }) {
   return router
 }
 
-function square(name: string): HTMLElement {
-  const element = document.querySelector<HTMLElement>(`[id$="-square-${name}"]`)
-  if (!element) throw new Error(`no square ${name}`)
-  return element
-}
-
 async function openImport() {
-  await userEvent.click(await screen.findByRole('button', { name: 'Note actions' }))
+  await userEvent.click(await findNoteActions())
   await userEvent.click(await screen.findByRole('menuitem', { name: 'Import…' }))
 }
 
@@ -83,7 +78,7 @@ async function startFromPgn(pgn: string, name: string) {
   await userEvent.paste(pgn)
   await userEvent.click(screen.getByRole('textbox', { name: 'Name' }))
   await userEvent.paste(name)
-  await userEvent.click(screen.getByRole('button', { name: 'Start writing' }))
+  await userEvent.click(startForm('Import').getByRole('button', { name: 'Start writing' }))
 }
 
 describe('GuestPage', () => {
@@ -96,7 +91,7 @@ describe('GuestPage', () => {
 
     await userEvent.click(square('e2'))
     await userEvent.click(square('e4'))
-    expect(screen.getByRole('button', { name: 'e4' })).toHaveAttribute('aria-current', 'step')
+    expect(move('e4')).toHaveAttribute('aria-current', 'step')
     expect(apiCalls).toEqual([])
   })
 
@@ -106,11 +101,12 @@ describe('GuestPage', () => {
     await userEvent.click(screen.getByRole('radio', { name: 'FEN' }))
     await userEvent.click(screen.getByRole('textbox', { name: 'FEN' }))
     await userEvent.paste('8/8/8/4k3/8/8/4P3/4K3 w - - 0 1')
-    await userEvent.type(screen.getByRole('textbox', { name: 'Name' }), 'King and pawn')
-    await userEvent.click(screen.getByRole('button', { name: 'Start writing' }))
+    await userEvent.click(screen.getByRole('textbox', { name: 'Name' }))
+    await userEvent.paste('King and pawn')
+    await userEvent.click(startForm('Import').getByRole('button', { name: 'Start writing' }))
 
     expect(await screen.findByRole('heading', { name: 'King and pawn' })).toBeInTheDocument()
-    expect(within(screen.getByRole('region', { name: 'Tools' })).getByRole('textbox', { name: 'FEN' })).toHaveValue(
+    expect(tools().getByRole('textbox', { name: 'FEN' })).toHaveValue(
       '8/8/8/4k3/8/8/4P3/4K3 w - - 0 1',
     )
   })
@@ -126,9 +122,9 @@ describe('GuestPage', () => {
     expect(dialog).toHaveTextContent('the moves you have played, will be lost')
     await userEvent.click(within(dialog).getByRole('button', { name: 'Continue' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
-    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    await userEvent.click(startForm('Import').getByRole('button', { name: 'Cancel' }))
 
-    expect(await screen.findByRole('button', { name: 'd4' })).toBeInTheDocument()
+    expect(await findMove('d4')).toBeInTheDocument()
   })
 
   it('lets a Guest write Glyphs, Comments and Bodies without calling the API', async () => {
@@ -138,16 +134,16 @@ describe('GuestPage', () => {
     await startFromPgn('1. e4 e5 2. Nf3 *', 'Open games')
     expect(screen.getByRole('heading', { name: 'Open games' })).toBeInTheDocument()
 
-    await userEvent.click(screen.getByRole('button', { name: 'e5' }))
+    await userEvent.click(move('e5'))
     await userEvent.click(within(screen.getByRole('group', { name: 'Move Glyph' })).getByRole('button', { name: 'Good move' }))
-    fireEvent.contextMenu(screen.getByRole('button', { name: 'e5!' }))
+    fireEvent.contextMenu(move('e5!'))
     await userEvent.click(screen.getByRole('menuitem', { name: 'Add comment' }))
     await waitFor(() => expect(screen.getByRole('textbox', { name: 'Comment on 1…e5' })).toHaveFocus())
     await userEvent.keyboard('The classical reply.{Enter}')
     await userEvent.type(screen.getByRole('textbox', { name: 'Body after 1…e5' }), 'Now the knight comes out.')
     await userEvent.tab()
 
-    expect(screen.getByRole('button', { name: 'e5!' })).toBeInTheDocument()
+    expect(move('e5!')).toBeInTheDocument()
     expect(screen.getByText('The classical reply.', { selector: 'span' })).toBeInTheDocument()
     expect(screen.getByText('Now the knight comes out.', { selector: 'p' })).toBeInTheDocument()
 
@@ -159,9 +155,11 @@ describe('GuestPage', () => {
     renderGuestPage()
     await openImport()
     await userEvent.click(within(await screen.findByRole('radiogroup', { name: 'Start from' })).getByText('FEN'))
-    await userEvent.type(screen.getByRole('textbox', { name: 'FEN' }), '4k3/8/8/8/8/8/8/4K3 w - - 0 1')
-    await userEvent.type(screen.getByRole('textbox', { name: 'Name' }), 'A position')
-    await userEvent.click(screen.getByRole('button', { name: 'Start writing' }))
+    await userEvent.click(screen.getByRole('textbox', { name: 'FEN' }))
+    await userEvent.paste('4k3/8/8/8/8/8/8/4K3 w - - 0 1')
+    await userEvent.click(screen.getByRole('textbox', { name: 'Name' }))
+    await userEvent.paste('A position')
+    await userEvent.click(startForm('Import').getByRole('button', { name: 'Start writing' }))
 
     expect(screen.getByText('No moves yet. This note studies the position alone.')).toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: 'Body opening the note' })).toBeInTheDocument()
@@ -187,7 +185,7 @@ describe('GuestPage', () => {
     await userEvent.type(screen.getByRole('textbox', { name: 'Body after 1.c4' }), 'Flexible.')
     await userEvent.tab()
 
-    await userEvent.click(screen.getByRole('button', { name: 'Note actions' }))
+    await userEvent.click(noteActions())
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Start over' }))
     const dialog = await screen.findByRole('dialog', { name: 'Start over' })
     await userEvent.click(within(dialog).getByRole('button', { name: 'Start over' }))
@@ -207,21 +205,21 @@ describe('GuestPage', () => {
 
     // At the end of the line, a move extends it.
     await play('g1', 'f3')
-    expect(screen.getByRole('button', { name: 'Nf3' })).toHaveAttribute('aria-current', 'step')
+    expect(move('Nf3')).toHaveAttribute('aria-current', 'step')
 
     // The next Move only steps forward.
-    await userEvent.click(screen.getByRole('button', { name: 'e4' }))
+    await userEvent.click(move('e4'))
     await play('e7', 'e5')
-    expect(screen.getByRole('button', { name: 'e5' })).toHaveAttribute('aria-current', 'step')
+    expect(move('e5')).toHaveAttribute('aria-current', 'step')
 
     // A different move starts a Variation, and playing it again steps into it.
-    await userEvent.click(screen.getByRole('button', { name: 'e4' }))
+    await userEvent.click(move('e4'))
     await play('c7', 'c5')
-    expect(screen.getByRole('button', { name: 'c5' })).toHaveAttribute('aria-current', 'step')
-    await userEvent.click(screen.getByRole('button', { name: 'e4' }))
+    expect(move('c5')).toHaveAttribute('aria-current', 'step')
+    await userEvent.click(move('e4'))
     await play('c7', 'c5')
-    expect(screen.getAllByRole('button', { name: 'c5' })).toHaveLength(1)
-    expect(screen.getByRole('button', { name: 'c5' })).toHaveAttribute('aria-current', 'step')
+    expect(moveList().getAllByRole('button', { name: 'c5' })).toHaveLength(1)
+    expect(move('c5')).toHaveAttribute('aria-current', 'step')
     expect(screen.getByRole('textbox', { name: 'PGN' })).toHaveValue('1. e4 e5 (1... c5) 2. Nf3 *')
 
     expect(apiCalls).toEqual([])
@@ -234,7 +232,7 @@ describe('GuestPage', () => {
     await userEvent.click(square('e7'))
     await userEvent.click(square('e5'))
 
-    await userEvent.click(screen.getByRole('button', { name: 'Note actions' }))
+    await userEvent.click(noteActions())
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Start over' }))
     expect(await screen.findByRole('dialog', { name: 'Start over' })).toHaveTextContent('the moves you have played')
   })
@@ -246,27 +244,27 @@ describe('GuestPage', () => {
     const pgn = screen.getByRole('textbox', { name: 'PGN' })
 
     // Two Variations deep, all the way up.
-    fireEvent.contextMenu(screen.getByRole('button', { name: 'Nc6' }))
+    fireEvent.contextMenu(move('Nc6'))
     await user.click(screen.getByRole('menuitem', { name: 'Promote to main line' }))
     expect(pgn).toHaveValue('1. e4 c5 (1... e5 2. Nf3) 2. Nc3 (2. Nf3) 2... Nc6 *')
 
     // Writing on what would go asks first.
-    fireEvent.contextMenu(screen.getByRole('button', { name: 'Nc3' }))
+    fireEvent.contextMenu(move('Nc3'))
     await user.click(screen.getByRole('menuitem', { name: 'Add comment' }))
     const comment = screen.getByRole('textbox', { name: 'Comment on 2.Nc3' })
     await waitFor(() => expect(comment).toHaveFocus())
     await user.type(comment, 'Closed.{Enter}')
 
-    fireEvent.contextMenu(screen.getByRole('button', { name: 'Nc3' }))
+    fireEvent.contextMenu(move('Nc3'))
     await user.click(screen.getByRole('menuitem', { name: 'Delete from here' }))
     const dialog = await screen.findByRole('dialog', { name: 'Delete your writing?' })
     expect(dialog).toHaveTextContent('This will delete 1 Comment: everything written from this move on')
     await user.click(within(dialog).getByRole('button', { name: 'Delete' }))
     expect(pgn).toHaveValue('1. e4 c5 (1... e5 2. Nf3) 2. Nf3 *')
-    expect(screen.getByRole('button', { name: 'c5' })).toHaveAttribute('aria-current', 'step')
+    expect(move('c5')).toHaveAttribute('aria-current', 'step')
 
     // Nothing written: no question.
-    fireEvent.contextMenu(screen.getAllByRole('button', { name: 'Nf3' })[0])
+    fireEvent.contextMenu(moveList().getAllByRole('button', { name: 'Nf3' })[0])
     await user.click(screen.getByRole('menuitem', { name: 'Delete from here' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     expect(pgn).toHaveValue('1. e4 c5 (1... e5) 2. Nf3 *')
@@ -285,21 +283,21 @@ describe('GuestPage', () => {
     renderGuestPage()
     await startFromPgn('1. e4 e5 *', 'Open games')
 
-    const tools = await screen.findByRole('region', { name: 'Tools' })
-    expect(within(tools).getByRole('region', { name: 'Writing on 1…e5' })).toBeInTheDocument()
-    const fen = within(tools).getByRole('textbox', { name: 'FEN' })
+    await screen.findByRole('region', { name: 'Tools' })
+    expect(tools().getByRole('region', { name: 'Writing on 1…e5' })).toBeInTheDocument()
+    const fen = tools().getByRole('textbox', { name: 'FEN' })
     expect(fen).toHaveValue('rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2')
     expect(fen).toHaveAttribute('readonly')
-    expect(within(tools).getByRole('textbox', { name: 'PGN' })).toHaveValue('1. e4 e5 *')
+    expect(tools().getByRole('textbox', { name: 'PGN' })).toHaveValue('1. e4 e5 *')
 
     // The FEN follows the Ply the board is on.
     await user.click(screen.getByRole('button', { name: 'First move' }))
     expect(fen).toHaveValue('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1')
-    expect(within(tools).getByRole('region', { name: 'Writing on the position' })).toBeInTheDocument()
+    expect(tools().getByRole('region', { name: 'Writing on the position' })).toBeInTheDocument()
 
-    await user.click(within(tools).getByRole('button', { name: 'Copy FEN' }))
+    await user.click(tools().getByRole('button', { name: 'Copy FEN' }))
     expect(await navigator.clipboard.readText()).toBe('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1')
-    await user.click(within(tools).getByRole('button', { name: 'Copy PGN' }))
+    await user.click(tools().getByRole('button', { name: 'Copy PGN' }))
     expect(await navigator.clipboard.readText()).toBe('1. e4 e5 *')
   })
 
@@ -309,7 +307,7 @@ describe('GuestPage', () => {
     await userEvent.type(screen.getByRole('textbox', { name: 'Body after 1…e5' }), 'Symmetry.')
     await userEvent.tab()
 
-    await userEvent.click(screen.getByRole('button', { name: 'Note actions' }))
+    await userEvent.click(noteActions())
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Edit position' }))
     expect(await screen.findByRole('heading', { name: 'Edit position' })).toBeInTheDocument()
     expect(router.state.location.search).toEqual({ edit: 'position' })
@@ -335,13 +333,13 @@ describe('GuestPage', () => {
 
   it('keeps the Guest’s Note as it was on Cancel, and saves at once when there is nothing to lose', async () => {
     renderGuestPage()
-    await userEvent.click(await screen.findByRole('button', { name: 'Note actions' }))
+    await userEvent.click(await findNoteActions())
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Edit position' }))
     await userEvent.click(await screen.findByRole('button', { name: 'Cancel' }))
     expect(await screen.findByRole('heading', { name: 'Untitled' })).toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: 'FEN' })).toHaveValue('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1')
 
-    await userEvent.click(screen.getByRole('button', { name: 'Note actions' }))
+    await userEvent.click(noteActions())
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Edit position' }))
     await userEvent.click(await screen.findByRole('radio', { name: 'White king' }))
     await userEvent.click(square('a1'))
@@ -359,26 +357,26 @@ describe('GuestPage', () => {
     await startFromPgn('1. e4 e5 2. Nf3 *', 'Open games')
 
     // Adding a Move asks nothing.
-    await userEvent.click(screen.getByRole('button', { name: 'Edit PGN' }))
+    await userEvent.click(tools().getByRole('button', { name: 'Edit PGN' }))
     const field = screen.getByRole('textbox', { name: 'PGN' })
     await userEvent.clear(field)
-    await userEvent.type(field, '1. e4 e5 2. Nf3 Nc6 *')
-    await userEvent.click(screen.getByRole('button', { name: 'Apply PGN' }))
-    expect(await screen.findByRole('button', { name: 'Nc6' })).toBeInTheDocument()
+    await userEvent.paste('1. e4 e5 2. Nf3 Nc6 *')
+    await userEvent.click(tools().getByRole('button', { name: 'Apply PGN' }))
+    expect(await findMove('Nc6')).toBeInTheDocument()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: 'PGN' })).toHaveAttribute('readonly')
 
     // Changing the first reply replaces the rest of the line, once confirmed.
-    await userEvent.click(screen.getByRole('button', { name: 'Edit PGN' }))
+    await userEvent.click(tools().getByRole('button', { name: 'Edit PGN' }))
     await userEvent.clear(screen.getByRole('textbox', { name: 'PGN' }))
-    await userEvent.type(screen.getByRole('textbox', { name: 'PGN' }), '1. e4 c5 *')
-    await userEvent.click(screen.getByRole('button', { name: 'Apply PGN' }))
+    await userEvent.paste('1. e4 c5 *')
+    await userEvent.click(tools().getByRole('button', { name: 'Apply PGN' }))
     const dialog = await screen.findByRole('dialog', { name: 'Apply this PGN?' })
     expect(dialog).toHaveTextContent('This deletes 3 Moves. This cannot be undone.')
     await userEvent.click(within(dialog).getByRole('button', { name: 'Apply' }))
 
-    expect(await screen.findByRole('button', { name: 'c5' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'e5' })).not.toBeInTheDocument()
+    expect(await findMove('c5')).toBeInTheDocument()
+    expect(moveList().queryByRole('button', { name: 'e5' })).not.toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: 'PGN' })).toHaveValue('1. e4 c5 *')
     expect(screen.getByRole('heading', { name: 'Open games' })).toBeInTheDocument()
     expect(apiCalls).toEqual([])
@@ -388,12 +386,12 @@ describe('GuestPage', () => {
     renderGuestPage()
     await startFromPgn('1. e4 e5 *', 'Open games')
 
-    await userEvent.click(screen.getByRole('button', { name: 'Edit FEN' }))
+    await userEvent.click(tools().getByRole('button', { name: 'Edit FEN' }))
     const field = screen.getByRole('textbox', { name: 'FEN' })
     expect(field).toHaveValue('rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2')
     await userEvent.clear(field)
-    await userEvent.type(field, '4k3/8/8/8/8/8/8/4K3 w - - 0 1')
-    await userEvent.click(screen.getByRole('button', { name: 'Apply FEN' }))
+    await userEvent.paste('4k3/8/8/8/8/8/8/4K3 w - - 0 1')
+    await userEvent.click(tools().getByRole('button', { name: 'Apply FEN' }))
 
     const dialog = await screen.findByRole('dialog', { name: 'Start the note from this position?' })
     expect(dialog).toHaveTextContent('This deletes its 2 Moves. The name stays.')

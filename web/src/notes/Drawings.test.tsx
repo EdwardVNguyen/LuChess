@@ -13,6 +13,7 @@ import type { Session } from '../session'
 import { SessionProvider } from '../session'
 import { theme } from '../theme'
 import { NoteScreen } from './NoteScreen'
+import { boardControl, findMove, move, square } from './testUtils'
 
 // Drawings on a saved Note (#77): drawn on the board, saved on the Move it
 // shows through the writing endpoint, and shown again on returning to it.
@@ -110,12 +111,6 @@ function renderNote() {
   )
 }
 
-function square(name: string): HTMLElement {
-  const element = document.querySelector<HTMLElement>(`[id$="-square-${name}"]`)
-  if (!element) throw new Error(`no square ${name}`)
-  return element
-}
-
 /** Right-press on one square and let go on another for an arrow, or on the same one for a circle. */
 function draw(from: string, to: string, keys: { shiftKey?: boolean; altKey?: boolean } = {}) {
   fireEvent.mouseDown(square(from), { button: 2, buttons: 2, ...keys })
@@ -136,7 +131,7 @@ function onBoard(): { arrows: number; circles: Record<string, string> } {
 }
 
 function current(name: string) {
-  return waitFor(() => expect(screen.getByRole('button', { name })).toHaveAttribute('aria-current', 'step'))
+  return waitFor(() => expect(move(name)).toHaveAttribute('aria-current', 'step'))
 }
 
 beforeEach(() => {
@@ -160,7 +155,7 @@ describe('Drawings on a Note', () => {
     await current('Nc6')
     expect(onBoard()).toEqual({ arrows: 0, circles: {} })
 
-    await user.click(screen.getByRole('button', { name: 'e4' }))
+    await user.click(move('e4'))
     expect(onBoard()).toEqual({ arrows: 1, circles: {} })
   })
 
@@ -186,16 +181,16 @@ describe('Drawings on a Note', () => {
     })
     expect(onBoard()).toEqual({ arrows: 1, circles: { e5: 'red' } })
 
-    await user.click(screen.getByRole('button', { name: 'Previous move' }))
+    await user.click(boardControl('Previous move'))
     expect(onBoard()).toEqual({ arrows: 0, circles: {} })
-    await user.click(screen.getByRole('button', { name: 'Next move' }))
+    await user.click(boardControl('Next move'))
     expect(onBoard()).toEqual({ arrows: 1, circles: { e5: 'red' } })
   })
 
   it('saves Drawings on a Variation Move with its Comment, and removes one drawn again', async () => {
     const user = userEvent.setup()
     renderNote()
-    await user.click(await screen.findByRole('button', { name: 'c5' }))
+    await user.click(await findMove('c5'))
 
     draw('c5', 'd4', { altKey: true })
     await waitFor(() =>
@@ -205,8 +200,8 @@ describe('Drawings on a Note', () => {
       })),
     )
 
-    await user.click(screen.getByRole('button', { name: 'e5' }))
-    await user.click(screen.getByRole('button', { name: 'c5' }))
+    await user.click(move('e5'))
+    await user.click(move('c5'))
     expect(onBoard().arrows).toBe(1)
 
     draw('c5', 'd4', { altKey: true })
@@ -220,7 +215,7 @@ describe('Drawings on a Note', () => {
     const user = userEvent.setup()
     renderNote()
     await current('Nc6')
-    await user.click(screen.getByRole('button', { name: 'First move' }))
+    await user.click(boardControl('First move'))
 
     draw('d4', 'd4', { shiftKey: true, altKey: true })
 
@@ -228,9 +223,9 @@ describe('Drawings on a Note', () => {
     await waitFor(() =>
       expect(putWriting).toHaveBeenCalledWith('token', 1, idOf(null), expect.objectContaining({ drawings: [yellow] })),
     )
-    await user.click(screen.getByRole('button', { name: 'Next move' }))
+    await user.click(boardControl('Next move'))
     expect(onBoard().circles).toEqual({})
-    await user.click(screen.getByRole('button', { name: 'Previous move' }))
+    await user.click(boardControl('Previous move'))
     expect(onBoard().circles).toEqual({ d4: 'yellow' })
   })
 

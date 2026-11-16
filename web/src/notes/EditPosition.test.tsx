@@ -11,6 +11,7 @@ import { SessionProvider } from '../session'
 import { theme } from '../theme'
 import { EditPositionPage } from './EditPositionPage'
 import { NoteScreen } from './NoteScreen'
+import { findNoteActions, square } from './testUtils'
 
 const resetPosition = vi.fn<(token: string, id: number, startFen: string | null, confirm: boolean) => Promise<PositionResetResult>>()
 const listMoves = vi.fn<(token: string, id: number) => Promise<MoveRow[]>>()
@@ -66,7 +67,7 @@ function renderAt(path: string) {
     ]),
     history: createMemoryHistory({ initialEntries: [path] }),
   })
-  const { container } = render(
+  render(
     <MantineProvider theme={theme} env="test">
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
         <SessionProvider session={session}>
@@ -75,25 +76,19 @@ function renderAt(path: string) {
       </QueryClientProvider>
     </MantineProvider>,
   )
-  return { router, container }
+  return router
 }
 
-function square(container: HTMLElement, name: string): HTMLElement {
-  const element = container.querySelector<HTMLElement>(`[id$="-square-${name}"]`)
-  if (!element) throw new Error(`no square ${name}`)
-  return element
-}
-
-async function placeKings(container: HTMLElement) {
+async function placeKings() {
   await userEvent.click(await screen.findByRole('radio', { name: 'White king' }))
-  await userEvent.click(square(container, 'e1'))
+  await userEvent.click(square('e1'))
   await userEvent.click(screen.getByRole('radio', { name: 'Black king' }))
-  await userEvent.click(square(container, 'e8'))
+  await userEvent.click(square('e8'))
 }
 
 async function openFromTitleMenu() {
   // The Note screen loads its chunks of the board and the move list first; slow on a busy run.
-  await userEvent.click(await screen.findByRole('button', { name: 'Note actions' }))
+  await userEvent.click(await findNoteActions())
   await userEvent.click(await screen.findByRole('menuitem', { name: 'Edit position' }))
   await screen.findByRole('heading', { name: 'Edit position' })
 }
@@ -115,7 +110,7 @@ beforeEach(() => {
 
 describe('Edit position', () => {
   it('opens from the Note’s title menu on an empty board, saving only a legal position', async () => {
-    const { router, container } = renderAt('/notes/1')
+    const router = renderAt('/notes/1')
     await openFromTitleMenu()
 
     expect(router.state.location.pathname).toBe('/notes/1/position')
@@ -124,15 +119,15 @@ describe('Edit position', () => {
     expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
     expect(screen.getByRole('alert')).toHaveTextContent(/Not a legal position yet/)
 
-    await placeKings(container)
+    await placeKings()
     expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled()
     // The first test here also loads the page's lazy route.
   })
 
   it('confirms before resetting a Note with Moves and writing, then returns to it', async () => {
-    const { router, container } = renderAt('/notes/1')
+    const router = renderAt('/notes/1')
     await openFromTitleMenu()
-    await placeKings(container)
+    await placeKings()
     resetPosition
       .mockResolvedValueOnce({ status: 'needsConfirmation', moves: 14, comments: 2, bodies: 0, glyphs: 0, drawings: 0 })
       .mockImplementationOnce(async () => {
@@ -157,8 +152,8 @@ describe('Edit position', () => {
   })
 
   it('resets at once when the Note has nothing to lose', async () => {
-    const { router, container } = renderAt('/notes/1/position')
-    await placeKings(container)
+    const router = renderAt('/notes/1/position')
+    await placeKings()
     resetPosition.mockResolvedValueOnce({ status: 'reset', note: { ...note, startFen: KINGS, tags: [] } })
 
     await userEvent.click(screen.getByRole('button', { name: 'Save' }))
@@ -169,9 +164,9 @@ describe('Edit position', () => {
   })
 
   it('keeps the Note as it was when the confirmation is dismissed, and on Cancel', async () => {
-    const { router, container } = renderAt('/notes/1')
+    const router = renderAt('/notes/1')
     await openFromTitleMenu()
-    await placeKings(container)
+    await placeKings()
     resetPosition.mockResolvedValueOnce({ status: 'needsConfirmation', moves: 2, comments: 0, bodies: 0, glyphs: 0, drawings: 0 })
 
     await userEvent.click(screen.getByRole('button', { name: 'Save' }))
@@ -206,10 +201,10 @@ describe('Edit position', () => {
   })
 
   it('flips the board', async () => {
-    const { container } = renderAt('/notes/1/position')
+    renderAt('/notes/1/position')
     await screen.findByRole('heading', { name: 'Edit position' })
     const a8First = () =>
-      Boolean(square(container, 'a8').compareDocumentPosition(square(container, 'h1')) & Node.DOCUMENT_POSITION_FOLLOWING)
+      Boolean(square('a8').compareDocumentPosition(square('h1')) & Node.DOCUMENT_POSITION_FOLLOWING)
     expect(a8First()).toBe(true)
 
     await userEvent.click(screen.getByRole('button', { name: 'Flip board' }))

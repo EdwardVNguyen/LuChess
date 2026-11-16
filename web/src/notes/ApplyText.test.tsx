@@ -11,6 +11,7 @@ import type { Session } from '../session'
 import { SessionProvider } from '../session'
 import { theme } from '../theme'
 import { NoteScreen } from './NoteScreen'
+import { tools } from './testUtils'
 
 const resetPosition =
   vi.fn<(token: string, id: number, startFen: string | null, confirm: boolean, tree?: ResetTree) => Promise<PositionResetResult>>()
@@ -82,8 +83,8 @@ function renderNote() {
 /** Presses Edit on the FEN or PGN, answering its field. */
 async function edit(name: 'FEN' | 'PGN'): Promise<HTMLInputElement | HTMLTextAreaElement> {
   // The Note screen loads its chunks of the board and the move list first; slow on a busy run.
-  await userEvent.click(await screen.findByRole('button', { name: `Edit ${name}` }))
-  return screen.getByRole('textbox', { name })
+  await userEvent.click(await waitFor(() => tools().getByRole('button', { name: `Edit ${name}` })))
+  return tools().getByRole('textbox', { name })
 }
 
 async function retype(field: HTMLElement, text: string) {
@@ -119,7 +120,7 @@ describe('the FEN and PGN under the board', () => {
     expect(field).not.toHaveAttribute('readonly')
     expect(field).toHaveValue('rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2')
     await userEvent.type(field, ' oops')
-    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    await userEvent.click(tools().getByRole('button', { name: 'Cancel' }))
 
     expect(screen.getByRole('textbox', { name: 'FEN' })).toHaveAttribute('readonly')
     expect(screen.getByRole('textbox', { name: 'FEN' })).toHaveValue('rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2')
@@ -130,7 +131,7 @@ describe('the FEN and PGN under the board', () => {
     renderNote()
     const field = await edit('FEN')
     await retype(field, '8/8/8/8/8/8/8/8 w - - 0 1')
-    await userEvent.click(screen.getByRole('button', { name: 'Apply FEN' }))
+    await userEvent.click(tools().getByRole('button', { name: 'Apply FEN' }))
 
     expect(await screen.findByRole('alert')).toBeInTheDocument()
     expect(field).toHaveAttribute('aria-invalid', 'true')
@@ -149,7 +150,7 @@ describe('the FEN and PGN under the board', () => {
         return { status: 'reset', note }
       })
 
-    await userEvent.click(screen.getByRole('button', { name: 'Apply FEN' }))
+    await userEvent.click(tools().getByRole('button', { name: 'Apply FEN' }))
 
     const dialog = await screen.findByRole('dialog', { name: 'Start the note from this position?' })
     expect(dialog).toHaveTextContent('This deletes its 2 Moves and all its writing. The name and folder stay.')
@@ -169,7 +170,7 @@ describe('the FEN and PGN under the board', () => {
     const field = await edit('FEN')
     expect(field).toHaveValue(START_FEN)
     await userEvent.type(field, '  ')
-    await userEvent.click(screen.getByRole('button', { name: 'Apply FEN' }))
+    await userEvent.click(tools().getByRole('button', { name: 'Apply FEN' }))
 
     await waitFor(() => expect(screen.getByRole('textbox', { name: 'FEN' })).toHaveAttribute('readonly'))
     expect(resetPosition).not.toHaveBeenCalled()
@@ -186,7 +187,7 @@ describe('the FEN and PGN under the board', () => {
     }))
 
     await retype(field, '[White "Lovelace, Ada"]\n\n1. e4 {Kings pawn} c5 2. Nf3 *')
-    await userEvent.click(screen.getByRole('button', { name: 'Apply PGN' }))
+    await userEvent.click(tools().getByRole('button', { name: 'Apply PGN' }))
 
     await waitFor(() => expect(screen.getByRole('textbox', { name: 'PGN' })).toHaveAttribute('readonly'))
     expect(applyTree).toHaveBeenCalledTimes(1)
@@ -207,7 +208,7 @@ describe('the FEN and PGN under the board', () => {
     renderNote()
     const field = await edit('PGN')
     await retype(field, '1. e4 c5 2. Qxf7 *')
-    await userEvent.click(screen.getByRole('button', { name: 'Apply PGN' }))
+    await userEvent.click(tools().getByRole('button', { name: 'Apply PGN' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('“Qxf7” is not a legal move in this game.')
     expect(applyTree).not.toHaveBeenCalled()
@@ -228,7 +229,7 @@ describe('the FEN and PGN under the board', () => {
     })
 
     await retype(field, '[White "Lovelace, Ada"]\n\n1. e4 {Kings pawn} *')
-    await userEvent.click(screen.getByRole('button', { name: 'Apply PGN' }))
+    await userEvent.click(tools().getByRole('button', { name: 'Apply PGN' }))
 
     const dialog = await screen.findByRole('dialog', { name: 'Apply this PGN?' })
     expect(dialog).toHaveTextContent('This deletes 1 Move. This cannot be undone.')
@@ -245,7 +246,7 @@ describe('the FEN and PGN under the board', () => {
     resetPosition.mockResolvedValueOnce({ status: 'needsConfirmation', moves: 2, comments: 1, bodies: 0, glyphs: 0, drawings: 0 })
 
     await retype(field, `[SetUp "1"]\n[FEN "${KINGS}"]\n\n1. Kd2 *`)
-    await userEvent.click(screen.getByRole('button', { name: 'Apply PGN' }))
+    await userEvent.click(tools().getByRole('button', { name: 'Apply PGN' }))
 
     const dialog = await screen.findByRole('dialog', { name: "Replace this note's position?" })
     expect(dialog).toHaveTextContent('This deletes its 2 Moves and all its writing. The name and folder stay.')

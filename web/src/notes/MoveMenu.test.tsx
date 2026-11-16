@@ -13,6 +13,7 @@ import type { Session } from '../session'
 import { SessionProvider } from '../session'
 import { theme } from '../theme'
 import { NoteScreen } from './NoteScreen'
+import { findMove, move, moveList, tools } from './testUtils'
 
 const getNote = vi.fn<(token: string, id: number) => Promise<Note>>()
 const getLinks = vi.fn<(token: string, id: number) => Promise<NoteLinks>>()
@@ -115,7 +116,6 @@ function renderNote() {
   )
 }
 
-const move = (name: string) => screen.getByRole('button', { name })
 // A right-click as a browser does it: the press takes focus unless the page
 // prevents it, then the menu opens. (user-event's right-click also closes it.)
 function rightClick(element: HTMLElement) {
@@ -158,7 +158,7 @@ describe('The right-click menu on a Move', () => {
     rows = rowsOf('1. e4 e5 (1... c5) 2. Nf3 *')
     renderNote()
 
-    expect(fireEvent.contextMenu(await screen.findByRole('button', { name: 'c5' }))).toBe(false)
+    expect(fireEvent.contextMenu(await findMove('c5'))).toBe(false)
     expect(menuItems()).toEqual(['Add comment', 'Link a note…', 'Promote to main line', 'Delete from here'])
     expect(screen.getByRole('menuitem', { name: 'Promote to main line' })).toBeEnabled()
   })
@@ -167,7 +167,7 @@ describe('The right-click menu on a Move', () => {
     rows = rowsOf('1. e4 e5 (1... c5) 2. Nf3 *')
     renderNote()
 
-    fireEvent.contextMenu(await screen.findByRole('button', { name: 'Nf3' }))
+    fireEvent.contextMenu(await findMove('Nf3'))
     expect(screen.getByRole('menuitem', { name: 'Promote to main line' })).toBeDisabled()
   })
 
@@ -200,7 +200,7 @@ describe('The right-click menu on a Move', () => {
     const user = userEvent.setup()
     renderNote()
 
-    fireEvent.contextMenu(await screen.findByRole('button', { name: 'Nc6' }))
+    fireEvent.contextMenu(await findMove('Nc6'))
     await user.click(screen.getByRole('menuitem', { name: 'Promote to main line' }))
 
     expect(promoteMove).toHaveBeenCalledWith('token', 1, nc6)
@@ -221,10 +221,10 @@ describe('The right-click menu on a Move', () => {
     // The board opens at the end of the Main line, on 2…Nc6, inside what goes.
     await waitFor(() => expect(move('Nc6')).toHaveAttribute('aria-current', 'step'))
 
-    fireEvent.contextMenu(screen.getAllByRole('button', { name: 'Nf3' })[1])
+    fireEvent.contextMenu(moveList().getAllByRole('button', { name: 'Nf3' })[1])
     await user.click(screen.getByRole('menuitem', { name: 'Delete from here' }))
 
-    await waitFor(() => expect(screen.queryByRole('button', { name: 'Nc6' })).not.toBeInTheDocument())
+    await waitFor(() => expect(moveList().queryByRole('button', { name: 'Nc6' })).not.toBeInTheDocument())
     expect(deleteMove).toHaveBeenCalledWith('token', 1, nf3, false)
     expect(move('e5')).toHaveAttribute('aria-current', 'step')
     expect(pgn()).toBe('1. e4 e5 (1... c5 2. Nf3) *')
@@ -240,7 +240,7 @@ describe('The right-click menu on a Move', () => {
     fireEvent.contextMenu(move('c5'))
     await user.click(screen.getByRole('menuitem', { name: 'Delete from here' }))
 
-    await waitFor(() => expect(screen.queryByRole('button', { name: 'c5' })).not.toBeInTheDocument())
+    await waitFor(() => expect(moveList().queryByRole('button', { name: 'c5' })).not.toBeInTheDocument())
     expect(move('Nc6')).toHaveAttribute('aria-current', 'step')
   })
 
@@ -286,7 +286,7 @@ describe('The right-click menu on a Move', () => {
     const user = userEvent.setup()
     renderNote()
 
-    fireEvent.contextMenu(await screen.findByRole('button', { name: 'Nf3' }))
+    fireEvent.contextMenu(await findMove('Nf3'))
     await user.click(screen.getByRole('menuitem', { name: 'Delete from here' }))
     const dialog = await screen.findByRole('dialog', { name: 'Delete your writing?' })
     await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
@@ -304,7 +304,7 @@ describe('The right-click menu on a Move', () => {
     const user = userEvent.setup()
     renderNote()
 
-    fireEvent.contextMenu(await screen.findByRole('button', { name: 'Nf3' }))
+    fireEvent.contextMenu(await findMove('Nf3'))
     await user.click(screen.getByRole('menuitem', { name: 'Delete from here' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('Could not delete the move')
     expect(move('Nf3')).toBeInTheDocument()
@@ -359,21 +359,20 @@ describe('Writing a Comment in the move list (#97)', () => {
     renderNote()
     await waitFor(() => expect(move('Nc6')).toHaveAttribute('aria-current', 'step'))
 
-    const tools = screen.getByRole('region', { name: 'Tools' })
-    expect(within(tools).queryByRole('textbox', { name: /^Comment on/ })).not.toBeInTheDocument()
-    expect(within(tools).getByRole('group', { name: 'Move Glyph' })).toBeInTheDocument()
-    expect(within(tools).getByRole('textbox', { name: 'Body after 2…Nc6' })).toBeInTheDocument()
+    expect(tools().queryByRole('textbox', { name: /^Comment on/ })).not.toBeInTheDocument()
+    expect(tools().getByRole('group', { name: 'Move Glyph' })).toBeInTheDocument()
+    expect(tools().getByRole('textbox', { name: 'Body after 2…Nc6' })).toBeInTheDocument()
   })
 
   it('opens the editor right after the Move, and Enter saves and closes it', async () => {
     const user = userEvent.setup()
     renderNote()
 
-    fireEvent.contextMenu(await screen.findByRole('button', { name: 'e5' }))
+    fireEvent.contextMenu(await findMove('e5'))
     await user.click(screen.getByRole('menuitem', { name: 'Add comment' }))
     await waitFor(() => expect(comment('1…e5')).toHaveFocus())
     // In the move list, between e5 and Nf3, not under the board.
-    expect(within(screen.getByRole('region', { name: 'Tools' })).queryByRole('textbox', { name: /^Comment on/ })).toBeNull()
+    expect(tools().queryByRole('textbox', { name: /^Comment on/ })).toBeNull()
     expect(move('e5').compareDocumentPosition(comment('1…e5')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(comment('1…e5').compareDocumentPosition(move('Nf3')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
 
@@ -388,7 +387,7 @@ describe('Writing a Comment in the move list (#97)', () => {
     const user = userEvent.setup()
     renderNote()
 
-    fireEvent.contextMenu(await screen.findByRole('button', { name: 'Nf3' }))
+    fireEvent.contextMenu(await findMove('Nf3'))
     await user.click(screen.getByRole('menuitem', { name: 'Add comment' }))
     await waitFor(() => expect(comment('2.Nf3')).toHaveFocus())
     await user.type(comment('2.Nf3'), 'Develops.')
@@ -403,7 +402,7 @@ describe('Writing a Comment in the move list (#97)', () => {
     const user = userEvent.setup()
     renderNote()
 
-    fireEvent.contextMenu(await screen.findByRole('button', { name: 'e5' }))
+    fireEvent.contextMenu(await findMove('e5'))
     expect(menuItems()).toEqual(['Edit comment', 'Link a note…', 'Promote to main line', 'Delete from here'])
     await user.click(screen.getByRole('menuitem', { name: 'Edit comment' }))
     await waitFor(() => expect(comment('1…e5')).toHaveFocus())
@@ -420,7 +419,7 @@ describe('Writing a Comment in the move list (#97)', () => {
     const user = userEvent.setup()
     renderNote()
 
-    fireEvent.contextMenu(await screen.findByRole('button', { name: 'e5' }))
+    fireEvent.contextMenu(await findMove('e5'))
     await user.click(screen.getByRole('menuitem', { name: 'Edit comment' }))
     await waitFor(() => expect(comment('1…e5')).toHaveFocus())
     await user.clear(comment('1…e5'))
@@ -444,7 +443,7 @@ describe('Writing a Comment in the move list (#97)', () => {
     const user = userEvent.setup()
     renderNote()
 
-    fireEvent.contextMenu(await screen.findByRole('button', { name: 'e5' }))
+    fireEvent.contextMenu(await findMove('e5'))
     await user.click(screen.getByRole('menuitem', { name: 'Add comment' }))
     await waitFor(() => expect(comment('1…e5')).toHaveFocus())
     await user.type(comment('1…e5'), 'Symmetry, as in')
@@ -466,7 +465,7 @@ describe('Writing a Comment in the move list (#97)', () => {
     const user = userEvent.setup()
     renderNote()
 
-    fireEvent.contextMenu(await screen.findByRole('button', { name: 'e5' }))
+    fireEvent.contextMenu(await findMove('e5'))
     await user.click(screen.getByRole('menuitem', { name: 'Add comment' }))
     await waitFor(() => expect(comment('1…e5')).toHaveFocus())
     await user.type(comment('1…e5'), 'Symmetry, as in')
@@ -490,7 +489,7 @@ describe('Writing a Comment in the move list (#97)', () => {
     const user = userEvent.setup()
     renderNote()
 
-    fireEvent.contextMenu(await screen.findByRole('button', { name: 'e5' }))
+    fireEvent.contextMenu(await findMove('e5'))
     await user.click(screen.getByRole('menuitem', { name: 'Add comment' }))
     await waitFor(() => expect(comment('1…e5')).toHaveFocus())
     await user.type(comment('1…e5'), 'Symmetry')

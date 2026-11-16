@@ -12,6 +12,7 @@ import { SessionProvider } from '../session'
 import { theme } from '../theme'
 import { NoteScreen } from './NoteScreen'
 import { NotesIndex } from './NotesIndex'
+import { findTitle, noteActions } from './testUtils'
 
 const createNote = vi.fn<(token: string, input: NewNoteInput) => Promise<Note>>()
 const renameNote = vi.fn<(token: string, id: number, name: string) => Promise<Note>>()
@@ -206,7 +207,7 @@ describe('A Note’s title', () => {
     renderApp('/notes/3')
 
     // Opened, not created: no rename until asked.
-    await userEvent.click(await screen.findByRole('button', { name: 'Italian' }))
+    await userEvent.click(await findTitle('Italian'))
     const field = screen.getByRole('textbox', { name: 'Rename note Italian' })
     expect(field).toHaveFocus()
     await userEvent.keyboard('Italian game')
@@ -214,7 +215,7 @@ describe('A Note’s title', () => {
     await waitFor(() => expect(renameNote).toHaveBeenCalledWith('token', 3, 'Italian game'))
     expect(await screen.findByRole('heading', { name: 'Italian game' })).toBeInTheDocument()
 
-    await userEvent.click(screen.getByRole('button', { name: 'Note actions' }))
+    await userEvent.click(noteActions())
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Rename' }))
     expect(await screen.findByRole('textbox', { name: 'Rename note Italian game' })).toHaveFocus()
   })
