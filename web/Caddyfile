@@ -1,0 +1,77 @@
+# Serves the built frontend and passes /api/ to the API, so the whole site
+# answers on one origin (docs/adr/0011).
+{
+	# Nothing reloads the configuration of a running container, so the admin
+	# endpoint would only be something to attack.
+	admin off
+
+	servers {
+		# cloudflared reaches Caddy from loopback or a private Docker network.
+		# Trusting those addresses keeps the X-Forwarded-* headers it sends
+		# (Proto: https, the visitor's address) instead of replacing them.
+		trusted_proxies static private_ranges
+	}
+}
+
+# The headers on every frontend response. The image build calls this with the
+# hash of each inline script in the built index.html (see the import below).
+(frontend_headers) {
+	header {
+		# Only the site's own files, plus:
+		# - script-src: the inline theme script in index.html, by its hash.
+		#   Never 'unsafe-inline' here.
+		# - style-src 'unsafe-inline': Mantine adds <style> elements while the
+		#   app runs, which no hash written at build time can cover.
+		# - img-src data: the board's pieces, which the build inlines into the
+		#   script as data: URIs.
+		# - connect-src 'self': the API is this origin, under /api/.
+		Content-Security-Policy "default-src 'self'; script-src 'self' {args[0]}; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		# This server speaks HTTP, but the browser's connection is HTTPS, to
+		# Cloudflare, and that is the one this header is about.
+		Strict-Transport-Security "max-age=31536000"
+	}
+}
+
+# Plain HTTP: Cloudflare terminates HTTPS and reaches this through the tunnel.
+:80 {
+	encode zstd gzip
+
+	# The API's own routes start with /api (api/handlers/router.go), so the
+	# path goes upstream as it came. Request headers do too, CF-Connecting-IP
+	# (the visitor's address) among them; Caddy only sets X-Forwarded-For,
+	# -Proto and -Host itself, from the connection it sees.
+	@api path /api /api/*
+	handle @api {
+		reverse_proxy {$API_UPSTREAM:api:8080}
+	}
+
+	# Everything else is the frontend. An unknown /api/ path never gets here,
+	# so it answers the API's 404 and not the app's HTML.
+	handle {
+		root * /srv
+
+		# One line, written by the image build from the built index.html:
+		#   import frontend_headers "'sha256-…'"
+		import /etc/caddy/frontend-headers.caddy
+
+		# The build names these files after a hash of their contents, so one
+		# can be kept for good. A name that is gone is a 404, not index.html.
+		handle /assets/* {
+			@built file
+			header @built Cache-Control "public, max-age=31536000, immutable"
+			file_server
+		}
+
+		# Every other path is a file (the favicon, say) or one of the app's
+		# routes, which index.html handles: a Note's page, or the link in a
+		# verification or password-reset email. no-cache makes the browser
+		# check each time, so a deploy shows at once.
+		handle {
+			header Cache-Control "no-cache"
+			try_files {path} /index.html
+			file_server
+		}
+	}
+}

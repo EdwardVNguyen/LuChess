@@ -32,6 +32,18 @@ Login gives the page a 15 minute access token, kept in memory only, and sets a 3
 
 Production sets `MAILER=smtp` and the `SMTP_` settings listed in `api/.env.example`, for any provider that offers SMTP. It only sends over TLS: port 465 uses TLS from the start, and any other port must offer STARTTLS.
 
+## The frontend's container image
+
+Production serves the site from one origin (docs/adr/0011): Caddy serves the built frontend and passes `/api/` to the API. `web/Dockerfile` builds that image. `VITE_API_URL` is fixed into the bundle, so it is a build argument, and with one origin it is the site's own address; the build fails without it.
+
+```bash
+cd web
+docker build -t luchess-web --build-arg VITE_API_URL=https://<the site> .
+docker run -p 8080:80 -e API_UPSTREAM=localhost:8081 luchess-web   # API_UPSTREAM defaults to api:8080
+```
+
+The container speaks plain HTTP on port 80; Cloudflare terminates HTTPS. The Content-Security-Policy allows `index.html`'s inline theme script by a hash the image build computes (`web/scripts/cspHashes.ts`), so nothing needs updating by hand when the script changes.
+
 ## Tests
 
 ```bash

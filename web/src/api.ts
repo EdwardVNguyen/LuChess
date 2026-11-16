@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import { z } from './zod.ts'
 
 const healthSchema = z.object({ status: z.string() })
 const userSchema = z.object({ id: z.number(), email: z.string(), name: z.string() })

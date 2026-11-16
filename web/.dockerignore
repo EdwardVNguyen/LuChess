@@ -1,0 +1,12 @@
+# Installed and built inside the image, never copied from the host
+node_modules
+dist
+shots
+
+# Local settings. VITE_API_URL comes from the build argument alone, so a
+# developer's .env.local cannot end up in a production bundle
+.env*
+*.local
+
+.DS_Store
+*.log
