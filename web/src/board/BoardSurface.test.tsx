@@ -27,7 +27,7 @@ function pieceOn(container: HTMLElement, square: string): HTMLElement | null {
 function play(reduce: boolean) {
   restore = preferReducedMotion(reduce)
   const board = (fen: string) => (
-    <MantineProvider theme={theme}>
+    <MantineProvider theme={theme} env="test">
       <BoardSurface fen={fen} orientation="white" />
     </MantineProvider>
   )

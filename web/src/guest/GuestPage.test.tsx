@@ -55,7 +55,7 @@ function renderGuestPage(state: SessionState = { status: 'guest' }) {
     history: createMemoryHistory({ initialEntries: ['/try'] }),
   })
   render(
-    <MantineProvider theme={theme}>
+    <MantineProvider theme={theme} env="test">
       <QueryClientProvider client={new QueryClient()}>
         <SessionProvider session={sessionIn(state)}>
           <RouterProvider router={router} />
@@ -129,7 +129,6 @@ describe('GuestPage', () => {
     expect(await screen.findByRole('button', { name: 'd4' })).toBeInTheDocument()
   })
 
-  // Typed key by key through a menu and two editors: over the default 5 seconds on a busy run.
   it('lets a Guest write Glyphs, Comments and Bodies without calling the API', async () => {
     renderGuestPage()
     expect(await screen.findByText(/You are writing as a guest/)).toBeInTheDocument()
@@ -152,7 +151,7 @@ describe('GuestPage', () => {
 
     expect(apiCalls).toEqual([])
     expect(fetchSpy).not.toHaveBeenCalled()
-  }, 15_000)
+  })
 
   it('studies a Position given in FEN with no moves', async () => {
     renderGuestPage()
@@ -330,7 +329,7 @@ describe('GuestPage', () => {
     expect(router.state.location.search).toEqual({})
     expect(apiCalls).toEqual([])
     expect(fetchSpy).not.toHaveBeenCalled()
-  }, 15_000)
+  })
 
   it('keeps the Guest’s Note as it was on Cancel, and saves at once when there is nothing to lose', async () => {
     renderGuestPage()
@@ -351,7 +350,7 @@ describe('GuestPage', () => {
     expect(await screen.findByRole('heading', { name: 'Untitled' })).toBeInTheDocument()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: 'FEN' })).toHaveValue('7k/8/8/8/8/8/8/K7 w - - 0 1')
-  }, 15_000)
+  })
 
   it('applies a PGN typed under the board in the browser, asking before Moves go', async () => {
     renderGuestPage()
@@ -381,7 +380,7 @@ describe('GuestPage', () => {
     expect(screen.getByRole('textbox', { name: 'PGN' })).toHaveValue('1. e4 c5 *')
     expect(screen.getByRole('heading', { name: 'Open games' })).toBeInTheDocument()
     expect(apiCalls).toEqual([])
-  }, 15_000)
+  })
 
   it('starts the Guest’s Note from a FEN typed under the board, asking first', async () => {
     renderGuestPage()
@@ -402,5 +401,5 @@ describe('GuestPage', () => {
     expect(screen.getByRole('textbox', { name: 'FEN' })).toHaveValue('4k3/8/8/8/8/8/8/4K3 w - - 0 1')
     expect(screen.getByRole('heading', { name: 'Open games' })).toBeInTheDocument()
     expect(apiCalls).toEqual([])
-  }, 15_000)
+  })
 })

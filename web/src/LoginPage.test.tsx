@@ -34,7 +34,7 @@ function renderLogin(signIn: Session['signIn']) {
     history: createMemoryHistory({ initialEntries: ['/login'] }),
   })
   render(
-    <MantineProvider theme={theme}>
+    <MantineProvider theme={theme} env="test">
       <QueryClientProvider client={new QueryClient()}>
         <SessionProvider session={guestSession(signIn)}>
           <RouterProvider router={router} />

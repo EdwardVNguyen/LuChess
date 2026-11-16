@@ -27,5 +27,9 @@ export default defineConfig({
     // trapping, Esc handling, matchMedia) can be rendered and interacted with.
     environment: 'jsdom',
     setupFiles: ['./src/testSetup.ts'],
+    // Tests that click and type through a whole page re-render it on every
+    // event, and a full parallel run makes them several times slower than
+    // alone: up to ~15s on 8 cores, against the default 5s.
+    testTimeout: 30_000,
   },
 })

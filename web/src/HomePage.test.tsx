@@ -46,7 +46,7 @@ function renderAt(state: SessionState, path = '/') {
     history: createMemoryHistory({ initialEntries: [path] }),
   })
   render(
-    <MantineProvider theme={theme}>
+    <MantineProvider theme={theme} env="test">
       <QueryClientProvider client={new QueryClient()}>
         <SessionProvider session={sessionIn(state)}>
           <RouterProvider router={router} />

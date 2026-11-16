@@ -69,7 +69,7 @@ function renderNote() {
     history: createMemoryHistory({ initialEntries: ['/notes/1'] }),
   })
   render(
-    <MantineProvider theme={theme}>
+    <MantineProvider theme={theme} env="test">
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
         <SessionProvider session={session}>
           <RouterProvider router={router} />
@@ -82,7 +82,7 @@ function renderNote() {
 /** Presses Edit on the FEN or PGN, answering its field. */
 async function edit(name: 'FEN' | 'PGN'): Promise<HTMLInputElement | HTMLTextAreaElement> {
   // The Note screen loads its chunks of the board and the move list first; slow on a busy run.
-  await userEvent.click(await screen.findByRole('button', { name: `Edit ${name}` }, { timeout: 5000 }))
+  await userEvent.click(await screen.findByRole('button', { name: `Edit ${name}` }))
   return screen.getByRole('textbox', { name })
 }
 
@@ -109,10 +109,10 @@ beforeEach(() => {
   applyTree.mockReset()
 })
 
-describe('the FEN and PGN under the board', { timeout: 15_000 }, () => {
+describe('the FEN and PGN under the board', () => {
   it('are read only until Edit, and Cancel leaves the Note as it was', async () => {
     renderNote()
-    const fen = await screen.findByRole('textbox', { name: 'FEN' }, { timeout: 5000 })
+    const fen = await screen.findByRole('textbox', { name: 'FEN' })
     expect(fen).toHaveAttribute('readonly')
 
     const field = await edit('FEN')

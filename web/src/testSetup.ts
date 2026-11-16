@@ -1,11 +1,22 @@
 import '@testing-library/jest-dom/vitest'
-import { cleanup } from '@testing-library/react'
+import { cleanup, configure } from '@testing-library/react'
 import { afterEach } from 'vitest'
 
 // @testing-library/react only auto-registers this when it detects Jest's
 // global `afterEach`; Vitest's globals are opt-in, so this project wires it
 // up explicitly instead of turning them on everywhere.
 afterEach(cleanup)
+
+// findBy* and waitFor give up after 1s by default. On a full parallel run a
+// page can take longer than that to re-render after a click or a save.
+configure({ asyncUtilTimeout: 5000 })
+
+// Tests render <MantineProvider env="test">. Otherwise a Menu or Popover can
+// open with its dropdown hidden: Mantine hides it when floating-ui reports the
+// trigger scrolled out of view, which jsdom, with no layout, says at random.
+// The overlay tests (overlay/testUtils.tsx) leave it out, because they check
+// the focus Mantine returns once an exit transition ends, and env="test"
+// skips transitions.
 
 // jsdom has no layout engine, so `window.matchMedia` always throws "not
 // implemented". Mantine's `useMatches`/`useMediaQuery` already catch that and

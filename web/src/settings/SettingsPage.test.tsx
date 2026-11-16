@@ -53,7 +53,7 @@ function renderSettings(session: Session) {
     history: createMemoryHistory({ initialEntries: ['/settings'] }),
   })
   render(
-    <MantineProvider theme={theme}>
+    <MantineProvider theme={theme} env="test">
       <QueryClientProvider client={new QueryClient()}>
         <SessionProvider session={session}>
           <RouterProvider router={router} />
