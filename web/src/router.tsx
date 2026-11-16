@@ -1,5 +1,5 @@
 import { createRootRoute, createRoute, createRouter } from '@tanstack/react-router'
-import { z } from 'zod'
+import { z } from './zod.ts'
 import { Layout } from './Layout'
 import { AuthLoading, PageLoading } from './Loading'
 

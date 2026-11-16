@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import { z } from './zod.ts'
 
 // These rules mirror the API's, so a problem shows before the form is sent.
 // Lengths count characters (not UTF-16 units), as the API does.

@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import { z } from './zod.ts'
 
 const envSchema = z.object({
   VITE_API_URL: z.url({ protocol: /^https?$/ }),
