@@ -91,16 +91,47 @@ function play(parent: TreeMove, san: string, id: MoveId): Result<TreeMove> {
  * the tree is unchanged, as the API does (ADR 0009).
  */
 export function addMove(tree: MoveTree, parent: MoveId, san: string, id: MoveId): Result<{ tree: MoveTree; id: MoveId }> {
+  const placed = placeMove(tree, parent, san, id)
+  if (!placed.ok) return placed
+  if (placed.value.changed.length === 0) return { ok: true, value: { tree, id: placed.value.id } }
+  const moves = new Map(tree.moves)
+  for (const move of placed.value.changed) moves.set(move.id, move)
+  return { ok: true, value: { tree: { ...tree, moves }, id: placed.value.id } }
+}
+
+/**
+ * A tree to add many Moves to, as when reading a whole Note. `add` is addMove
+ * changing this tree in place: addMove copies the tree for every Move, so
+ * reading a Note's 5,000 Moves with it takes time growing with their square.
+ * The tree is the caller's alone until every Move is added.
+ */
+export function growingTree(
+  startFen: string,
+  root: MoveId,
+): { tree: MoveTree; add: (parent: MoveId, san: string, id: MoveId) => Result<MoveId> } {
+  const moves = new Map(newTree(startFen, root).moves)
+  const tree: MoveTree = { startFen, root, moves }
+  return {
+    tree,
+    add(parent, san, id) {
+      const placed = placeMove(tree, parent, san, id)
+      if (!placed.ok) return placed
+      for (const move of placed.value.changed) moves.set(move.id, move)
+      return { ok: true, value: placed.value.id }
+    },
+  }
+}
+
+// The Move addMove answers, and the Moves it changes: the parent with its new
+// child and the new Move, or none when the parent already has that Move.
+function placeMove(tree: MoveTree, parent: MoveId, san: string, id: MoveId): Result<{ id: MoveId; changed: TreeMove[] }> {
   const from = moveOf(tree, parent)
   const played = play(from, san, id)
   if (!played.ok) return played
   const existing = from.children.find((child) => moveOf(tree, child).san === played.value.san)
-  if (existing !== undefined) return { ok: true, value: { tree, id: existing } }
+  if (existing !== undefined) return { ok: true, value: { id: existing, changed: [] } }
   if (tree.moves.has(id)) throw new Error(`Move ${id} is already in this tree`)
-  const moves = new Map(tree.moves)
-  moves.set(parent, { ...from, children: [...from.children, id] })
-  moves.set(id, played.value)
-  return { ok: true, value: { tree: { ...tree, moves }, id } }
+  return { ok: true, value: { id, changed: [{ ...from, children: [...from.children, id] }, played.value] } }
 }
 
 /**
@@ -113,14 +144,13 @@ export function treeFromRows(
 ): Result<MoveTree> {
   const [root, ...rest] = rows
   if (!root || root.parentId !== null) return { ok: false, error: 'The moves have no starting position.' }
-  let tree = newTree(startFen, root.id)
+  const { tree, add } = growingTree(startFen, root.id)
   for (const row of rest) {
     if (row.parentId === null || row.san === null || !tree.moves.has(row.parentId)) {
       return { ok: false, error: 'The moves could not be read.' }
     }
-    const added = addMove(tree, row.parentId, row.san, row.id)
+    const added = add(row.parentId, row.san, row.id)
     if (!added.ok) return added
-    tree = added.value.tree
   }
   return { ok: true, value: tree }
 }

@@ -169,8 +169,7 @@ describe('importPgn', () => {
     const full = importPgn(pgn(1250))
     expect(full.ok ? full.value.tree.moves.size - 1 : full.error).toBe(5_000)
     expect(importPgn(pgn(1251))).toEqual({ ok: false, error: 'A note can hold at most 5,000 moves.' })
-    // chess.js checks each of the 10,000 Moves: seconds, not the default 5.
-  }, 30_000)
+  })
 })
 
 describe('exportPgn', () => {

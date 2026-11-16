@@ -14,7 +14,7 @@ import {
   type TagPair,
   type Writing,
 } from './pgn.ts'
-import { addMove, moveCount, newTree, type MoveId } from './tree.ts'
+import { growingTree, moveCount, type MoveId } from './tree.ts'
 
 // Reading a PGN (ADR 0009). This module holds @mliebelt/pgn-parser, which is
 // large, so the app reaches it only through loadPgnImport() in pgn.ts, and it
@@ -37,7 +37,7 @@ export function importPgn(pgn: string): Result<ImportedNote> {
     return { ok: false, error: describeParseError(error) }
   }
 
-  let tree = newTree(startFen, 0)
+  const { tree, add } = growingTree(startFen, 0)
   const writing = new Map<MoveId, Writing>()
   const root = writingOf(game.gameComment?.comment ?? null, null, null, game.gameComment ?? null, true)
   if (hasWriting(root)) writing.set(0, root)
@@ -47,10 +47,9 @@ export function importPgn(pgn: string): Result<ImportedNote> {
   function addLine(parent: MoveId, moves: readonly ParsedMove[]): string | null {
     for (const move of moves) {
       if (moveCount(tree) >= MAX_MOVES) return 'A note can hold at most 5,000 moves.'
-      const added = addMove(tree, parent, move.notation.notation, tree.moves.size)
+      const added = add(parent, move.notation.notation, tree.moves.size)
       if (!added.ok) return `“${move.notation.notation}” is not a legal move in this game.`
-      tree = added.value.tree
-      const id = added.value.id
+      const id = added.value
       const written = writingOf(move.commentAfter ?? null, move.commentMove ?? null, move.nag, move.commentDiag, false)
       if (hasWriting(written) && !hasWriting(writing.get(id))) writing.set(id, written)
       for (const variation of move.variations) {

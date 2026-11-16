@@ -79,8 +79,10 @@ async function openImport() {
 
 async function startFromPgn(pgn: string, name: string) {
   await openImport()
-  await userEvent.type(await screen.findByRole('textbox', { name: 'PGN' }), pgn)
-  await userEvent.type(screen.getByRole('textbox', { name: 'Name' }), name)
+  await userEvent.click(await screen.findByRole('textbox', { name: 'PGN' }))
+  await userEvent.paste(pgn)
+  await userEvent.click(screen.getByRole('textbox', { name: 'Name' }))
+  await userEvent.paste(name)
   await userEvent.click(screen.getByRole('button', { name: 'Start writing' }))
 }
 
