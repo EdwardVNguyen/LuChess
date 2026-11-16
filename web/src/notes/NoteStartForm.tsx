@@ -1,5 +1,5 @@
 import { Button, Group, Loader, SegmentedControl, Stack, Text, Textarea, TextInput, Title } from '@mantine/core'
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useId, useState, type ReactNode } from 'react'
 import { START_FEN, validateFen, type Result } from '../chess/chess'
 import { loadPgnImport, tagRecord, type ImportedNote, type PgnImport, type TagPair } from '../chess/pgn'
 import { newTree } from '../chess/tree'
@@ -33,6 +33,8 @@ type Props = {
 // API trusts it (ADR 0009).
 // Shared by the Import page and a Guest's Import… (#13), so both import alike.
 export function NoteStartForm({ title, submitLabel, onSubmit, pending = false, error, children, onCancel }: Props) {
+  // Names the form after its title, so it is a landmark a reader can jump to.
+  const titleId = useId()
   const [source, setSource] = useState<Source>('pgn')
   const [name, setName] = useState('')
   const [pgn, setPgn] = useState('')
@@ -106,13 +108,16 @@ export function NoteStartForm({ title, submitLabel, onSubmit, pending = false, e
     <div className={styles.newNote}>
       <form
         noValidate
+        aria-labelledby={titleId}
         onSubmit={(event) => {
           event.preventDefault()
           void submit()
         }}
       >
         <Stack gap="lg">
-          <Title order={1}>{title}</Title>
+          <Title order={1} id={titleId}>
+            {title}
+          </Title>
           <SegmentedControl
             fullWidth
             value={source}
