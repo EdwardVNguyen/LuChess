@@ -10,7 +10,7 @@ import (
 )
 
 func (cfg *ApiConfig) HandleLogin(w http.ResponseWriter, r *http.Request) {
-	if !cfg.allow(w, cfg.loginByIP, clientIP(r)) {
+	if !cfg.allow(w, cfg.loginByIP, cfg.clientIP(r)) {
 		return
 	}
 	var p struct {

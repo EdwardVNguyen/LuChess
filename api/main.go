@@ -25,6 +25,7 @@ func main() {
 		envFrontendOrigin = "FRONTEND_ORIGIN"
 		envJWTSecret = "JWT_SECRET"
 		envCookieSecure = "COOKIE_SECURE"
+		envTrustProxyHeaders = "TRUST_PROXY_HEADERS"
 		minJWTSecretLen = 32
 	)
 
@@ -67,6 +68,8 @@ func main() {
 		Session: session.New(session.Config{DB: db, Secret: []byte(jwtSecret)}),
 		// On unless explicitly turned off, for a browser that refuses Secure cookies over plain HTTP
 		CookieSecure: os.Getenv(envCookieSecure) != "false",
+		// Off unless explicitly turned on: safe only when nothing reaches the API except through Cloudflare
+		TrustProxyHeaders: os.Getenv(envTrustProxyHeaders) == "true",
 	}
 
 	// Run the server
