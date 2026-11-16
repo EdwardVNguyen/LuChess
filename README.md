@@ -29,7 +29,9 @@ Login gives the page a 15 minute access token, kept in memory only, and sets a 3
 
 ### Email in development
 
-The API never sends real email locally. Verification emails are printed to the API's log, so after signing up at http://localhost:5173/signup, copy the link from the terminal running `go run .`. Production will use a real provider behind the same `Mailer` interface.
+`MAILER` in `api/.env` chooses how the API sends email, and it refuses to start without it. The example sets `MAILER=console`, so nothing is sent: verification and reset emails are printed to the API's log, and after signing up at http://localhost:5173/signup you copy the link from the terminal running `go run .`. If your `.env` predates this setting, add `MAILER=console` to it.
+
+Production sets `MAILER=smtp` and the `SMTP_` settings listed in `api/.env.example`, for any provider that offers SMTP. It only sends over TLS: port 465 uses TLS from the start, and any other port must offer STARTTLS.
 
 ## Tests
 
