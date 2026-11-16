@@ -2,6 +2,7 @@ package handler
 
 import (
 	"database/sql"
+	"sync"
 	"time"
 
 	"github.com/EdwardVNguyen/LuChess/api/internal/database"
@@ -52,6 +53,9 @@ type ApiConfig struct {
 
 	// A valid hash of a throwaway password, checked when a login names no account
 	dummyHash string
+
+	// Emails still being sent after their request has been answered
+	emails sync.WaitGroup
 }
 
 const (

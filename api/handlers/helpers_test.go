@@ -38,6 +38,7 @@ func (c *fakeClock) Advance(d time.Duration) {
 // controlled: the mailer records instead of sending, and time is fake.
 type app struct {
 	t       *testing.T
+	cfg     *handler.ApiConfig
 	router  http.Handler
 	db      *sql.DB
 	queries *database.Queries
@@ -75,7 +76,10 @@ func newApp(t *testing.T, tweak ...func(*handler.ApiConfig)) *app {
 	for _, f := range tweak {
 		f(cfg)
 	}
+	a.cfg = cfg
 	a.router = handler.NewRouter(cfg)
+	// A test that ends before its emails would drop their database from under them
+	t.Cleanup(cfg.WaitForEmails)
 	return a
 }
 
@@ -102,6 +106,8 @@ func (a *app) send(method, path, body string, tweak ...func(*http.Request)) *htt
 	}
 	rec := httptest.NewRecorder()
 	a.router.ServeHTTP(rec, req)
+	// Emails go out after the answer; waiting here lets tests read them as if they had not
+	a.cfg.WaitForEmails()
 	return rec
 }
 

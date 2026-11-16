@@ -1,10 +1,10 @@
 package handler
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"time"
 
@@ -32,63 +32,63 @@ func (cfg *ApiConfig) HandleForgotPassword(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// The answer is the same whether or not the email has an account, so this
-	// endpoint cannot be used to find out who is registered.
-	respond := func() {
-		utils.RespondJSON(w, http.StatusOK, map[string]string{
-			"message": "If that email belongs to an account, we have sent a link to reset its password.",
-		})
-	}
+	// Whether the email has an account is only looked at after the answer, which
+	// is the same either way, so neither the answer nor how long it takes reveals
+	// who is registered.
+	cfg.inBackground(func(ctx context.Context) error { return cfg.sendPasswordReset(ctx, email) })
+	utils.RespondJSON(w, http.StatusOK, map[string]string{
+		"message": "If that email belongs to an account, we have sent a link to reset its password.",
+	})
+}
 
-	user, err := cfg.Db.GetUserByEmail(r.Context(), email)
+// sendPasswordReset emails a new reset link to the account with this email, if
+// there is one.
+func (cfg *ApiConfig) sendPasswordReset(ctx context.Context, email string) error {
+	user, err := cfg.Db.GetUserByEmail(ctx, email)
 	if errors.Is(err, sql.ErrNoRows) {
-		respond()
-		return
+		return nil
 	}
 	if err != nil {
-		utils.RespondError(w, http.StatusInternalServerError, "Could not send reset email", err)
-		return
+		return fmt.Errorf("sending reset email: %w", err)
+	}
+	fail := func(err error) error {
+		return fmt.Errorf("sending reset email to user %d: %w", user.ID, err)
 	}
 
 	token, tokenHash, err := newToken()
 	if err != nil {
-		utils.RespondError(w, http.StatusInternalServerError, "Could not send reset email", err)
-		return
+		return fail(err)
 	}
-	tx, err := cfg.SQL.BeginTx(r.Context(), nil)
+	tx, err := cfg.SQL.BeginTx(ctx, nil)
 	if err != nil {
-		utils.RespondError(w, http.StatusInternalServerError, "Could not send reset email", err)
-		return
+		return fail(err)
 	}
 	defer tx.Rollback()
 	q := cfg.Db.WithTx(tx)
 
 	// Only the newest link works, so an older email lying around is harmless
-	if err := q.DeleteUnusedEmailTokens(r.Context(), database.DeleteUnusedEmailTokensParams{
+	if err := q.DeleteUnusedEmailTokens(ctx, database.DeleteUnusedEmailTokensParams{
 		UserID:  user.ID,
 		Purpose: database.EmailTokenPurposeReset,
 	}); err != nil {
-		utils.RespondError(w, http.StatusInternalServerError, "Could not send reset email", err)
-		return
+		return fail(err)
 	}
-	if err := q.CreateEmailToken(r.Context(), database.CreateEmailTokenParams{
+	if err := q.CreateEmailToken(ctx, database.CreateEmailTokenParams{
 		UserID:    user.ID,
 		Purpose:   database.EmailTokenPurposeReset,
 		TokenHash: tokenHash,
 		ExpiresAt: cfg.now().Add(resetTokenTTL),
 	}); err != nil {
-		utils.RespondError(w, http.StatusInternalServerError, "Could not send reset email", err)
-		return
+		return fail(err)
 	}
 	if err := tx.Commit(); err != nil {
-		utils.RespondError(w, http.StatusInternalServerError, "Could not send reset email", err)
-		return
+		return fail(err)
 	}
 
-	if err := cfg.sendResetEmail(r, user.Email, token); err != nil {
-		log.Printf("error: sending reset email to user %d: %s", user.ID, err)
+	if err := cfg.sendResetEmail(ctx, user.Email, token); err != nil {
+		return fail(err)
 	}
-	respond()
+	return nil
 }
 
 func (cfg *ApiConfig) HandleResetPassword(w http.ResponseWriter, r *http.Request) {
@@ -159,9 +159,9 @@ func (cfg *ApiConfig) HandleResetPassword(w http.ResponseWriter, r *http.Request
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (cfg *ApiConfig) sendResetEmail(r *http.Request, to, token string) error {
+func (cfg *ApiConfig) sendResetEmail(ctx context.Context, to, token string) error {
 	link := fmt.Sprintf("%s/reset-password?token=%s", cfg.FrontendOrigin, token)
-	return cfg.Mailer.Send(r.Context(), mailer.Message{
+	return cfg.Mailer.Send(ctx, mailer.Message{
 		To:      to,
 		Subject: "Reset your LuChess password",
 		Text: "Someone asked to reset the password for your LuChess account.\n\n" +

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"database/sql"
@@ -22,7 +23,11 @@ import (
 	"github.com/lib/pq"
 )
 
-const verifyTokenTTL = 24 * time.Hour
+const (
+	verifyTokenTTL = 24 * time.Hour
+	// Bounds one background email, so a stuck provider cannot hold it forever
+	emailTimeout = time.Minute
+)
 
 // newToken returns a random token for an email link, plus the hash that is
 // stored. The token itself is never stored.
@@ -136,9 +141,12 @@ func (cfg *ApiConfig) HandleSignUp(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// The account exists even if this fails; the user can ask for another email.
-	if err := cfg.sendVerificationEmail(r, user.Email, token); err != nil {
-		log.Printf("error: sending verification email to user %d: %s", user.ID, err)
-	}
+	cfg.inBackground(func(ctx context.Context) error {
+		if err := cfg.sendVerificationEmail(ctx, user.Email, token); err != nil {
+			return fmt.Errorf("sending verification email to user %d: %w", user.ID, err)
+		}
+		return nil
+	})
 
 	utils.RespondJSON(w, http.StatusCreated, publicUser{ID: user.ID, Email: user.Email, Name: user.Name})
 }
@@ -202,62 +210,62 @@ func (cfg *ApiConfig) HandleResendVerification(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	// The answer is the same whether or not the email has an unverified account,
-	// so this endpoint cannot be used to find out who is registered.
-	respond := func() {
-		utils.RespondJSON(w, http.StatusOK, map[string]string{
-			"message": "If that email belongs to an unverified account, we have sent a new verification link.",
-		})
-	}
+	// Whether the email has an unverified account is only looked at after the
+	// answer, which is the same either way, so neither the answer nor how long it
+	// takes reveals who is registered.
+	cfg.inBackground(func(ctx context.Context) error { return cfg.resendVerification(ctx, email) })
+	utils.RespondJSON(w, http.StatusOK, map[string]string{
+		"message": "If that email belongs to an unverified account, we have sent a new verification link.",
+	})
+}
 
-	user, err := cfg.Db.GetUserByEmail(r.Context(), email)
+// resendVerification replaces any unused verification link of the unverified
+// account with this email, and sends the new one. Unknown and verified emails get nothing.
+func (cfg *ApiConfig) resendVerification(ctx context.Context, email string) error {
+	user, err := cfg.Db.GetUserByEmail(ctx, email)
 	if errors.Is(err, sql.ErrNoRows) || (err == nil && user.EmailVerifiedAt.Valid) {
-		respond()
-		return
+		return nil
 	}
 	if err != nil {
-		utils.RespondError(w, http.StatusInternalServerError, "Could not send verification email", err)
-		return
+		return fmt.Errorf("resending verification email: %w", err)
+	}
+	fail := func(err error) error {
+		return fmt.Errorf("resending verification email to user %d: %w", user.ID, err)
 	}
 
 	token, tokenHash, err := newToken()
 	if err != nil {
-		utils.RespondError(w, http.StatusInternalServerError, "Could not send verification email", err)
-		return
+		return fail(err)
 	}
-	tx, err := cfg.SQL.BeginTx(r.Context(), nil)
+	tx, err := cfg.SQL.BeginTx(ctx, nil)
 	if err != nil {
-		utils.RespondError(w, http.StatusInternalServerError, "Could not send verification email", err)
-		return
+		return fail(err)
 	}
 	defer tx.Rollback()
 	q := cfg.Db.WithTx(tx)
 
-	if err := q.DeleteUnusedEmailTokens(r.Context(), database.DeleteUnusedEmailTokensParams{
+	if err := q.DeleteUnusedEmailTokens(ctx, database.DeleteUnusedEmailTokensParams{
 		UserID:  user.ID,
 		Purpose: database.EmailTokenPurposeVerify,
 	}); err != nil {
-		utils.RespondError(w, http.StatusInternalServerError, "Could not send verification email", err)
-		return
+		return fail(err)
 	}
-	if err := q.CreateEmailToken(r.Context(), database.CreateEmailTokenParams{
+	if err := q.CreateEmailToken(ctx, database.CreateEmailTokenParams{
 		UserID:    user.ID,
 		Purpose:   database.EmailTokenPurposeVerify,
 		TokenHash: tokenHash,
 		ExpiresAt: cfg.now().Add(verifyTokenTTL),
 	}); err != nil {
-		utils.RespondError(w, http.StatusInternalServerError, "Could not send verification email", err)
-		return
+		return fail(err)
 	}
 	if err := tx.Commit(); err != nil {
-		utils.RespondError(w, http.StatusInternalServerError, "Could not send verification email", err)
-		return
+		return fail(err)
 	}
 
-	if err := cfg.sendVerificationEmail(r, user.Email, token); err != nil {
-		log.Printf("error: sending verification email to user %d: %s", user.ID, err)
+	if err := cfg.sendVerificationEmail(ctx, user.Email, token); err != nil {
+		return fail(err)
 	}
-	respond()
+	return nil
 }
 
 // uniqueViolationMessage turns a taken email or display name into a message for
@@ -276,13 +284,32 @@ func uniqueViolationMessage(err error) (string, bool) {
 	return "", false
 }
 
-func (cfg *ApiConfig) sendVerificationEmail(r *http.Request, to, token string) error {
+func (cfg *ApiConfig) sendVerificationEmail(ctx context.Context, to, token string) error {
 	link := fmt.Sprintf("%s/verify-email?token=%s", cfg.FrontendOrigin, token)
-	return cfg.Mailer.Send(r.Context(), mailer.Message{
+	return cfg.Mailer.Send(ctx, mailer.Message{
 		To:      to,
-		Subject: "Verify your ChessNotes email",
-		Text: "Welcome to ChessNotes!\n\n" +
+		Subject: "Verify your LuChess email",
+		Text: "Welcome to LuChess!\n\n" +
 			"Confirm your email address by opening this link within 24 hours:\n\n" + link + "\n\n" +
 			"If you did not create an account, you can ignore this email.\n",
 	})
+}
+
+// inBackground runs work after the request is answered, so no answer waits on
+// the email provider. work gets a context of its own, since the request's ends
+// with the answer, and its error is logged because nobody is left to tell.
+func (cfg *ApiConfig) inBackground(work func(ctx context.Context) error) {
+	cfg.emails.Go(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), emailTimeout)
+		defer cancel()
+		if err := work(ctx); err != nil {
+			log.Printf("error: %s", err)
+		}
+	})
+}
+
+// WaitForEmails returns once every email started in the background has been
+// sent or has failed.
+func (cfg *ApiConfig) WaitForEmails() {
+	cfg.emails.Wait()
 }
