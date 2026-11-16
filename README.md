@@ -44,6 +44,18 @@ docker run -p 8080:80 -e API_UPSTREAM=localhost:8081 luchess-web   # API_UPSTREA
 
 The container speaks plain HTTP on port 80; Cloudflare terminates HTTPS. The Content-Security-Policy allows `index.html`'s inline theme script by a hash the image build computes (`web/scripts/cspHashes.ts`), so nothing needs updating by hand when the script changes.
 
+## The API's container image
+
+`api/Dockerfile` builds the API into one static binary on distroless, which runs as a non-root user and has no shell. The image has no `.env` (`api/.dockerignore` sends the build only the Go sources and migrations), so every setting in `api/.env.example` comes from the environment. On start it applies any pending migrations, then serves on port 8080.
+
+```bash
+cd api
+docker build -t luchess-api .
+docker buildx build --platform linux/amd64,linux/arm64 -t luchess-api .   # both platforms, e.g. for the Pi
+docker run -p 8080:8080 -e DB_URL=postgres://... -e FRONTEND_ORIGIN=https://<the site> \
+  -e JWT_SECRET=... -e MAILER=smtp -e SMTP_HOST=... luchess-api
+```
+
 ## Tests
 
 ```bash
