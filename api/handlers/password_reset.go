@@ -92,7 +92,7 @@ func (cfg *ApiConfig) HandleForgotPassword(w http.ResponseWriter, r *http.Reques
 }
 
 func (cfg *ApiConfig) HandleResetPassword(w http.ResponseWriter, r *http.Request) {
-	if !cfg.allow(w, cfg.resetByIP, clientIP(r)) {
+	if !cfg.allow(w, cfg.resetByIP, cfg.clientIP(r)) {
 		return
 	}
 	var p struct {
