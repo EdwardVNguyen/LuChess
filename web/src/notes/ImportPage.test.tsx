@@ -54,7 +54,7 @@ function renderAt(path: string) {
   })
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
-    <MantineProvider theme={theme}>
+    <MantineProvider theme={theme} env="test">
       <QueryClientProvider client={queryClient}>
         <SessionProvider session={session}>
           <RouterProvider router={router} />

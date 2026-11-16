@@ -67,7 +67,7 @@ function renderAt(path: string) {
     history: createMemoryHistory({ initialEntries: [path] }),
   })
   const { container } = render(
-    <MantineProvider theme={theme}>
+    <MantineProvider theme={theme} env="test">
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
         <SessionProvider session={session}>
           <RouterProvider router={router} />
@@ -93,9 +93,9 @@ async function placeKings(container: HTMLElement) {
 
 async function openFromTitleMenu() {
   // The Note screen loads its chunks of the board and the move list first; slow on a busy run.
-  await userEvent.click(await screen.findByRole('button', { name: 'Note actions' }, { timeout: 5000 }))
+  await userEvent.click(await screen.findByRole('button', { name: 'Note actions' }))
   await userEvent.click(await screen.findByRole('menuitem', { name: 'Edit position' }))
-  await screen.findByRole('heading', { name: 'Edit position' }, { timeout: 5000 })
+  await screen.findByRole('heading', { name: 'Edit position' })
 }
 
 beforeEach(() => {
@@ -113,7 +113,7 @@ beforeEach(() => {
   resetPosition.mockReset()
 })
 
-describe('Edit position', { timeout: 15_000 }, () => {
+describe('Edit position', () => {
   it('opens from the Note’s title menu on an empty board, saving only a legal position', async () => {
     const { router, container } = renderAt('/notes/1')
     await openFromTitleMenu()
@@ -127,7 +127,7 @@ describe('Edit position', { timeout: 15_000 }, () => {
     await placeKings(container)
     expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled()
     // The first test here also loads the page's lazy route.
-  }, 15_000)
+  })
 
   it('confirms before resetting a Note with Moves and writing, then returns to it', async () => {
     const { router, container } = renderAt('/notes/1')

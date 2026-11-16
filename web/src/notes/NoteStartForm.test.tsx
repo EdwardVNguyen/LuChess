@@ -31,7 +31,7 @@ function deferred() {
 function renderForm() {
   const onSubmit = vi.fn<(input: NoteStart) => void>()
   render(
-    <MantineProvider theme={theme}>
+    <MantineProvider theme={theme} env="test">
       <NoteStartForm title="New note" submitLabel="Create note" onSubmit={onSubmit} />
     </MantineProvider>,
   )

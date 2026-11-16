@@ -55,7 +55,7 @@ function renderQuickFind() {
   const router = createRouter({ routeTree: root.addChildren([home, note]), history: createMemoryHistory() })
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
-    <MantineProvider theme={theme}>
+    <MantineProvider theme={theme} env="test">
       <QueryClientProvider client={queryClient}>
         <SessionProvider session={session}>
           <RouterProvider router={router} />

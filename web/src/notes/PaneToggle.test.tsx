@@ -29,7 +29,7 @@ function renderPane(pane: CollapsiblePane, stored?: string) {
   if (stored !== undefined) window.localStorage.setItem(collapseStorageKey, stored)
   const store = createPaneCollapseStore(() => window.localStorage)
   render(
-    <MantineProvider>
+    <MantineProvider env="test">
       <Pane pane={pane} store={store} />
     </MantineProvider>,
   )

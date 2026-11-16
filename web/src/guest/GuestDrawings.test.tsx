@@ -44,7 +44,7 @@ function renderGuestPage() {
     history: createMemoryHistory({ initialEntries: ['/try'] }),
   })
   render(
-    <MantineProvider theme={theme}>
+    <MantineProvider theme={theme} env="test">
       <QueryClientProvider client={new QueryClient()}>
         <SessionProvider session={guest}>
           <RouterProvider router={router} />
@@ -69,7 +69,6 @@ function draw(from: string, to: string) {
 const arrows = () => document.querySelectorAll('path[marker-end]').length
 
 describe('A Guest’s Drawings', () => {
-  // Through Import… and typed key by key: over the default 5 seconds on a busy run.
   it('are kept on their Move in the browser, from the PGN and drawn on the board, and go into the PGN', async () => {
     renderGuestPage()
     await userEvent.click(await screen.findByRole('button', { name: 'Note actions' }))
@@ -91,5 +90,5 @@ describe('A Guest’s Drawings', () => {
     const pgn = within(screen.getByRole('region', { name: 'Tools' })).getByRole('textbox', { name: 'PGN' })
     expect(pgn).toHaveValue('1. e4 {[%cal Gg1f3]} 1... e5 {[%cal Gb8c6]} *')
     expect(apiCalls).toEqual([])
-  }, 15_000)
+  })
 })
