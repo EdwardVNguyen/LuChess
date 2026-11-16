@@ -36,8 +36,10 @@ type OverlaySurfaceProps = CommonProps &
 export function OverlaySurface(props: OverlaySurfaceProps) {
   if (props.size === 'desktop' && props.desktop === 'anchored') {
     const { opened, onClose, label, children, target, width = 320 } = props
+    // Controlled, Mantine's Popover tells Esc and outside clicks to onDismiss;
+    // its onClose only follows `opened`.
     return (
-      <Popover opened={opened} onClose={onClose} width={width} position="bottom-end" withArrow trapFocus returnFocus>
+      <Popover opened={opened} onDismiss={onClose} width={width} position="bottom-end" withArrow trapFocus returnFocus>
         <Popover.Target>{target}</Popover.Target>
         <Popover.Dropdown aria-label={label}>{children}</Popover.Dropdown>
       </Popover>
