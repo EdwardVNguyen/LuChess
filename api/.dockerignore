@@ -1,0 +1,9 @@
+# Send the build only what compiles into the binary, so a local .env, a built
+# binary or anything else in this directory cannot reach the image. A new
+# embedded file outside these patterns fails the build rather than going missing.
+*
+!go.mod
+!go.sum
+!**/*.go
+!sql/schema/*.sql
+**/*_test.go
