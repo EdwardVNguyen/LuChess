@@ -7,9 +7,10 @@ import { afterEach } from 'vitest'
 // up explicitly instead of turning them on everywhere.
 afterEach(cleanup)
 
-// findBy* and waitFor give up after 1s by default. On a full parallel run a
-// page can take longer than that to re-render after a click or a save.
-configure({ asyncUtilTimeout: 5000 })
+// findBy* and waitFor give up after 1s by default. The first test in a page
+// file also loads the Note screen's lazy chunks through Vite, and on a full
+// run, with the other workers doing the same, that alone can take about 1s.
+configure({ asyncUtilTimeout: 3000 })
 
 // Tests render <MantineProvider env="test">. Otherwise a Menu or Popover can
 // open with its dropdown hidden: Mantine hides it when floating-ui reports the
