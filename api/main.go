@@ -7,7 +7,6 @@ import (
 	"os"
 	"database/sql"
 	"net"
-	"context"
 	"os/signal"
 	"syscall"
 
