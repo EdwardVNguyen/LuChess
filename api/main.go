@@ -67,13 +67,18 @@ func main() {
 		log.Fatalf("%s must be set to at least %d characters (generate one with: openssl rand -base64 48)", envJWTSecret, minJWTSecretLen)
 	}
 
+	// MAILER chooses how emails go out; there is no default, so a deploy cannot quietly send none
+	emailer, err := mailer.FromEnv(os.Getenv, os.Stdout)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	// Holds shared dependencies for handlers
 	apiCfg := handler.ApiConfig {
 		Db: database.New(db),
 		SQL: db,
 		FrontendOrigin: frontendOrigin,
-		// Development mailer: prints emails to this log. Production uses a real provider.
-		Mailer: mailer.Console{Out: os.Stdout},
+		Mailer: emailer,
 		Hasher: password.DefaultHasher,
 		Session: session.New(session.Config{DB: db, Secret: []byte(jwtSecret)}),
 		// On unless explicitly turned off, for a browser that refuses Secure cookies over plain HTTP
