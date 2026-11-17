@@ -12,6 +12,7 @@ dist
 dist-ssr
 *.local
 /shots
+/e2e-results
 
 # Editor directories and files
 .vscode/*

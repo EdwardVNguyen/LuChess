@@ -2,6 +2,7 @@
 node_modules
 dist
 shots
+e2e-results
 
 # Local settings. VITE_API_URL comes from the build argument alone, so a
 # developer's .env.local cannot end up in a production bundle

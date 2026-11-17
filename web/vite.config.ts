@@ -1,6 +1,6 @@
-/// <reference types="vitest/config" />
 import react from '@vitejs/plugin-react'
 import { defineConfig, type Plugin } from 'vite'
+import { configDefaults } from 'vitest/config'
 import { themeCss } from './src/theme/themeCss.ts'
 import { bootScript } from './src/theme/themeBoot.ts'
 
@@ -27,5 +27,7 @@ export default defineConfig({
     // trapping, Esc handling, matchMedia) can be rendered and interacted with.
     environment: 'jsdom',
     setupFiles: ['./src/testSetup.ts'],
+    // e2e/*.spec.ts is the Playwright browser test (`npm run e2e`)
+    exclude: [...configDefaults.exclude, 'e2e/**'],
   },
 })
