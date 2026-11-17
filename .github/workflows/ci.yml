@@ -53,6 +53,10 @@ jobs:
 
   web:
     runs-on: ubuntu-24.04
+    # Modules that call the API read it when they load, so the tests need it
+    # too. Locally it comes from .env.local; this is .env.example's value.
+    env:
+      VITE_API_URL: http://localhost:8080
     defaults:
       run:
         working-directory: web
