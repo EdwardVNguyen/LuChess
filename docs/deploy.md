@@ -7,6 +7,8 @@ The site runs on the owner's Raspberry Pi 5 from `deploy/compose.yaml` (docs/adr
 - `web`: Caddy, serving the frontend and passing `/api/` to the API
 - `cloudflared`: the Cloudflare Tunnel, the only way in
 
+`backup` (rclone) runs only during the nightly backup, below.
+
 No service publishes a port. CI builds both images for arm64 and publishes them to GHCR: `ghcr.io/edwardvnguyen/luchess-api` and `ghcr.io/edwardvnguyen/luchess-web`, each tagged `latest` and with the full commit SHA. `IMAGE_TAG` in `deploy/.env` picks the commit that runs, so deploying and rolling back are the same step.
 
 Run every command below from the `deploy` directory.
@@ -111,7 +113,66 @@ docker compose exec -T db pg_restore -U luchess -d luchess --clean --if-exists <
 docker compose start api
 ```
 
-Nightly backups are a separate task (#138).
+## Nightly backups
+
+`backup.sh` dumps the database, checks that the dump can be read back, and copies it to a Cloudflare R2 bucket with the `backup` service (rclone). It then deletes the bucket's dumps older than `BACKUP_KEEP_DAYS`, but only after a new one has arrived, so a run of failed nights never empties the bucket. It tells [Healthchecks](https://healthchecks.io) when it starts and how it ended, and Healthchecks emails you when a backup fails or none arrives. A systemd timer runs it every night at about 03:30.
+
+### Setting them up
+
+1. **Make the bucket.** In Cloudflare's dashboard, go to R2 and create a bucket, for example `luchess-backups`. Then, under Manage API tokens, create a token with **Object Read & Write** on that bucket alone. Copy its access key ID and secret access key, and the account ID from R2's overview page.
+
+2. **Make the check.** On healthchecks.io, add a check with a period of 1 day and a grace time of 2 hours, and copy its ping URL. Its email integration is on by default.
+
+3. **Fill in the backup settings** in `.env`: `R2_ACCOUNT_ID`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `BACKUP_KEEP_DAYS` and `BACKUP_HEALTHCHECK_URL`, as `.env.example` describes.
+
+4. **Take one backup by hand**, and check that it worked:
+
+   ```bash
+   ./backup.sh
+   ```
+
+   It prints the dump's name and size, then `copied it to r2:<bucket>`. The dump should be in the bucket, and the check on Healthchecks should be green.
+
+5. **Install the timer.** The units in `systemd/` run as your user, so they can use Docker. They expect the clone at `~/luchess`. Lingering starts your units at boot without a login:
+
+   ```bash
+   mkdir -p ~/.config/systemd/user
+   cp systemd/luchess-backup.* ~/.config/systemd/user/
+   systemctl --user daemon-reload
+   systemctl --user enable --now luchess-backup.timer
+   sudo loginctl enable-linger "$USER"
+   systemctl --user list-timers                 # the next run
+   journalctl --user -u luchess-backup          # what past runs printed
+   ```
+
+   If the Pi is off at 03:30, the backup runs when it is next on.
+
+### Restoring a backup
+
+Get a dump from the bucket. The `backup` service can list and fetch them:
+
+```bash
+docker compose run --rm backup lsl r2:luchess-backups
+docker compose run --rm --user "$(id -u):$(id -g)" -v "$PWD:/restore" backup copyto r2:luchess-backups/<name>.dump /restore/<name>.dump
+```
+
+To restore it over the running site's database, stop the API first:
+
+```bash
+docker compose stop api
+docker compose exec -T db pg_restore -U luchess -d luchess --clean --if-exists < <name>.dump
+docker compose start api
+```
+
+To restore it onto a new Pi, do steps 1 to 5 of the first setup, then start only the database, restore, and start the rest:
+
+```bash
+docker compose up -d db
+docker compose exec -T db pg_restore -U luchess -d luchess < <name>.dump
+docker compose up -d
+```
+
+The API applies any migrations newer than the dump when it starts. Then delete the local copy of the dump.
 
 ## Checking the stack locally
 
