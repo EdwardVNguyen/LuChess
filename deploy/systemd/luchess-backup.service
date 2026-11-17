@@ -1,0 +1,8 @@
+# Runs backup.sh once. The timer next to this file starts it nightly; see
+# docs/deploy.md for installing both as user units.
+[Unit]
+Description=Back up the LuChess database to R2
+
+[Service]
+Type=oneshot
+ExecStart=%h/luchess/deploy/backup.sh

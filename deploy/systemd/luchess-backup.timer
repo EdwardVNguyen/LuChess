@@ -1,0 +1,12 @@
+# Starts luchess-backup.service every night. Persistent runs a backup missed
+# while the Pi was off as soon as it is back.
+[Unit]
+Description=Back up the LuChess database nightly
+
+[Timer]
+OnCalendar=*-*-* 03:30
+RandomizedDelaySec=15min
+Persistent=true
+
+[Install]
+WantedBy=timers.target
