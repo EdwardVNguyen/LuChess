@@ -56,6 +56,10 @@ docker run -p 8080:8080 -e DB_URL=postgres://... -e FRONTEND_ORIGIN=https://<the
   -e JWT_SECRET=... -e MAILER=smtp -e SMTP_HOST=... luchess-api
 ```
 
+## Deploying
+
+`deploy/compose.yaml` runs the whole site on the Pi: Postgres, the API, the web container and `cloudflared`, with the tunnel as the only way in. `docs/deploy.md` covers the first setup, deploying and rolling back by commit SHA, logs, database dumps, and checking the stack locally first.
+
 ## Tests
 
 ```bash
