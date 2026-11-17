@@ -47,7 +47,7 @@ Run every command below from the `deploy` directory.
    chmod 600 .env
    ```
 
-   Fill in every setting, as `.env.example` describes. `ls -l .env` should show `-rw-------`. The file holds every secret the site has, so never commit it or copy it anywhere else. Git already ignores it.
+   Fill in every setting, as `.env.example` describes. `ls -l .env` should show `-rw-------`. The file holds every secret the site has, so never commit it. Git already ignores it. Keep its only other copy in your password manager, since a new Pi starts from it (see "Restoring a backup"), and update that copy whenever you change `.env`.
 
 6. **Start it.**
 
@@ -182,7 +182,15 @@ docker compose exec -T db pg_restore -U luchess -d luchess --clean --if-exists <
 docker compose start api
 ```
 
-To restore it onto a new Pi, do steps 1 to 5 of the first setup, then start only the database, restore, and start the rest:
+To restore it onto a new Pi, do steps 1 to 3 of the first setup. Skip the tunnel: the one you have still works. Then write `.env` from the copy in your password manager:
+
+```bash
+touch .env
+chmod 600 .env
+nano .env   # paste the copy
+```
+
+Fetch the dump as above, then start only the database, restore, and start the rest:
 
 ```bash
 docker compose up -d db
@@ -190,7 +198,7 @@ docker compose exec -T db pg_restore -U luchess -d luchess < <name>.dump
 docker compose up -d
 ```
 
-The API applies any migrations newer than the dump when it starts. Then delete the local copy of the dump.
+The API applies any migrations newer than the dump when it starts. Then delete the local copy of the dump, and install the backup timer (step 5 of "Setting them up"). If the old Pi still runs, stop it: with the same `TUNNEL_TOKEN`, Cloudflare sends visitors to either one.
 
 ## Checking the stack locally
 
