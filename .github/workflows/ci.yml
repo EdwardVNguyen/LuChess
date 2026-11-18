@@ -123,8 +123,10 @@ jobs:
           context: web
           platforms: linux/arm64
           push: true
+          # VITE_POSTHOG_KEY may be unset: the site then sends no analytics.
           build-args: |
             VITE_API_URL=${{ vars.VITE_API_URL }}
+            VITE_POSTHOG_KEY=${{ vars.VITE_POSTHOG_KEY }}
           tags: |
             ghcr.io/edwardvnguyen/luchess-web:latest
             ghcr.io/edwardvnguyen/luchess-web:${{ github.sha }}

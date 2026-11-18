@@ -47,6 +47,24 @@
 		reverse_proxy {$API_UPSTREAM:api:8080}
 	}
 
+	# PostHog, for the frontend's analytics (#46): the browser sends its events
+	# here, so the CSP can stay 'self' and the site's cookies never leave it.
+	# PostHog's scripts come from its assets host, though the app loads none
+	# itself (src/analytics/analytics.ts).
+	handle_path /ingest/static/* {
+		rewrite * /static{path}
+		reverse_proxy https://us-assets.i.posthog.com {
+			header_up Host us-assets.i.posthog.com
+			header_up -Cookie
+		}
+	}
+	handle_path /ingest/* {
+		reverse_proxy https://us.i.posthog.com {
+			header_up Host us.i.posthog.com
+			header_up -Cookie
+		}
+	}
+
 	# Everything else is the frontend. An unknown /api/ path never gets here,
 	# so it answers the API's 404 and not the app's HTML.
 	handle {

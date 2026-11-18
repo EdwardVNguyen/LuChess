@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { backlinkPlace, connections, cutShown, linkTargets, linkToken, moveNumberAt, parseLinks, showLinks, type LinkStatus } from './links'
+import { addedLinks, backlinkPlace, connections, cutShown, linkTargets, linkToken, moveNumberAt, parseLinks, showLinks, type LinkStatus } from './links'
 
 describe('parseLinks', () => {
   it('splits text into plain runs and Links, with or without a label', () => {
@@ -87,5 +87,22 @@ describe('connections', () => {
       { target: 3, label: null },
       { target: 2, label: 'two' },
     ])
+  })
+})
+
+describe('addedLinks', () => {
+  it('counts the Notes linked now that were not before, in the Comment or the Body', () => {
+    const before = { comment: 'see [[note:1]]', body: null }
+    const after = { comment: 'see [[note:1]] and [[note:2|this]]', body: '[[note:3]] and [[note:2]] again' }
+
+    expect(addedLinks(before, after)).toBe(2)
+  })
+
+  it('counts a Link moved between the Comment and the Body as no new Link', () => {
+    expect(addedLinks({ comment: '[[note:1]]', body: null }, { comment: null, body: '[[note:1|relabelled]]' })).toBe(0)
+  })
+
+  it('counts every Link in writing that was not saved before', () => {
+    expect(addedLinks(undefined, { comment: '[[note:1]]', body: '[[note:2]]' })).toBe(2)
   })
 })
