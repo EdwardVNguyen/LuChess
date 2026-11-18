@@ -80,6 +80,8 @@ export default async function setup() {
 
     console.log('Building the app...')
     process.env.VITE_API_URL = apiUrl
+    // Never send this test's events to PostHog, even with a key in .env.local
+    process.env.VITE_POSTHOG_KEY = ''
     const viteConfig = {
       root: webRoot,
       configFile: path.join(webRoot, 'vite.config.ts'),

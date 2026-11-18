@@ -2,6 +2,9 @@
 # to the API (docs/adr/0011). Build it from this directory:
 #
 #   docker build -t luchess-web --build-arg VITE_API_URL=https://<the site> .
+#
+# Add --build-arg VITE_POSTHOG_KEY=phc_… for analytics (#46); without it the
+# site sends none.
 
 FROM node:24-alpine AS build
 WORKDIR /app
@@ -16,6 +19,7 @@ COPY . .
 # it: the app would only fail when it loads. So refuse here, by the app's own
 # rule for the value (src/config.ts).
 ARG VITE_API_URL
+ARG VITE_POSTHOG_KEY
 RUN if [ -z "$VITE_API_URL" ]; then \
       echo >&2 "VITE_API_URL is not set. Pass the site's own origin: --build-arg VITE_API_URL=https://<the site>"; \
       exit 1; \

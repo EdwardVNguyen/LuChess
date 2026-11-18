@@ -34,7 +34,7 @@ Production sets `MAILER=smtp` and the `SMTP_` settings listed in `api/.env.examp
 
 ## The frontend's container image
 
-Production serves the site from one origin (docs/adr/0011): Caddy serves the built frontend and passes `/api/` to the API. `web/Dockerfile` builds that image. `VITE_API_URL` is fixed into the bundle, so it is a build argument, and with one origin it is the site's own address; the build fails without it.
+Production serves the site from one origin (docs/adr/0011): Caddy serves the built frontend and passes `/api/` to the API. `web/Dockerfile` builds that image. `VITE_API_URL` is fixed into the bundle, so it is a build argument, and with one origin it is the site's own address; the build fails without it. `VITE_POSTHOG_KEY`, PostHog's project key, is an optional build argument too: with it the site sends analytics through Caddy's `/ingest/` to PostHog, and without it none.
 
 ```bash
 cd web

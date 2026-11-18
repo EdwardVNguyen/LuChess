@@ -27,6 +27,15 @@ export function linkTargets(text: string): number[] {
   return ids
 }
 
+type Written = { comment: string | null; body: string | null }
+
+/** How many Notes a Move's Comment and Body link to now that they didn't before. */
+export function addedLinks(before: Written | undefined, after: Written): number {
+  const had = new Set([...linkTargets(before?.comment ?? ''), ...linkTargets(before?.body ?? '')])
+  const has = new Set([...linkTargets(after.comment ?? ''), ...linkTargets(after.body ?? '')])
+  return [...has].filter((target) => !had.has(target)).length
+}
+
 /**
  * The Notes a Note's writing links to, each once, in the order given (reading
  * order, the Comment before the Body), with the first label it was given, to

@@ -1,13 +1,14 @@
 import { Alert, Button, PasswordInput, Stack, Text, TextInput, Title } from '@mantine/core'
 import { useForm } from '@tanstack/react-form'
 import { useMutation } from '@tanstack/react-query'
+import { analytics } from './analytics'
 import { AuthCard } from './AuthCard'
 import { ResendVerification } from './ResendVerification'
 import { api } from './apiClient'
 import { signUpSchema } from './signUpSchema'
 
 export function SignUpPage() {
-  const signUp = useMutation({ mutationFn: api.signUp })
+  const signUp = useMutation({ mutationFn: api.signUp, onSuccess: () => analytics.capture('signed_up') })
 
   const form = useForm({
     defaultValues: { email: '', name: '', password: '' },

@@ -10,10 +10,12 @@ import {
   type ResetTree,
   type TreeInput,
 } from '../api'
+import { analytics } from '../analytics'
 import { api } from '../apiClient'
 import type { MoveId } from '../chess/tree'
 import { useSession } from '../session'
 import type { TreeItem } from './folders'
+import { addedLinks } from './links'
 import { searchKeys } from './noteSearch'
 import { mergeWriting, writingOf, type WritingChange } from './writing'
 
@@ -73,6 +75,7 @@ export function useCreateNote(mutationKey?: readonly unknown[]) {
       queryClient.setQueryData(keys.note(note.id), note)
       queryClient.setQueryData<NoteSummary[]>(keys.list, (list) => putFirst(list, note))
       void queryClient.invalidateQueries({ queryKey: searchKeys.all })
+      analytics.capture('note_created')
     },
   })
 }
@@ -130,11 +133,14 @@ export function useSaveWriting(noteId: number) {
   const queryClient = useQueryClient()
   return useMutation({
     scope: movesScope(noteId),
-    mutationFn: ({ move, ...change }: WritingChange) => {
+    mutationFn: async ({ move, ...change }: WritingChange) => {
       const saved = queryClient.getQueryData<MoveRow[]>(keys.moves(noteId))?.find((row) => row.id === move)
-      return authorized((token) => api.putWriting(token, noteId, move, mergeWriting(saved && writingOf(saved), change)))
+      const written = await authorized((token) => api.putWriting(token, noteId, move, mergeWriting(saved && writingOf(saved), change)))
+      return { saved, written }
     },
-    onSuccess: (written) => {
+    onSuccess: ({ saved, written }) => {
+      // One event per Note newly linked from this Comment or Body
+      for (let i = addedLinks(saved, written); i > 0; i--) analytics.capture('link_added')
       queryClient.setQueryData<MoveRow[]>(keys.moves(noteId), (rows) => rows?.map((row) => (row.id === written.id ? written : row)))
       touched(queryClient)
       invalidateLinks(queryClient)

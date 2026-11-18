@@ -11,7 +11,7 @@ The site runs on the owner's Raspberry Pi 5 from `deploy/compose.yaml` (docs/adr
 
 No service publishes a port. CI builds both images for arm64 and publishes them to GHCR: `ghcr.io/edwardvnguyen/luchess-api` and `ghcr.io/edwardvnguyen/luchess-web`, each tagged `latest` and with the full commit SHA. `IMAGE_TAG` in `deploy/.env` picks the commit that runs, so deploying and rolling back are the same step.
 
-The workflow is `.github/workflows/ci.yml`. It takes the site's origin for the web image from the repository variable `VITE_API_URL` (Settings > Secrets and variables > Actions > Variables), for example `https://<the site>`. If that variable is not set, publishing fails and neither image is pushed.
+The workflow is `.github/workflows/ci.yml`. It takes the site's origin for the web image from the repository variable `VITE_API_URL` (Settings > Secrets and variables > Actions > Variables), for example `https://<the site>`. If that variable is not set, publishing fails and neither image is pushed. For analytics, set the repository variable `VITE_POSTHOG_KEY` to the PostHog project's key (Project settings > Project API key, starting `phc_`); the project must be in PostHog's US cloud, where Caddy sends the events. Without the variable the site sends no analytics.
 
 Run every command below from the `deploy` directory.
 
