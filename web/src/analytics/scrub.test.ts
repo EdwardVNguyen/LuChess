@@ -47,4 +47,12 @@ describe('withoutTokens', () => {
       },
     })
   })
+
+  it('keeps objects that are not plain data as they are, such as the event\'s timestamp', () => {
+    const timestamp = new Date('2026-11-18T12:00:00Z')
+
+    const scrubbed = withoutTokens({ event: '$pageview', timestamp })
+
+    expect(scrubbed.timestamp).toBe(timestamp)
+  })
 })

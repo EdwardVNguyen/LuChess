@@ -14,8 +14,16 @@ export function withoutToken(text: string): string {
 export function withoutTokens<T>(value: T): T {
   if (typeof value === 'string') return withoutToken(value) as T
   if (Array.isArray(value)) return value.map(withoutTokens) as T
-  if (value !== null && typeof value === 'object') {
+  // Only plain objects: anything else, such as the event's Date, is kept as it
+  // is, since PostHog calls its methods when it sends the event.
+  if (isPlainObject(value)) {
     return Object.fromEntries(Object.entries(value).map(([key, inner]) => [key, withoutTokens(inner)])) as T
   }
   return value
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  if (value === null || typeof value !== 'object') return false
+  const proto = Object.getPrototypeOf(value)
+  return proto === Object.prototype || proto === null
 }
