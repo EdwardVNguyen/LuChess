@@ -209,6 +209,11 @@ export const entries: ShotEntry[] = [
   },
   { name: 'SettingsLoading', route: '/settings', fixtures: 'restoring', waitUntil: 'load' },
   { name: 'SettingsGuest', route: '/settings', fixtures: 'guest' },
+  // No matching design screens: the router's not-found page, whose way back
+  // depends on the Session, and its error page, thrown by a dev-only route (#122).
+  { name: 'PageNotFound', route: '/nope', fixtures: 'guest' },
+  { name: 'PageNotFoundSession', route: '/nope', fixtures: 'session' },
+  { name: 'PageError', route: '/dev/error', fixtures: 'guest' },
   // No matching design screen: shows the theme's tokens and component
   // overrides (web/src/theme) next to the matching designs by hand. Opens
   // the modal so the dialog styling (radius, overlay, title font) shows up.

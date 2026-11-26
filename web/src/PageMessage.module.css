@@ -1,0 +1,10 @@
+/* The not-found and error pages' message, in the middle of the space below
+ * the header, as Note not found is on the Note screen. */
+.centered {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 16px;
+  box-sizing: border-box;
+  min-height: calc(100dvh - var(--app-shell-header-offset, 0px));
+}

@@ -2,6 +2,7 @@ import { createRootRoute, createRoute, createRouter } from '@tanstack/react-rout
 import { z } from './zod.ts'
 import { Layout } from './Layout'
 import { AuthLoading, PageLoading } from './Loading'
+import { ErrorPage, NotFoundPage } from './PageMessage'
 
 // Routes are defined here, with their search params; each page's component
 // is loaded on demand from `routes/`, one chunk per group of pages a visitor
@@ -76,8 +77,8 @@ const tryRoute = createRoute({
   import('./routes/guest').then((m) => m.tryRoute),
 )
 
-// Dev-only: pages showing the theme's components, the shared overlays and the
-// board, so a change is easy to screenshot. Not reachable, or bundled, in
+// Dev-only: pages showing the theme's components, the shared overlays, the
+// board and the error page, so a change is easy to screenshot. Not reachable, or bundled, in
 // production (web/AGENTS.md). `npm run shots` builds in the "shots" mode to
 // keep them.
 const devRoutes = import.meta.env.DEV || import.meta.env.MODE === 'shots'
@@ -96,6 +97,9 @@ const devRoutes = import.meta.env.DEV || import.meta.env.MODE === 'shots'
           fen: z.string().optional().catch(undefined),
         }),
       }).lazy(() => import('./routes/dev').then((m) => m.devBoardRoute)),
+      createRoute({ getParentRoute: () => rootRoute, path: '/dev/error' }).lazy(() =>
+        import('./routes/dev').then((m) => m.devErrorRoute),
+      ),
     ]
   : []
 
@@ -109,6 +113,11 @@ export const router = createRouter({
   defaultPendingMs: 0,
   defaultPendingMinMs: 0,
   defaultPreload: 'intent',
+  // An unknown path, and a page failure nothing else caught, show inside the
+  // shell (#122). Both are bundled here, not lazily, so they still show when a
+  // page's chunk is what failed to load.
+  defaultNotFoundComponent: NotFoundPage,
+  defaultErrorComponent: ErrorPage,
 })
 
 declare module '@tanstack/react-router' {
