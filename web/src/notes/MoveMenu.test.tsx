@@ -13,6 +13,7 @@ import type { Session } from '../session'
 import { SessionProvider } from '../session'
 import { theme } from '../theme'
 import { NoteScreen } from './NoteScreen'
+import { leavingAsks } from './testUtils'
 
 const getNote = vi.fn<(token: string, id: number) => Promise<Note>>()
 const getLinks = vi.fn<(token: string, id: number) => Promise<NoteLinks>>()
@@ -526,5 +527,41 @@ describe('Writing a Comment in the move list (#97)', () => {
 
     await waitFor(() => expect(putWriting).toHaveBeenCalledWith('token', 1, rows[0].id, expect.objectContaining({ comment: null })))
     await waitFor(() => expect(screen.queryByText('An older Comment.')).not.toBeInTheDocument())
+  })
+})
+
+describe('Leaving while writing saves (#120)', () => {
+  // Writes a Body on the current Move, then goes to another, so the Body is
+  // handed over to save and its editor is gone.
+  async function writeBody() {
+    const user = userEvent.setup()
+    renderNote()
+    await user.type(await screen.findByRole('textbox', { name: 'Body after 2…Nc6' }), 'Both sides develop.')
+    await user.click(move('Nf3'))
+    expect(await screen.findByRole('textbox', { name: 'Body after 2.Nf3' })).toHaveValue('')
+    await waitFor(() => expect(putWriting).toHaveBeenCalled())
+  }
+
+  it('asks while the save is pending, and not once it has succeeded', async () => {
+    let answer = () => {}
+    const answered = new Promise<void>((resolve) => (answer = resolve))
+    putWriting.mockImplementation(async (_t, _id, moveId, writing) => {
+      await answered
+      return { ...(rows.find((row) => row.id === moveId) as MoveRow), ...writing }
+    })
+    await writeBody()
+
+    expect(leavingAsks()).toBe(true)
+    answer()
+    await waitFor(() => expect(screen.queryByText('Saving…')).not.toBeInTheDocument())
+    expect(leavingAsks()).toBe(false)
+  })
+
+  it('asks after the save has failed', async () => {
+    putWriting.mockRejectedValue(new Error('Network down'))
+    await writeBody()
+
+    expect(await screen.findByText('Your writing was not saved')).toBeInTheDocument()
+    expect(leavingAsks()).toBe(true)
   })
 })

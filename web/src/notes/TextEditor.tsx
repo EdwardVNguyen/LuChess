@@ -5,6 +5,7 @@ import { LinkPicker } from './LinkPicker'
 import { useLinking } from './linking'
 import { linkToken } from './links'
 import styles from './Notes.module.css'
+import { useWarnBeforeUnload } from './useWarnBeforeUnload'
 
 type Props = {
   label: string
@@ -60,6 +61,8 @@ export function TextEditor({ label, placeholder, saved, onSave, onClose, linkReq
   // The inline editor saves or cancels once, however it is closed.
   const closed = useRef(false)
   const input = useRef<HTMLTextAreaElement>(null)
+  // A draft not yet handed to onSave is lost if the tab closes, so ask first.
+  useWarnBeforeUnload(draft.trim() !== saved.trim())
 
   // Opened from the move list's menu, it takes focus once the menu has let it go.
   useEffect(() => {
