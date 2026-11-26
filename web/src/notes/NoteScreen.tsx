@@ -35,6 +35,7 @@ import {
 } from './queries'
 import type { MoveMenu } from './MoveList'
 import { CurrentMoveEditor, StudyView, WritingView } from './StudyView'
+import { useWarnBeforeUnload } from './useWarnBeforeUnload'
 import { writingByMove } from './writing'
 
 export function NoteScreen() {
@@ -380,6 +381,9 @@ function Editor({
   line: Game
   current: MoveId
 }) {
+  // Once handed over, the text may be in no editor while it saves, or after
+  // the save failed, so ask before the tab closes then too.
+  useWarnBeforeUnload(save.isPending || save.isError)
   return (
     <CurrentMoveEditor
       tree={tree}

@@ -1,10 +1,11 @@
-import { screen } from '@testing-library/react'
+import { fireEvent, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { importPgn } from '../chess/pgnImport'
 import { mainLine, type MoveTree } from '../chess/tree'
 import { renderWithTheme } from '../overlay/testUtils'
 import { MoveList } from './MoveList'
+import { leavingAsks } from './testUtils'
 
 // A tree and its writing from PGN, as a Note's moves would be.
 function note(pgn: string) {
@@ -117,5 +118,39 @@ describe('MoveList with writing', () => {
     const { container } = renderWithTheme(<MoveList tree={tree} current={tree.root} onMoveChange={() => {}} writing={writing} />)
     expect(container.querySelector('p')?.textContent).toBe('=Level.1.e4')
     expect(screen.queryByText('Shown above, not here.')).not.toBeInTheDocument()
+  })
+})
+
+describe('Leaving with an unsaved Comment (#120)', () => {
+  const menu = { onComment: vi.fn(), onPromote: vi.fn(), onDelete: vi.fn() }
+
+  // Opens the inline editor for the Comment on `san`.
+  async function writeCommentOn(san: string) {
+    const { tree } = note('1. e4 e5 *')
+    renderWithTheme(<MoveList tree={tree} current={idOf(tree, 'e5')} onMoveChange={() => {}} menu={menu} />)
+    fireEvent.contextMenu(screen.getByRole('button', { name: san }))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Add comment' }))
+    return screen.findByRole('textbox', { name: /^Comment on/ })
+  }
+
+  it('asks while the inline editor has a draft, and not once Enter saves it', async () => {
+    const comment = await writeCommentOn('e5')
+    expect(leavingAsks()).toBe(false)
+
+    await userEvent.type(comment, 'Symmetry.')
+    expect(leavingAsks()).toBe(true)
+    await userEvent.type(comment, '{Enter}')
+    expect(menu.onComment).toHaveBeenCalledWith(expect.anything(), 'Symmetry.')
+    expect(leavingAsks()).toBe(false)
+  })
+
+  it('does not ask once Escape cancels the draft', async () => {
+    const comment = await writeCommentOn('e4')
+
+    await userEvent.type(comment, 'Best by test.')
+    expect(leavingAsks()).toBe(true)
+    await userEvent.type(comment, '{Escape}')
+    expect(screen.queryByRole('textbox', { name: /^Comment on/ })).not.toBeInTheDocument()
+    expect(leavingAsks()).toBe(false)
   })
 })
