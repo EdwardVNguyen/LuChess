@@ -278,6 +278,7 @@ func (cfg *ApiConfig) resendVerification(ctx context.Context, email string) erro
 
 // uniqueViolationMessage turns a taken email or display name into a message for
 // the user. The database constraints decide, so simultaneous sign-ups cannot both win.
+// Revealing a taken email here is deliberate (ADR 0004).
 func uniqueViolationMessage(err error) (string, bool) {
 	var pqErr *pq.Error
 	if !errors.As(err, &pqErr) || pqErr.Code != "23505" {
