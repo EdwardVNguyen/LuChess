@@ -133,7 +133,7 @@ export function AuthPasswordField(props: FieldProps) {
             onChange={(e) => props.onChange(e.currentTarget.value)}
             onBlur={props.onBlur}
             autoComplete={props.autoComplete}
-              aria-describedby={describedBy}
+            aria-describedby={describedBy}
             aria-invalid={props.error ? true : undefined}
           />
           <button
