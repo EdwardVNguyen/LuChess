@@ -1,24 +1,27 @@
 import { Button, Group, Menu, Popover, Text, UnstyledButton } from '@mantine/core'
+import { useClickOutside, useDisclosure, useWindowEvent } from '@mantine/hooks'
 import { Link } from '@tanstack/react-router'
+import { useRef } from 'react'
 import styles from './Header.module.css'
 import { SECTIONS } from '../landing/sections'
 import { QuickFind } from '../notes/QuickFind'
 import { useNewNote } from '../notes/useNewNote'
-import { ChevronDownIcon, PlusIcon } from './icons'
+import { ChevronDownIcon, CloseIcon, MenuIcon, PlusIcon } from './icons'
 import { UserMenu } from './UserMenu'
 import type { SessionState } from '../session'
 
 type Props = {
   state: SessionState
   onLogOut: () => void
-  /** On the landing page: the taller header with links to its sections (HomeLoggedOut.dc.html). */
+  /** On the landing page: the taller header with links to its sections (design/pages/home.html). */
   landing?: boolean
 }
 
 // The app shell's header (design/screens/Note.dc.html, Note-mobile.dc.html):
 // no Library or Play tabs and no mobile bottom bar, because navigation shows
-// only what exists in v1 (web/AGENTS.md). On the landing page it also links to
-// the page's sections, from the tablet size up.
+// only what exists in v1 (web/AGENTS.md). On the landing page it is the
+// logged-out header of design/pages/home.html: links to the page's sections,
+// Log in and Sign up, and on mobile a menu holding the links and Log in.
 export function Header({ state, onLogOut, landing = false }: Props) {
   const ready = state.status !== 'restoring'
   const user = state.status === 'authenticated' ? state.user : null
@@ -49,7 +52,8 @@ export function Header({ state, onLogOut, landing = false }: Props) {
           </div>
         </>
       )}
-      {ready && !user && (
+      {ready && !user && landing && <LandingActions />}
+      {ready && !user && !landing && (
         <Group ml="auto" gap="xs" wrap="nowrap">
           <Button component={Link} to="/login" variant="subtle">
             Log in
@@ -58,6 +62,55 @@ export function Header({ state, onLogOut, landing = false }: Props) {
             Sign up
           </Button>
         </Group>
+      )}
+    </div>
+  )
+}
+
+// The landing header's Log in and Sign up. On mobile, Log in and the section
+// links move into a full-width menu under the header (DESIGN.md leaves the
+// drawer undesigned; a simple dropdown is enough).
+function LandingActions() {
+  const [opened, { toggle, close }] = useDisclosure(false)
+  const button = useRef<HTMLButtonElement>(null)
+  const ref = useClickOutside<HTMLDivElement>(close)
+  useWindowEvent('keydown', (event) => {
+    if (opened && event.key === 'Escape') {
+      close()
+      button.current?.focus()
+    }
+  })
+
+  return (
+    <div ref={ref} className={styles.landingActions}>
+      <Link to="/login" className={styles.landingLogIn}>
+        Log in
+      </Link>
+      <Link to="/signup" className={styles.landingSignUp}>
+        Sign up
+      </Link>
+      <UnstyledButton
+        ref={button}
+        className={styles.menuButton}
+        aria-label="Menu"
+        aria-expanded={opened}
+        aria-controls={opened ? 'landing-menu' : undefined}
+        onClick={toggle}
+      >
+        {opened ? <CloseIcon /> : <MenuIcon />}
+      </UnstyledButton>
+      {opened && (
+        <nav id="landing-menu" aria-label="Menu" className={styles.menu}>
+          <Link to="/" hash={SECTIONS.howItWorks} className={styles.menuLink} onClick={close}>
+            How it works
+          </Link>
+          <Link to="/" hash={SECTIONS.faq} className={styles.menuLink} onClick={close}>
+            FAQ
+          </Link>
+          <Link to="/login" className={styles.menuLink} onClick={close}>
+            Log in
+          </Link>
+        </nav>
       )}
     </div>
   )

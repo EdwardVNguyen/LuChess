@@ -47,12 +47,24 @@ export type ShotEntry = {
 // Start with the pages that already exist. Later tickets add their own entries
 // as each screen is built.
 export const entries: ShotEntry[] = [
-  // The landing page (#42), matching design/screenshots/HomeLoggedOut*.png. No
-  // design matches the rest: the page while the Session is being restored and
-  // when restoring it fails, a later FAQ answer opened, and the picture of the
-  // Note screen the page shows. To update that picture, run this entry and
-  // `magick shots/LandingNotePicture.png -crop 1440x1080+0+0 +repage -quality 82 src/landing/note-screen.webp`.
+  // The landing page (#175), matching design/screenshots/HomeLoggedOut*.png. No
+  // design matches the rest: the mobile menu open, the page while the Session
+  // is being restored and when restoring it fails, an FAQ answer opened, and
+  // the picture of the Note screen (the design's study-view.png) the page
+  // shows. To update that picture, run `npm run shots -- LandingStudyView` and
+  // `cwebp -q 82 -m 6 -crop 0 0 1440 1080 shots/LandingStudyView.png -o src/landing/study-view.webp`.
   { name: 'HomeLoggedOut', route: '/', fixtures: 'guest' },
+  {
+    name: 'HomeMenu',
+    route: '/',
+    fixtures: 'guest',
+    setup: async (page) => {
+      // The menu button shows on mobile only.
+      if ((page.viewportSize()?.width ?? 0) > 640) return
+      await page.getByRole('button', { name: 'Menu' }).click()
+      await page.getByRole('navigation', { name: 'Menu' }).waitFor()
+    },
+  },
   {
     name: 'HomeLoading',
     route: '/',
@@ -82,7 +94,7 @@ export const entries: ShotEntry[] = [
     },
   },
   {
-    name: 'LandingNotePicture',
+    name: 'LandingStudyView',
     route: '/notes/1',
     fixtures: 'session',
     notes: 'landing',

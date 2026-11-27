@@ -182,6 +182,15 @@ export const radiusTokens = {
   xl: '20px',
 } as const
 
+// The logged-out pages' own radii (design/pages/DESIGN.md), smaller than the
+// app's: 4px for their buttons and cards, 8px for form fields and the frame
+// around a picture of the app. Kept out of `radiusTokens`, which is Mantine's
+// radius scale for the rest of the app.
+export const pageRadiusTokens = {
+  control: '4px',
+  frame: '8px',
+} as const
+
 export const spacingTokens = {
   // How far each level of the Folder tree is indented (Note.dc.html's sidebar).
   treeIndent: '22px',

@@ -4,12 +4,15 @@ import { useState } from 'react'
 import { errorMessage } from './errors'
 import { Header } from './header/Header'
 import { useSession } from './session'
+import { pageBreakpointTokens } from './theme'
 
 export function Layout() {
   const { state, restore, signOut } = useSession()
   const navigate = useNavigate()
   const [logoutFailed, setLogoutFailed] = useState(false)
-  // A Guest at `/` sees the landing page, which has a taller header (HomeLoggedOut.dc.html).
+  // A Guest at `/` sees the landing page, whose header is taller and on the
+  // page's paper (design/pages/home.html): 64px on mobile, 74px from the
+  // logged-out pages' tablet size.
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const landing = pathname === '/' && state.status === 'guest'
 
@@ -28,10 +31,13 @@ export function Layout() {
 
   return (
     <AppShell
-      header={{ height: landing ? { base: 56, md: 64 } : 56 }}
+      header={{ height: landing ? { base: 64, [pageBreakpointTokens.tablet]: 74 } : 56 }}
       padding={0}
       styles={{
-        header: { backgroundColor: 'var(--cn-ground)', borderBottom: '1px solid var(--cn-rule)' },
+        header: {
+          backgroundColor: landing ? 'var(--cn-paper)' : 'var(--cn-ground)',
+          borderBottom: '1px solid var(--cn-rule)',
+        },
         main: { backgroundColor: 'var(--cn-paper)' },
       }}
     >

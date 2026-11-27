@@ -1,5 +1,5 @@
 import type { CSSVariablesResolver } from '@mantine/core'
-import { boardTokens, fontTokens, panelTokens, radiusTokens, spacingTokens } from './tokens.ts'
+import { boardTokens, fontTokens, pageRadiusTokens, panelTokens, radiusTokens, spacingTokens } from './tokens.ts'
 
 // Exposes the tokens that are the same in every theme (the board, the
 // logged-out pages' dark panels, the fonts, radii, spacing) as CSS
@@ -37,6 +37,8 @@ export const cssVariablesResolver: CSSVariablesResolver = () => ({
     '--cn-radius-card': radiusTokens.md,
     '--cn-radius-dialog': radiusTokens.lg,
     '--cn-radius-pill': radiusTokens.xl,
+    '--cn-page-radius': pageRadiusTokens.control,
+    '--cn-page-radius-frame': pageRadiusTokens.frame,
     '--cn-tree-indent': spacingTokens.treeIndent,
     '--cn-pane-rail': spacingTokens.paneRail,
   },
