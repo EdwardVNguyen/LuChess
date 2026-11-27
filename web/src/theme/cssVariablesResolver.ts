@@ -2,10 +2,11 @@ import type { CSSVariablesResolver } from '@mantine/core'
 import { boardTokens, fontTokens, panelTokens, radiusTokens, spacingTokens } from './tokens.ts'
 
 // Exposes the tokens that are the same in every theme (the board, the
-// logged-out pages' dark panels, the fonts, radii, spacing) as CSS variables, so CSS modules can use `var(--cn-font)`
-// etc. without reaching for raw values. The colours that change with the
-// theme are set per theme by themeCss.ts. Mantine merges this with its own
-// variables, it does not replace them.
+// logged-out pages' dark panels, the fonts, radii, spacing) as CSS
+// variables, so CSS modules can use `var(--cn-font)` etc. without reaching
+// for raw values. The colours that change with the theme are set per theme
+// by themeCss.ts. Mantine merges this with its own variables, it does not
+// replace them.
 export const cssVariablesResolver: CSSVariablesResolver = () => ({
   variables: {
     '--cn-board-light': boardTokens.light,

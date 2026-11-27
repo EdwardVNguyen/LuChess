@@ -199,12 +199,13 @@ export const breakpointTokens = {
   xl: '100em', // 1600px
 } as const
 
-// The logged-out pages' own breakpoints (design/pages/DESIGN.md): mobile up
-// to 640px, tablet 641-1024px, desktop from 1025px. The app keeps
-// `breakpointTokens`; at 390, 834 and 1440px both sets put a page in the same
-// band. Media queries can't read CSS variables, so CSS modules write these
-// values out, mobile first: `@media (min-width: 40.0625em)` for tablet.
+// The logged-out pages' own breakpoint (design/pages/DESIGN.md): mobile up
+// to 640px, tablet from 641px. For desktop (the design's 1025px) they use the
+// app's `md` (64em, 1024px) from `breakpointTokens`, so the shared header and
+// the page body switch at the same width. These stay out of Mantine's
+// `theme.breakpoints`, whose `sm` stays 48em for the app. Media queries can't
+// read CSS variables, so CSS modules write the value out, mobile first:
+// `@media (min-width: 40.0625em)`.
 export const pageBreakpointTokens = {
   tablet: '40.0625em', // 641px
-  desktop: '64.0625em', // 1025px
 } as const

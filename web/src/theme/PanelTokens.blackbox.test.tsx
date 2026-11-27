@@ -253,16 +253,14 @@ describe('breakpoints match the design', () => {
       .map(Math.round)
   }
 
-  it("Mantine's theme.breakpoints has the tablet and desktop boundaries", () => {
-    const px = boundaries(theme.breakpoints)
-    expect(px.some((n) => n === 640 || n === 641), `breakpoints ${px}`).toBe(true)
-    expect(px.some((n) => n === 1024 || n === 1025), `breakpoints ${px}`).toBe(true)
+  it('the exported page breakpoint tokens put the tablet boundary between 640 and 641px', () => {
+    const tablet = inPx(pageBreakpointTokens.tablet)!
+    expect(tablet, `tablet ${tablet}`).toBeGreaterThan(640)
+    expect(tablet, `tablet ${tablet}`).toBeLessThanOrEqual(641)
   })
 
-  it('the exported page breakpoint tokens have the tablet and desktop boundaries', () => {
-    const px = boundaries(pageBreakpointTokens)
-    expect(px.some((n) => n === 640 || n === 641), `page breakpoints ${px}`).toBe(true)
-    expect(px.some((n) => n === 1024 || n === 1025), `page breakpoints ${px}`).toBe(true)
+  it("desktop is the theme's md, 1024px", () => {
+    expect(boundaries({ md: theme.breakpoints!.md })).toEqual([1024])
   })
 })
 
