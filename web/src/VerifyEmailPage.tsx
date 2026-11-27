@@ -1,8 +1,9 @@
-import { Alert, Loader, Stack, Text, Title } from '@mantine/core'
+import { Loader } from '@mantine/core'
 import { useMutation } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
 import { useEffect, useRef } from 'react'
-import { AuthCard } from './AuthCard'
+import { AuthAlert, AuthStack, AuthText, AuthTitle } from './auth/AuthForm'
+import { AuthLayout } from './auth/AuthLayout'
 import { ResendVerification } from './ResendVerification'
 import { api } from './apiClient'
 
@@ -24,40 +25,44 @@ export function VerifyEmailPage() {
 
   if (!token) {
     return (
-      <AuthCard>
-        <Title order={2}>Verify your email</Title>
-        <Alert color="red">This link is incomplete. Open the link from your email, or request a new one.</Alert>
+      <AuthLayout>
+        <AuthTitle>Verify your email</AuthTitle>
+        <AuthStack>
+          <AuthAlert tone="error">This link is incomplete. Open the link from your email, or request a new one.</AuthAlert>
+        </AuthStack>
         <ResendVerification />
-      </AuthCard>
+      </AuthLayout>
     )
   }
 
   if (verify.isSuccess) {
     return (
-      <AuthCard>
-        <Title order={2}>Email verified</Title>
-        <Text>Thanks, your email address is confirmed.</Text>
-      </AuthCard>
+      <AuthLayout>
+        <AuthTitle>Email verified</AuthTitle>
+        <AuthText>Thanks, your email address is confirmed.</AuthText>
+      </AuthLayout>
     )
   }
 
   if (verify.isError) {
     return (
-      <AuthCard>
-        <Title order={2}>We could not verify your email</Title>
-        <Alert color="red">{verify.error.message}</Alert>
-        <Text size="sm">Links work once and expire after 24 hours. Request a new one:</Text>
+      <AuthLayout>
+        <AuthTitle>We could not verify your email</AuthTitle>
+        <AuthStack>
+          <AuthAlert tone="error">{verify.error.message}</AuthAlert>
+          <AuthText quiet>Links work once and expire after 24 hours. Request a new one:</AuthText>
+        </AuthStack>
         <ResendVerification />
-      </AuthCard>
+      </AuthLayout>
     )
   }
 
   return (
-    <AuthCard>
-      <Stack align="center">
-        <Loader />
-        <Text>Verifying your email…</Text>
-      </Stack>
-    </AuthCard>
+    <AuthLayout>
+      <AuthStack>
+        <Loader color="var(--cn-panel-tan)" mx="auto" />
+        <AuthText>Verifying your email…</AuthText>
+      </AuthStack>
+    </AuthLayout>
   )
 }

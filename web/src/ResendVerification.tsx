@@ -1,6 +1,6 @@
-import { Alert, Button, Group, Stack, TextInput } from '@mantine/core'
 import { useMutation } from '@tanstack/react-query'
 import { useState } from 'react'
+import { AuthAlert, AuthButton, AuthStack, AuthTextField } from './auth/AuthForm'
 import { api } from './apiClient'
 import { errorMessage } from './errors'
 
@@ -13,22 +13,15 @@ export function ResendVerification({ email }: { email?: string }) {
   const resend = useMutation({ mutationFn: () => api.resendVerification(target) })
 
   return (
-    <Stack gap="xs">
-      <Group align="flex-end">
-        {email === undefined && (
-          <TextInput
-            label="Email address"
-            type="email"
-            value={typedEmail}
-            onChange={(e) => setTypedEmail(e.currentTarget.value)}
-          />
-        )}
-        <Button variant="light" loading={resend.isPending} disabled={target === ''} onClick={() => resend.mutate()}>
-          Send a new link
-        </Button>
-      </Group>
-      {resend.isSuccess && <Alert color="green">{resend.data.message}</Alert>}
-      {resend.isError && <Alert color="red">{errorMessage(resend.error)}</Alert>}
-    </Stack>
+    <AuthStack>
+      {email === undefined && (
+        <AuthTextField label="Email address" type="email" autoComplete="email" value={typedEmail} onChange={setTypedEmail} />
+      )}
+      <AuthButton variant="secondary" loading={resend.isPending} disabled={target === ''} onClick={() => resend.mutate()}>
+        Send a new link
+      </AuthButton>
+      {resend.isSuccess && <AuthAlert tone="success">{resend.data.message}</AuthAlert>}
+      {resend.isError && <AuthAlert tone="error">{errorMessage(resend.error)}</AuthAlert>}
+    </AuthStack>
   )
 }

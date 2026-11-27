@@ -1,0 +1,256 @@
+/* The auth pages' form on the dark panel: design/pages/styles.css (".auth h1"
+ * to ".auth-legal"). Labels and body text are Inter; only the title is the
+ * serif (docs/adr/0012). */
+.heading {
+  margin-bottom: 26px;
+}
+
+.title {
+  margin: 0;
+  font-family: var(--cn-font-serif);
+  font-weight: 400;
+  font-size: 40px;
+  line-height: 1.05;
+  color: var(--cn-panel-heading);
+}
+
+.lead {
+  margin: 12px 0 0;
+  color: var(--cn-panel-label);
+}
+
+@media (min-width: 40.0625em) {
+  .heading {
+    margin-bottom: 34px;
+  }
+
+  .title {
+    font-size: 56px;
+  }
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Something after the form, such as asking for a new verification link. */
+.stack + .stack {
+  margin-top: 22px;
+}
+
+.text {
+  margin: 0;
+  line-height: 1.55;
+  color: var(--cn-panel-text);
+}
+
+.quiet {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--cn-panel-hint);
+}
+
+.rowEnd {
+  display: flex;
+  justify-content: flex-end;
+  font-size: 14px;
+}
+
+/* ---- Fields ---- */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--cn-panel-label);
+}
+
+.input {
+  box-sizing: border-box;
+  width: 100%;
+  height: 52px;
+  padding: 0 16px;
+  background: var(--cn-panel-field);
+  border: 1px solid var(--cn-panel-field-edge);
+  border-radius: var(--cn-radius-button);
+  color: var(--cn-panel-heading);
+  font: inherit;
+  /* 16px keeps iOS from zooming in. */
+  font-size: 16px;
+  font-weight: 400;
+}
+
+.input::placeholder {
+  color: var(--cn-panel-hint);
+}
+
+.input:focus {
+  outline: 2px solid var(--cn-panel-tan);
+  outline-offset: 1px;
+  border-color: var(--cn-panel-tan);
+}
+
+.input[aria-invalid='true'] {
+  border-color: var(--cn-panel-error);
+}
+
+.hint,
+.error {
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.hint {
+  color: var(--cn-panel-hint);
+}
+
+.error {
+  color: var(--cn-panel-error);
+}
+
+.passwordWrap {
+  position: relative;
+  display: block;
+}
+
+.passwordInput {
+  padding-right: 52px;
+}
+
+.passwordToggle {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: var(--cn-radius-button);
+  color: var(--cn-panel-label);
+  cursor: pointer;
+}
+
+.passwordToggle:hover {
+  color: var(--cn-panel-heading);
+}
+
+.passwordToggle:focus-visible {
+  outline: 2px solid var(--cn-panel-tan);
+  outline-offset: -2px;
+}
+
+/* ---- Buttons ---- */
+
+.primary,
+.secondary {
+  position: relative;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 52px;
+  padding: 0 22px;
+  border-radius: var(--cn-radius-button);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.primary {
+  margin-top: 6px;
+  background: var(--cn-panel-tan);
+  border: 0;
+  color: var(--cn-panel-background);
+}
+
+.secondary {
+  background: transparent;
+  border: 1px solid var(--cn-panel-label);
+  color: var(--cn-panel-heading);
+}
+
+/* Links styled as buttons keep their own colours, not the panel's link tan. */
+.primary:is(a),
+.primary:is(a):hover {
+  color: var(--cn-panel-background);
+}
+
+.secondary:is(a),
+.secondary:is(a):hover {
+  color: var(--cn-panel-heading);
+}
+
+.primary:hover {
+  background: var(--cn-panel-tan-hover);
+}
+
+.secondary:hover {
+  background: color-mix(in srgb, var(--cn-panel-heading) 6%, transparent);
+}
+
+.primary:focus-visible,
+.secondary:focus-visible {
+  outline: 2px solid var(--cn-panel-tan);
+  outline-offset: 2px;
+}
+
+.primary:disabled,
+.secondary:disabled {
+  cursor: default;
+}
+
+.primary:disabled:not([data-loading]),
+.secondary:disabled:not([data-loading]) {
+  opacity: 0.55;
+}
+
+/* While loading, the label keeps the button's size and accessible name. */
+[data-loading] > .buttonLabel {
+  opacity: 0;
+}
+
+.buttonLoader {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+}
+
+/* ---- Messages about the whole form ---- */
+
+.alert {
+  padding: 12px 14px;
+  background: var(--cn-panel-field);
+  border: 1px solid var(--cn-panel-field-edge);
+  border-left-width: 3px;
+  border-radius: var(--cn-radius-button);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--cn-panel-text);
+}
+
+.alert[data-tone='error'] {
+  border-left-color: var(--cn-panel-error);
+}
+
+.alert[data-tone='warning'] {
+  border-left-color: var(--cn-panel-tan);
+}
+
+.alert[data-tone='success'] {
+  border-left-color: var(--cn-panel-label);
+}
