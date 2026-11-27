@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Log in · LuChess</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;1,8..60,400&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="auth">
+  <main class="auth-panel">
+    <a class="auth-logo" href="home.html"><span class="mark" aria-hidden="true">♞&#xFE0E;</span><span class="word">LuChess</span></a>
+    <div class="auth-body">
+      <h1>Log in</h1>
+      <p class="auth-switch">New here? <a href="signup.html">Create an account</a></p>
+      <form class="form" method="post" action="/api/auth/login">
+        <label class="field">Email
+          <input type="email" name="email" autocomplete="email" placeholder="you@example.com" required>
+        </label>
+        <label class="field">Password
+          <span class="pw-wrap">
+            <input type="password" name="password" autocomplete="current-password" required>
+            <button class="pw-toggle" type="button" aria-label="Show password" aria-pressed="false">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </span>
+        </label>
+        <div class="form-row-end"><a href="/forgot-password">Forgot password?</a></div>
+        <button class="btn-submit" type="submit">Log in</button>
+      </form>
+      <p class="auth-aside-note">Just looking? <a href="/articles">Read articles without an account</a></p>
+    </div>
+    <p class="auth-footer"><a href="/terms">Terms</a> · <a href="/privacy">Privacy</a></p>
+  </main>
+  <aside class="auth-art">
+    <img src="img/auth-tal-1964.jpg" alt="Mikhail Tal deep in thought at the 1964 Amsterdam Interzonal">
+    <div class="auth-caption">
+      <p class="quote">Remember chess the way you remember a good story.</p>
+      <p class="credit">Mikhail Tal, Amsterdam Interzonal 1964 · Photo: <a href="https://commons.wikimedia.org/wiki/File:Interzonaal_fide_schaaktoernooi_in_GAK_gebouw,_Tal_in_die_concentratie_te_midden,_Bestanddeelnr_916-4754.jpg">Harry Pot for Anefo</a>, CC0, via Wikimedia Commons</p>
+    </div>
+  </aside>
+</div>
+</body>
+</html>

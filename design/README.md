@@ -16,12 +16,16 @@ plus a logged-out homepage and public article pages.
   `screens/img/` holds the three product pictures used on the homepage.
 - `wireframes/` the original rough sketches, for intent only. The hi-fi screens supersede them.
 - `canvas.json` canvas positions; ignore for the build.
+- `pages/` the newer handoff for the logged-out Home, Log in and Sign up pages: plain HTML, a shared `styles.css`
+  and `DESIGN.md` (tokens, breakpoints, behaviour, image licences). It replaces the old `HomeLoggedOut*.dc.html`.
+  Its photos go in `pages/img/`.
 
 ## Screens, suggested routes and states
 Prototype links between screens are plain `href="Other.dc.html"` anchors; use them as the navigation map.
 
 Logged out (public, no account needed to read articles)
-- `HomeLoggedOut` `/`  hero (Sign up free, Try as a guest), How it works, 3 feature rows, article cards, FAQ, sign-up band, footer
+- `HomeLoggedOut` `/`  dark photo hero (Sign up free, Try as a guest), How it works, 2 feature rows, article cards, FAQ, sign-up band, footer. Designed in `pages/home.html`, see `pages/DESIGN.md`
+- `Login` `/login` and `SignUp` `/signup`  split layout: dark form panel and a photo. Designed in `pages/login.html` and `pages/signup.html`
 - `ArticleList` `/articles`  public list of all articles: search, 3-col card grid, right filter panel (Phase, Type, Sort by), guest banner, bookmark leads to sign-up
 - `ArticleGuest` `/articles/:id`  Read view of one article with guest banner; Save/Follow lead to sign-up
 
@@ -51,6 +55,10 @@ Play (logged in)
 - Bookmark = save to a folder (Chrome-bookmark style popover, with "new folder").
 
 ## Design tokens
+The tokens below are for the `*.dc.html` screens. The logged-out pages in `pages/` have their own tokens
+(Source Serif 4 and Inter, a dark "night" panel with tan buttons) and their own breakpoints (mobile ≤ 640px,
+tablet 641–1024px, desktop ≥ 1025px); see `pages/DESIGN.md`.
+
 Colors: ink `#2A2620`, muted `#5F5748`, paper `#FAF6EC`, ground `#EFE8D8`, sidebar `#E7DEC9`, margin panel `#F3ECDC`,
 rule `#D9CFB8`, card `#FFFCF5`, edge `#CFC3A6`, highlight `#EBDDB8`, link/accent oxblood `#8A2E24`.
 Board squares light `#EDE2C8`, dark `#B9A47C`. Dark overlays `rgba(42,38,32,.45)`.

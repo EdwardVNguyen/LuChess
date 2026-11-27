@@ -19,3 +19,5 @@ We chose this from a throwaway prototype (#52, branch `theme-prototype`) that sw
 ## Consequences
 
 Fonts no longer match `design/screenshots/`, and nor do colours outside Warm paper, so screenshot comparisons differ there by design; layout, spacing and radii still follow the designs. Every colour must come from the current theme's tokens, because a value that looks right in one theme can be unreadable in another. On Night, filled buttons are light with dark text, since the primary colour is the theme's ink.
+
+The logged-out pages later took a serif for headings and fixed dark panels (docs/adr/0012).
