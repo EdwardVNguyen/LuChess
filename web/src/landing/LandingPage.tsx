@@ -167,10 +167,6 @@ const QUESTIONS = [
     answer: 'Only you. Notes are private to your account.',
   },
   {
-    question: 'Do I need a Chess.com or Lichess account?',
-    answer: 'No. Paste a game as PGN, from any site or your own scoresheet, or play the moves on the board.',
-  },
-  {
     question: 'Why not just use an engine?',
     answer:
       'An engine tells you the best move. Your notes tell you why a move mattered to you, and which other games it reminds you of. That is what you remember at the board.',
