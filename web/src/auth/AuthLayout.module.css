@@ -1,0 +1,221 @@
+/* The auth pages' split layout: design/pages/styles.css ("Auth"). Mobile
+ * first: a 200px photo band on top (up to 640px), a 300px band from the
+ * tablet size (641px, pageBreakpointTokens.tablet), and the photo beside the
+ * form from the app's md (64em, 1024px). The panel's colours are the fixed
+ * dark-panel tokens (docs/adr/0012), so it stays dark in every theme. */
+.auth {
+  --auth-gutter: 20px;
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto 1fr;
+  min-height: 100vh;
+  background: var(--cn-panel-background);
+  color: var(--cn-panel-heading);
+  font-family: var(--cn-font);
+  font-size: 15px;
+}
+
+.auth a {
+  color: var(--cn-panel-tan);
+}
+
+.auth a:hover {
+  color: var(--cn-panel-tan-hover);
+}
+
+.auth a:focus-visible {
+  outline: 2px solid var(--cn-panel-tan);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* ---- The form panel ---- */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 32px var(--auth-gutter) 40px;
+}
+
+/* Over the photo band's top-left corner until the desktop size. */
+.logo {
+  position: absolute;
+  top: 24px;
+  left: var(--auth-gutter);
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  text-shadow: 0 1px 8px color-mix(in srgb, var(--cn-panel-background) 70%, transparent);
+}
+
+.auth .logo,
+.auth .logo:hover {
+  color: var(--cn-panel-heading);
+}
+
+.logoMark {
+  width: 36px;
+  height: 36px;
+  flex: none;
+}
+
+.wordmark {
+  font-family: var(--cn-font-serif);
+  font-style: italic;
+  font-size: 26px;
+  line-height: 1;
+}
+
+.body {
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 24px 0 48px;
+}
+
+.footer {
+  align-self: stretch;
+  margin: auto 0 0;
+  text-align: center;
+  font-size: 12px;
+  color: var(--cn-panel-hint);
+}
+
+.auth .footer a {
+  color: var(--cn-panel-hint);
+}
+
+/* ---- The photo ---- */
+
+.art {
+  order: -1;
+  position: relative;
+  overflow: hidden;
+  min-height: 200px;
+  background: var(--cn-panel-background);
+}
+
+.photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 58% 35%;
+  filter: grayscale(1) sepia(0.12) contrast(1.05) brightness(0.9);
+}
+
+/* A soft fade from the left edge and a darker one along the bottom, so the
+ * caption reads. */
+.art::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--cn-panel-background) 55%, transparent) 0%, transparent 18%),
+    linear-gradient(0deg, color-mix(in srgb, var(--cn-panel-background) 85%, transparent) 0%, transparent 34%);
+}
+
+.caption {
+  position: absolute;
+  left: var(--auth-gutter);
+  right: var(--auth-gutter);
+  bottom: 10px;
+  z-index: 1;
+}
+
+.quote {
+  display: none;
+  margin: 0;
+  max-width: 460px;
+  font-family: var(--cn-font-serif);
+  font-size: 24px;
+  line-height: 1.3;
+  color: var(--cn-panel-heading);
+}
+
+.credit {
+  margin: 0;
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--cn-panel-hint);
+}
+
+.auth .credit a {
+  color: var(--cn-panel-label);
+}
+
+/* Tablet: a taller band, with the quote. */
+@media (min-width: 40.0625em) {
+  .auth {
+    --auth-gutter: 32px;
+  }
+
+  .art {
+    min-height: 300px;
+  }
+
+  .caption {
+    bottom: 24px;
+  }
+
+  .quote {
+    display: block;
+  }
+
+  .credit {
+    margin-top: 14px;
+    font-size: 11.5px;
+  }
+}
+
+/* Desktop: the form panel beside the photo, `1fr | 1.15fr`. */
+@media (min-width: 64em) {
+  .auth {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+    grid-template-rows: none;
+  }
+
+  .panel {
+    align-items: stretch;
+    padding: 48px 10%;
+  }
+
+  .logo {
+    position: static;
+    align-self: flex-start;
+  }
+
+  .body {
+    margin: auto 0;
+    padding: 48px 0;
+  }
+
+  .footer {
+    margin: 0;
+    text-align: left;
+  }
+
+  .art {
+    order: 0;
+    min-height: 100vh;
+  }
+
+  .photo {
+    object-position: 58% 40%;
+  }
+
+  .caption {
+    left: 48px;
+    right: 48px;
+    bottom: 40px;
+  }
+
+  .quote {
+    font-size: 28px;
+  }
+}

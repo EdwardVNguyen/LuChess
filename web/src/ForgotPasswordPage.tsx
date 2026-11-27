@@ -1,9 +1,9 @@
-import { Alert, Button, Stack, Text, TextInput, Title } from '@mantine/core'
 import { useForm } from '@tanstack/react-form'
 import { useMutation } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { z } from './zod.ts'
-import { AuthCard } from './AuthCard'
+import { AuthAlert, AuthButton, AuthForm, AuthStack, AuthText, AuthTextField, AuthTitle } from './auth/AuthForm'
+import { AuthLayout } from './auth/AuthLayout'
 import { api } from './apiClient'
 import { errorMessage } from './errors'
 
@@ -26,60 +26,58 @@ export function ForgotPasswordPage() {
 
   if (forgot.isSuccess) {
     return (
-      <AuthCard>
-        <Title order={2}>Check your email</Title>
-        <Text>{forgot.data.message}</Text>
-        <Text size="sm" c="dimmed">
-          The link works once and expires after 1 hour. Didn't get it? Check your spam folder, or{' '}
-          <Link to="/forgot-password" onClick={() => forgot.reset()}>
-            try again
-          </Link>
-          .
-        </Text>
-        <Text size="sm">
-          <Link to="/login">Back to log in</Link>
-        </Text>
-      </AuthCard>
+      <AuthLayout>
+        <AuthTitle>Check your email</AuthTitle>
+        <AuthStack>
+          <AuthText>{forgot.data.message}</AuthText>
+          <AuthText quiet>
+            The link works once and expires after 1 hour. Didn't get it? Check your spam folder, or{' '}
+            <Link to="/forgot-password" onClick={() => forgot.reset()}>
+              try again
+            </Link>
+            .
+          </AuthText>
+          <AuthText>
+            <Link to="/login">Back to log in</Link>
+          </AuthText>
+        </AuthStack>
+      </AuthLayout>
     )
   }
 
   return (
-    <AuthCard>
-      <Title order={2}>Forgot your password?</Title>
-      <Text size="sm" c="dimmed">
-        Enter the email you signed up with and we'll send you a link to choose a new password.
-      </Text>
-      <form
-        onSubmit={(e) => {
-          e.preventDefault()
-          void form.handleSubmit()
-        }}
+    <AuthLayout>
+      <AuthTitle
+        lead={
+          <>
+            Remembered it? <Link to="/login">Log in</Link>
+          </>
+        }
       >
-        <Stack>
-          <form.Field name="email">
-            {(field) => (
-              <TextInput
-                label="Email"
-                type="email"
-                autoComplete="email"
-                value={field.state.value}
-                onChange={(e) => field.handleChange(e.currentTarget.value)}
-                onBlur={field.handleBlur}
-                error={field.state.meta.errors[0]?.message}
-              />
-            )}
-          </form.Field>
+        Forgot your password?
+      </AuthTitle>
+      <AuthForm onSubmit={() => void form.handleSubmit()}>
+        <AuthText>Enter the email you signed up with and we'll send you a link to choose a new password.</AuthText>
+        <form.Field name="email">
+          {(field) => (
+            <AuthTextField
+              label="Email"
+              type="email"
+              autoComplete="email"
+              value={field.state.value}
+              onChange={field.handleChange}
+              onBlur={field.handleBlur}
+              error={field.state.meta.errors[0]?.message}
+            />
+          )}
+        </form.Field>
 
-          {forgot.isError && <Alert color="red">{errorMessage(forgot.error)}</Alert>}
+        {forgot.isError && <AuthAlert tone="error">{errorMessage(forgot.error)}</AuthAlert>}
 
-          <Button type="submit" loading={forgot.isPending}>
-            Send reset link
-          </Button>
-        </Stack>
-      </form>
-      <Text size="sm">
-        Remembered it? <Link to="/login">Log in</Link>
-      </Text>
-    </AuthCard>
+        <AuthButton type="submit" loading={forgot.isPending}>
+          Send reset link
+        </AuthButton>
+      </AuthForm>
+    </AuthLayout>
   )
 }

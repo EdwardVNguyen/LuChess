@@ -1,10 +1,10 @@
-import { Alert, Button, PasswordInput, Stack, Text, Title } from '@mantine/core'
 import { useForm } from '@tanstack/react-form'
 import { useMutation } from '@tanstack/react-query'
-import { getRouteApi, Link } from '@tanstack/react-router'
+import { getRouteApi } from '@tanstack/react-router'
 import { z } from './zod.ts'
 import { ApiError } from './api'
-import { AuthCard } from './AuthCard'
+import { AuthAlert, AuthButton, AuthButtonLink, AuthForm, AuthPasswordField, AuthStack, AuthText, AuthTitle } from './auth/AuthForm'
+import { AuthLayout } from './auth/AuthLayout'
 import { api } from './apiClient'
 import { errorMessage } from './errors'
 import { passwordSchema } from './signUpSchema'
@@ -23,14 +23,16 @@ function isDeadLink(error: unknown) {
 
 function InvalidLink({ message }: { message: string }) {
   return (
-    <AuthCard>
-      <Title order={2}>This link doesn't work</Title>
-      <Alert color="red">{message}</Alert>
-      <Text size="sm">Reset links work once and expire after 1 hour.</Text>
-      <Button component={Link} to="/forgot-password" variant="light">
-        Send a new link
-      </Button>
-    </AuthCard>
+    <AuthLayout>
+      <AuthTitle>This link doesn't work</AuthTitle>
+      <AuthStack>
+        <AuthAlert tone="error">{message}</AuthAlert>
+        <AuthText quiet>Reset links work once and expire after 1 hour.</AuthText>
+        <AuthButtonLink to="/forgot-password" variant="secondary">
+          Send a new link
+        </AuthButtonLink>
+      </AuthStack>
+    </AuthLayout>
   )
 }
 
@@ -59,59 +61,52 @@ export function ResetPasswordPage() {
 
   if (reset.isSuccess) {
     return (
-      <AuthCard>
-        <Title order={2}>Password changed</Title>
-        <Text>Your new password is set. For your security, every device you were logged in on has been logged out.</Text>
-        <Button component={Link} to="/login">
-          Log in
-        </Button>
-      </AuthCard>
+      <AuthLayout>
+        <AuthTitle>Password changed</AuthTitle>
+        <AuthStack>
+          <AuthText>Your new password is set. For your security, every device you were logged in on has been logged out.</AuthText>
+          <AuthButtonLink to="/login">Log in</AuthButtonLink>
+        </AuthStack>
+      </AuthLayout>
     )
   }
 
   return (
-    <AuthCard>
-      <Title order={2}>Choose a new password</Title>
-      <form
-        onSubmit={(e) => {
-          e.preventDefault()
-          void form.handleSubmit()
-        }}
-      >
-        <Stack>
-          <form.Field name="password">
-            {(field) => (
-              <PasswordInput
-                label="New password"
-                description="10 to 128 characters."
-                autoComplete="new-password"
-                value={field.state.value}
-                onChange={(e) => field.handleChange(e.currentTarget.value)}
-                onBlur={field.handleBlur}
-                error={field.state.meta.isTouched ? field.state.meta.errors[0]?.message : undefined}
-              />
-            )}
-          </form.Field>
-          <form.Field name="confirm">
-            {(field) => (
-              <PasswordInput
-                label="Confirm new password"
-                autoComplete="new-password"
-                value={field.state.value}
-                onChange={(e) => field.handleChange(e.currentTarget.value)}
-                onBlur={field.handleBlur}
-                error={field.state.meta.isTouched ? field.state.meta.errors[0]?.message : undefined}
-              />
-            )}
-          </form.Field>
+    <AuthLayout>
+      <AuthTitle>Choose a new password</AuthTitle>
+      <AuthForm onSubmit={() => void form.handleSubmit()}>
+        <form.Field name="password">
+          {(field) => (
+            <AuthPasswordField
+              label="New password"
+              hint="10 to 128 characters."
+              autoComplete="new-password"
+              value={field.state.value}
+              onChange={field.handleChange}
+              onBlur={field.handleBlur}
+              error={field.state.meta.isTouched ? field.state.meta.errors[0]?.message : undefined}
+            />
+          )}
+        </form.Field>
+        <form.Field name="confirm">
+          {(field) => (
+            <AuthPasswordField
+              label="Confirm new password"
+              autoComplete="new-password"
+              value={field.state.value}
+              onChange={field.handleChange}
+              onBlur={field.handleBlur}
+              error={field.state.meta.isTouched ? field.state.meta.errors[0]?.message : undefined}
+            />
+          )}
+        </form.Field>
 
-          {reset.isError && <Alert color="red">{errorMessage(reset.error)}</Alert>}
+        {reset.isError && <AuthAlert tone="error">{errorMessage(reset.error)}</AuthAlert>}
 
-          <Button type="submit" loading={reset.isPending}>
-            Set new password
-          </Button>
-        </Stack>
-      </form>
-    </AuthCard>
+        <AuthButton type="submit" loading={reset.isPending}>
+          Set new password
+        </AuthButton>
+      </AuthForm>
+    </AuthLayout>
   )
 }
