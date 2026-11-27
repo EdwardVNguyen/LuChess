@@ -151,52 +151,173 @@
   display: block;
 }
 
-/* The landing page's header (HomeLoggedOut*.dc.html): wider padding, and from
- * the theme's `md` size a 64px bar with a larger logo. */
-@media (min-width: 48em) {
+/* The landing page's header, logged out (design/pages/home.html): the
+ * page's 1180px column and gutters, a serif wordmark, links to the page's
+ * sections, a Log in link and a dark Sign up button. On mobile (up to 640px)
+ * the links and Log in move into a menu. Its height (64px, 74px from 641px)
+ * is set in Layout.tsx. */
+.landing {
+  position: relative;
+  max-width: 1180px;
+  margin-inline: auto;
+  box-sizing: border-box;
+  gap: 12px;
+  padding-inline: 20px;
+}
+
+@media (min-width: 40.0625em) {
   .landing {
-    padding-inline: 28px;
+    gap: 28px;
+    padding-inline: 32px;
   }
 }
 
 @media (min-width: 64em) {
   .landing {
-    padding-inline: 48px;
+    padding-inline: 64px;
   }
+}
 
-  .landing .logo {
-    font-size: 23px;
-  }
+.landing .logo {
+  font-family: var(--cn-font-serif);
+  font-size: 26px;
+  font-weight: 400;
+}
+
+.landing .logoMark {
+  width: 1.4em;
+  height: 1.4em;
 }
 
 .sections {
   display: none;
 }
 
-@media (min-width: 48em) {
+@media (min-width: 40.0625em) {
   .sections {
     display: flex;
-    gap: 24px;
-    margin-left: 32px;
+    gap: 22px;
   }
+}
+
+.section,
+.landingLogIn,
+.menuLink {
+  font-family: var(--cn-font);
+  font-size: 15px;
+  text-decoration: none;
 }
 
 .section {
   display: flex;
   align-items: center;
   height: 40px;
-  padding-inline: 4px;
-  font-family: var(--cn-font);
-  font-size: 15px;
-  color: var(--cn-muted);
-  text-decoration: none;
+  color: var(--cn-prose);
 }
 
-.section:hover {
+.section:hover,
+.landingLogIn:hover,
+.menuLink:hover {
+  color: var(--cn-accent);
+}
+
+.landingActions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+@media (min-width: 40.0625em) {
+  .landingActions {
+    gap: 28px;
+  }
+}
+
+.landingLogIn {
+  display: none;
   color: var(--cn-ink);
 }
 
-.section:focus-visible {
+@media (min-width: 40.0625em) {
+  .landingLogIn {
+    display: flex;
+    align-items: center;
+    height: 40px;
+  }
+}
+
+.landingSignUp {
+  display: inline-flex;
+  align-items: center;
+  height: 38px;
+  padding-inline: 16px;
+  border-radius: var(--cn-page-radius);
+  background: var(--cn-ink);
+  color: var(--cn-paper);
+  font-family: var(--cn-font);
+  font-size: 15px;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.landingSignUp:hover {
+  opacity: 0.85;
+}
+
+.menuButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  color: var(--cn-ink);
+}
+
+@media (min-width: 40.0625em) {
+  .menuButton {
+    display: none;
+  }
+}
+
+/* The mobile menu: a full-width dropdown under the header. */
+.menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 8px 20px 12px;
+  background: var(--cn-paper);
+  border-top: 1px solid var(--cn-rule);
+  border-bottom: 1px solid var(--cn-rule);
+  box-shadow: var(--cn-card-shadow);
+}
+
+@media (min-width: 40.0625em) {
+  .menu {
+    display: none;
+  }
+}
+
+.menuLink {
+  display: flex;
+  align-items: center;
+  min-height: 48px;
+  color: var(--cn-ink);
+}
+
+.menuLink + .menuLink {
+  border-top: 1px solid var(--cn-rule);
+}
+
+.section:focus-visible,
+.landingLogIn:focus-visible,
+.landingSignUp:focus-visible,
+.menuButton:focus-visible,
+.menuLink:focus-visible {
   outline: 2px solid var(--cn-ink);
   outline-offset: 2px;
 }

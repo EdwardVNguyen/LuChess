@@ -7,6 +7,7 @@ export {
   breakpointTokens,
   fontTokens,
   pageBreakpointTokens,
+  pageRadiusTokens,
   palettes,
   panelTokens,
   radiusTokens,

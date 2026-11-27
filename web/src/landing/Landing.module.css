@@ -1,368 +1,337 @@
-/* The landing page: design/screens/HomeLoggedOut.dc.html (desktop),
- * HomeLoggedOut-tablet.dc.html and HomeLoggedOut-mobile.dc.html. Mobile
- * first; 48em is the theme's `sm` (tablet), 64em its `md` (desktop). */
+/* The landing page: design/pages/home.html and styles.css (DESIGN.md "Home
+ * page"). Mobile first, at the logged-out pages' breakpoints: mobile up to
+ * 640px, tablet from 641px (40.0625em, pageBreakpointTokens.tablet) and
+ * desktop from the theme's `md` (64em).
+ *
+ * The hero is dark in every theme, in the fixed panel colours; the
+ * rest follows the theme. Headings are in the serif, everything else in
+ * Inter (docs/adr/0012). */
 .page {
+  --landing-gutter: 20px;
+
   background: var(--cn-paper);
   color: var(--cn-ink);
   font-family: var(--cn-font);
+  font-size: 15px;
 }
 
-.container {
-  width: 100%;
-  max-width: 1160px;
-  margin-inline: auto;
-  padding-inline: 16px;
-  box-sizing: border-box;
-}
-
-@media (min-width: 48em) {
-  .container {
-    padding-inline: 28px;
+@media (min-width: 40.0625em) {
+  .page {
+    --landing-gutter: 32px;
   }
 }
 
 @media (min-width: 64em) {
-  .container {
-    padding-inline: 48px;
+  .page {
+    --landing-gutter: 64px;
   }
 }
 
-.eyebrow {
+.container {
+  max-width: 1180px;
+  margin-inline: auto;
+  padding-inline: var(--landing-gutter);
+  box-sizing: border-box;
+}
+
+.eyebrow,
+.heroEyebrow,
+.footerHeading {
   margin: 0;
-  font-family: var(--cn-font);
   font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.09em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--cn-muted);
 }
 
-/* Buttons. The design's are taller than the app's, so they are drawn here. */
-.primary,
-.secondary,
-.bandPrimary,
-.bandSecondary {
+/* A line break the design has on tablet and desktop only. */
+.wideBreak {
+  display: none;
+}
+
+@media (min-width: 40.0625em) {
+  .wideBreak {
+    display: inline;
+  }
+}
+
+/* Buttons */
+.button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 56px;
-  padding-inline: 28px;
+  height: 46px;
+  padding-inline: 22px;
   box-sizing: border-box;
-  border-radius: var(--cn-radius-button);
-  border: 1px solid;
+  border: 1px solid transparent;
+  border-radius: var(--cn-page-radius);
   font-family: var(--cn-font);
-  font-size: 17px;
+  font-size: 15px;
+  font-weight: 500;
   text-decoration: none;
   white-space: nowrap;
 }
 
-.primary {
-  padding-inline: 30px;
-  border-color: var(--cn-ink);
-  background: var(--cn-ink);
-  color: var(--cn-paper);
-  font-weight: 500;
+/* On the hero, in every theme. */
+.tan {
+  background: var(--cn-panel-tan);
+  color: var(--cn-panel-background);
 }
 
-.secondary {
-  border-color: var(--cn-dashed);
-  color: var(--cn-ink);
+.tan:hover {
+  background: var(--cn-panel-tan-hover);
 }
 
-.bandPrimary {
-  padding-inline: 30px;
-  border-color: var(--cn-paper);
+.ghostNight {
+  border-color: var(--cn-panel-label);
+  color: var(--cn-panel-heading);
+}
+
+.ghostNight:hover {
+  background: color-mix(in srgb, var(--cn-panel-heading) 6%, transparent);
+}
+
+.tan:focus-visible,
+.ghostNight:focus-visible,
+.credit a:focus-visible {
+  outline: 2px solid var(--cn-panel-tan);
+  outline-offset: 2px;
+}
+
+/* On the ink band, in the theme's colours. */
+.light {
   background: var(--cn-paper);
   color: var(--cn-ink);
-  font-weight: 500;
 }
 
-.bandSecondary {
-  padding-inline: 26px;
+.light:hover {
+  opacity: 0.88;
+}
+
+.ghostBand {
   border-color: var(--cn-band-edge);
   color: var(--cn-paper);
 }
 
-.primary:hover,
-.bandPrimary:hover {
-  opacity: 0.85;
-}
-
-.secondary:hover {
-  background: var(--cn-ground);
-}
-
-.bandSecondary:hover {
+.ghostBand:hover {
   border-color: var(--cn-paper);
 }
 
-.primary:focus-visible,
-.secondary:focus-visible {
-  outline: 2px solid var(--cn-ink);
-  outline-offset: 2px;
-}
-
-.bandPrimary:focus-visible,
-.bandSecondary:focus-visible {
+.light:focus-visible,
+.ghostBand:focus-visible {
   outline: 2px solid var(--cn-paper);
   outline-offset: 2px;
 }
 
-/* Hero */
+/* Hero. On mobile the copy sits at the bottom and the photo shows above it;
+ * from tablet the copy is centred over the photo; on desktop the photo fills
+ * the right 62%. */
 .hero {
-  padding-block: 32px 40px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+  min-height: 640px;
+  background: var(--cn-panel-background);
+  color: var(--cn-panel-heading);
 }
 
-@media (min-width: 48em) {
-  .hero {
-    padding-block: 56px 64px;
-  }
+.heroPhoto {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 30% 25%;
+  filter: grayscale(1) sepia(0.12) contrast(1.05) brightness(0.88);
 }
 
-@media (min-width: 64em) {
-  .hero {
-    padding-block: 84px 96px;
-  }
+.heroWash {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--cn-panel-background) 35%, transparent) 0%,
+    color-mix(in srgb, var(--cn-panel-background) 85%, transparent) 45%,
+    var(--cn-panel-background) 75%
+  );
 }
 
-.heroGrid {
-  display: grid;
-  gap: 24px;
+.heroWash::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0;
+  height: 160px;
+  background: linear-gradient(
+    0deg,
+    color-mix(in srgb, var(--cn-panel-background) 70%, transparent),
+    transparent
+  );
 }
 
-@media (min-width: 48em) {
-  .heroGrid {
-    gap: 30px;
-  }
-}
-
-@media (min-width: 64em) {
-  .heroGrid {
-    grid-template-columns: minmax(0, 6fr) minmax(0, 5fr);
-    gap: 56px;
-    align-items: center;
-  }
+.heroInner {
+  position: relative;
+  width: 100%;
+  padding-block: 220px 72px;
 }
 
 .heroCopy {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
+  max-width: 500px;
 }
 
-@media (min-width: 64em) {
-  .heroCopy {
-    gap: 26px;
-  }
+.heroEyebrow {
+  color: var(--cn-panel-label);
 }
 
 .title {
-  margin: 0;
-  font-size: 38px;
-  line-height: 1.03;
-  font-weight: 500;
-  letter-spacing: -0.025em;
-  text-wrap: balance;
+  margin: 14px 0 0;
+  font-family: var(--cn-font-serif);
+  font-size: 40px;
+  font-weight: 400;
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+  color: var(--cn-panel-heading);
 }
 
-@media (min-width: 48em) {
-  .title {
-    font-size: 58px;
-  }
-}
-
-@media (min-width: 64em) {
-  .title {
-    font-size: 64px;
-    line-height: 1.02;
-  }
-}
-
-.lede {
-  margin: 0;
-  max-width: 600px;
+.heroLede {
+  max-width: 470px;
+  margin: 24px 0 0;
   font-size: 18px;
-  line-height: 1.5;
-  color: var(--cn-prose);
+  line-height: 1.55;
+  color: var(--cn-panel-text);
 }
 
-@media (min-width: 48em) {
-  .lede {
-    font-size: 21px;
-  }
-}
-
-@media (min-width: 64em) {
-  .lede {
-    max-width: 560px;
-    font-size: 22px;
-  }
-}
-
-/* Stacked, full width on mobile (HomeLoggedOut-mobile.png). */
-.actions {
+.heroActions {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   gap: 12px;
+  margin-top: 30px;
 }
 
-@media (min-width: 48em) {
-  .actions {
-    flex-direction: row;
-    flex-wrap: wrap;
-  }
+.heroActions .button {
+  flex: 1 1 100%;
 }
 
-/* The hero's Note and its two linked cards. The cards float over the corners;
- * the threads run from the middle of the Note card out to each of them. */
-.heroNote {
-  position: relative;
-  display: flex;
-  justify-content: center;
-  padding-block: 92px 64px;
-  max-width: 540px;
-  width: 100%;
-  margin-inline: auto;
-}
-
-@media (min-width: 48em) {
-  .heroNote {
-    padding-block: 100px 72px;
-  }
-}
-
-.threads {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-}
-
-.threads path {
-  fill: none;
-  stroke: var(--cn-accent);
-  stroke-width: 1.6;
-  vector-effect: non-scaling-stroke;
-}
-
-.noteCard {
-  position: relative;
-  /* Full width on mobile, so the board's move controls fit beside their caption. */
-  width: min(372px, 100%);
-  padding: 18px 14px 14px;
-  box-sizing: border-box;
-  background: var(--cn-card);
-  border: 1px solid var(--cn-edge);
-  border-radius: 14px;
-  box-shadow: var(--cn-lift-shadow);
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-@media (min-width: 48em) {
-  .noteCard {
-    padding-inline: 18px;
-  }
-}
-
-.cardLabel {
-  font-family: var(--cn-font);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  color: var(--cn-muted);
-}
-
-.linkCard {
+/* Required by the photo's licence. Never remove it. */
+.credit {
   position: absolute;
   z-index: 1;
-  width: 200px;
-  padding: 12px 14px;
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  background: var(--cn-card);
-  border: 1px solid var(--cn-edge);
-  border-radius: var(--cn-radius-card);
-  box-shadow: var(--cn-card-shadow);
+  inset: auto 24px 12px;
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--cn-panel-hint);
 }
 
-@media (min-width: 48em) {
-  .linkCard {
-    width: 250px;
-    padding: 14px 16px;
+.credit a {
+  color: var(--cn-panel-label);
+}
+
+.credit a:hover {
+  color: var(--cn-panel-heading);
+}
+
+@media (min-width: 40.0625em) {
+  .hero {
+    align-items: center;
+    min-height: 720px;
+  }
+
+  .heroPhoto {
+    object-position: 45% 30%;
+  }
+
+  .heroWash {
+    background: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--cn-panel-background) 94%, transparent) 0%,
+      color-mix(in srgb, var(--cn-panel-background) 82%, transparent) 55%,
+      color-mix(in srgb, var(--cn-panel-background) 45%, transparent) 100%
+    );
+  }
+
+  .heroInner {
+    padding-block: 96px 110px;
+  }
+
+  .title {
+    font-size: 54px;
+  }
+
+  .heroLede {
+    font-size: 20px;
+  }
+
+  .heroActions .button {
+    flex: none;
   }
 }
 
-.linkCardTop {
-  top: 0;
-  left: 0;
-}
+@media (min-width: 64em) {
+  .hero {
+    min-height: 860px;
+  }
 
-.linkCardBottom {
-  bottom: 0;
-  right: 0;
-}
+  .heroPhoto {
+    width: 62%;
+    object-position: 35% 30%;
+  }
 
-.linkName {
-  font-size: 16px;
-  line-height: 1.2;
-  font-weight: 500;
-  color: var(--cn-accent);
-}
+  .heroWash {
+    background: linear-gradient(
+      90deg,
+      var(--cn-panel-background) 0%,
+      var(--cn-panel-background) 38%,
+      color-mix(in srgb, var(--cn-panel-background) 60%, transparent) 52%,
+      color-mix(in srgb, var(--cn-panel-background) 12%, transparent) 72%,
+      color-mix(in srgb, var(--cn-panel-background) 20%, transparent) 100%
+    );
+  }
 
-@media (min-width: 48em) {
-  .linkName {
-    font-size: 19px;
+  .heroInner {
+    padding-block: 120px 140px;
+  }
+
+  .title {
+    font-size: 66px;
   }
 }
 
 /* Sections */
 .section {
-  padding-block: 44px;
-  border-top: 1px solid var(--cn-rule);
-  scroll-margin-top: var(--app-shell-header-height, 56px);
+  padding-block: 64px;
+  scroll-margin-top: var(--app-shell-header-height, 64px);
 }
 
-@media (min-width: 48em) {
+@media (min-width: 40.0625em) {
   .section {
-    padding-block: 64px;
+    padding-block: 80px;
   }
 }
 
 @media (min-width: 64em) {
   .section {
-    padding-block: 88px;
+    padding-block: 100px;
   }
 }
 
-.sunk {
-  background: var(--cn-sidebar);
-}
-
-.sectionHead {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  max-width: 640px;
+.band {
+  background: var(--cn-ground);
 }
 
 .heading {
-  margin: 0;
-  font-size: 29px;
-  line-height: 1.08;
-  font-weight: 500;
-  letter-spacing: -0.015em;
-  text-wrap: balance;
+  margin: 12px 0 18px;
+  font-family: var(--cn-font-serif);
+  font-size: 30px;
+  font-weight: 400;
+  line-height: 1.12;
 }
 
-@media (min-width: 48em) {
+@media (min-width: 40.0625em) {
   .heading {
-    font-size: 38px;
+    font-size: 34px;
   }
 }
 
@@ -372,174 +341,138 @@
   }
 }
 
+.lede {
+  margin: 0 0 18px;
+  font-size: 18px;
+  line-height: 1.6;
+  color: var(--cn-prose);
+}
+
 /* How it works */
 .steps {
-  margin: 32px 0 0;
+  display: grid;
+  gap: 32px;
+  margin: 40px 0 0;
   padding: 0;
   list-style: none;
-  display: grid;
-  gap: 24px;
 }
 
-@media (min-width: 48em) {
+@media (min-width: 40.0625em) {
   .steps {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 32px;
+    gap: 40px;
   }
-}
-
-@media (min-width: 64em) {
-  .steps {
-    margin-top: 40px;
-    gap: 48px;
-  }
-}
-
-.step {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
 }
 
 .stepNumber {
-  font-size: 50px;
-  line-height: 1;
+  display: block;
+  font-family: var(--cn-font-serif);
+  font-size: 44px;
   font-style: italic;
+  line-height: 1;
   color: var(--cn-accent);
 }
 
-.stepTitle {
-  margin: 0;
-  font-size: 25px;
-  font-weight: 500;
+@media (min-width: 40.0625em) {
+  .stepNumber {
+    font-size: 56px;
+  }
 }
 
-@media (min-width: 64em) {
-  .stepTitle {
-    font-size: 27px;
-  }
+.stepTitle {
+  margin: 14px 0 6px;
+  font-family: var(--cn-font-serif);
+  font-size: 24px;
+  font-weight: 400;
 }
 
 .stepText {
   margin: 0;
   font-size: 16px;
-  line-height: 1.5;
+  line-height: 1.6;
   color: var(--cn-prose);
 }
 
-@media (min-width: 64em) {
-  .stepText {
-    font-size: 17px;
-  }
-}
-
-/* Luhmann's method: copy beside a picture of the Note screen */
-.featureGrid {
+/* Luhmann's method: the copy, then a picture of the Note screen in a browser
+ * frame; side by side on desktop. */
+.feature {
   display: grid;
-  gap: 32px;
+  gap: 36px;
 }
 
 @media (min-width: 64em) {
-  .featureGrid {
-    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
-    gap: 64px;
+  .feature {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+    gap: 48px;
     align-items: center;
   }
 }
 
-.featureCopy {
+.checklist {
   display: flex;
   flex-direction: column;
-  gap: 20px;
-}
-
-.featureText {
-  margin: 0;
-  font-size: 17px;
-  line-height: 1.5;
-  color: var(--cn-prose);
-}
-
-@media (min-width: 48em) {
-  .featureText {
-    font-size: 19px;
-  }
-}
-
-.points {
+  gap: 10px;
   margin: 0;
   padding: 0;
   list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  font-size: 16px;
+  line-height: 1.4;
+  color: var(--cn-prose);
 }
 
-.points li {
-  display: flex;
-  gap: 10px;
-  align-items: flex-start;
-  font-size: 15.5px;
-  line-height: 1.45;
+.checklist li::before {
+  content: '✓';
+  margin-right: 10px;
+  color: var(--cn-accent);
 }
 
-@media (min-width: 48em) {
-  .points li {
-    font-size: 17px;
-  }
-}
-
-@media (min-width: 64em) {
-  .points {
-    gap: 12px;
-  }
-
-  .points li {
-    gap: 12px;
-  }
-}
-
-.check {
-  flex: none;
-  margin-top: 0.2em;
-  fill: none;
-  stroke: var(--cn-accent);
-  stroke-width: 2.2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.picture {
+.browser {
   margin: 0;
   overflow: hidden;
   background: var(--cn-card);
-  border: 1px solid var(--cn-edge);
-  border-radius: var(--cn-radius-dialog);
+  border: 1px solid var(--cn-rule);
+  border-radius: var(--cn-page-radius-frame);
   box-shadow: var(--cn-picture-shadow);
 }
 
-.pictureBar {
+.browserBar {
   display: flex;
   gap: 6px;
-  padding: 10px 14px;
-  background: var(--cn-ground);
+  padding: 10px 12px;
   border-bottom: 1px solid var(--cn-rule);
 }
 
-.pictureBar span {
+.browserBar span {
   width: 9px;
   height: 9px;
   border-radius: 50%;
   background: var(--cn-window-dot);
 }
 
-.picture img {
+.browser img {
   display: block;
   width: 100%;
   height: auto;
 }
 
-/* FAQ */
+/* FAQ: the heading beside the questions on desktop, above them otherwise. */
+.faqSection {
+  padding-block: 64px;
+  scroll-margin-top: var(--app-shell-header-height, 64px);
+}
+
+@media (min-width: 40.0625em) {
+  .faqSection {
+    padding-block: 80px 90px;
+  }
+}
+
+@media (min-width: 64em) {
+  .faqSection {
+    padding-top: 100px;
+  }
+}
+
 .faqGrid {
   display: grid;
   gap: 24px;
@@ -547,13 +480,30 @@
 
 @media (min-width: 64em) {
   .faqGrid {
-    grid-template-columns: minmax(0, 4fr) minmax(0, 8fr);
-    gap: 64px;
+    grid-template-columns: 300px minmax(0, 1fr);
+    gap: 40px;
   }
 }
 
-.faq {
-  border-bottom: 1px solid var(--cn-rule);
+.faqTitle {
+  margin: 0;
+  font-family: var(--cn-font-serif);
+  font-size: 30px;
+  font-weight: 400;
+  line-height: 1.1;
+}
+
+@media (min-width: 40.0625em) {
+  .faqTitle {
+    font-size: 40px;
+  }
+}
+
+/* The heading's break is for the desktop column only. */
+@media (min-width: 40.0625em) and (max-width: 63.99em) {
+  .faqTitle .wideBreak {
+    display: none;
+  }
 }
 
 .faqItem {
@@ -561,8 +511,12 @@
   border-top: 1px solid var(--cn-rule);
 }
 
+.faqItem:last-child {
+  border-bottom: 1px solid var(--cn-rule);
+}
+
 .faqControl {
-  padding: 22px 0;
+  padding: 20px 0;
   background: transparent;
   color: var(--cn-ink);
 }
@@ -582,28 +536,23 @@
 
 .faqQuestion {
   display: flex;
-  align-items: center;
   justify-content: space-between;
   gap: 16px;
   padding: 0;
-  font-family: var(--cn-font);
-  font-size: 19px;
+  font-family: var(--cn-font-serif);
+  font-size: 18px;
   line-height: 1.3;
-  font-weight: 500;
   text-align: left;
 }
 
-@media (min-width: 48em) {
+@media (min-width: 40.0625em) {
   .faqQuestion {
-    font-size: 22px;
+    font-size: 20px;
   }
 }
 
 .faqSign {
   flex: none;
-  font-family: var(--cn-font);
-  font-size: 22px;
-  line-height: 1;
   color: var(--cn-muted);
 }
 
@@ -612,191 +561,148 @@
 }
 
 .faqItem[data-active] .faqSign::before {
-  content: '−';
+  content: '–';
 }
 
 .faqAnswer {
-  max-width: 720px;
-  padding: 0 0 22px;
-  font-size: 17px;
-  line-height: 1.55;
+  padding: 0 0 20px;
+  font-size: 16px;
+  line-height: 1.6;
   color: var(--cn-prose);
 }
 
-/* The sign-up band */
-.band {
-  padding-block: 56px;
+/* The closing call to sign up, on an ink band. */
+.cta {
+  padding: 64px var(--landing-gutter);
   background: var(--cn-ink);
   color: var(--cn-paper);
-}
-
-@media (min-width: 48em) {
-  .band {
-    padding-block: 80px;
-  }
-}
-
-@media (min-width: 64em) {
-  .band {
-    padding-block: 96px;
-  }
-}
-
-.bandInner {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 20px;
   text-align: center;
 }
 
-@media (min-width: 64em) {
-  .bandInner {
-    gap: 24px;
+@media (min-width: 40.0625em) {
+  .cta {
+    padding-block: 90px;
   }
 }
 
-.bandTitle {
+.ctaTitle {
   margin: 0;
-  max-width: 760px;
+  font-family: var(--cn-font-serif);
   font-size: 34px;
-  line-height: 1.05;
-  font-weight: 500;
-  letter-spacing: -0.02em;
-  text-wrap: balance;
+  font-weight: 400;
+  line-height: 1.15;
 }
 
-@media (min-width: 48em) {
-  .bandTitle {
-    font-size: 48px;
+@media (min-width: 40.0625em) {
+  .ctaTitle {
+    font-size: 46px;
   }
 }
 
-@media (min-width: 64em) {
-  .bandTitle {
-    font-size: 50px;
-  }
-}
-
-.bandText {
-  margin: 0;
-  max-width: 520px;
-  font-size: 17px;
+.ctaText {
+  margin: 14px 0 26px;
+  font-size: 18px;
   line-height: 1.5;
   color: var(--cn-rule);
 }
 
-@media (min-width: 48em) {
-  .bandText {
-    font-size: 20px;
-  }
-}
-
-@media (min-width: 64em) {
-  .bandText {
-    max-width: 560px;
-  }
-}
-
-.bandActions {
+/* Stacked, full width on mobile. */
+.ctaActions {
   display: flex;
-  flex-direction: column;
-  align-self: stretch;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 12px;
 }
 
-@media (min-width: 48em) {
-  .bandActions {
-    flex-direction: row;
-    align-self: center;
+.ctaActions .button {
+  flex: 1 1 100%;
+}
+
+@media (min-width: 40.0625em) {
+  .ctaActions .button {
+    flex: none;
   }
 }
 
-/* Footer */
-.footer {
-  padding-block: 40px 32px;
-  background: var(--cn-ground);
-  border-top: 1px solid var(--cn-rule);
-}
-
-@media (min-width: 64em) {
-  .footer {
-    padding-block: 56px 40px;
-  }
-}
-
-.footerInner {
-  display: flex;
-  flex-direction: column;
+/* Footer: the brand, then the link columns. Four columns on desktop (the
+ * brand twice as wide), the brand on its own row otherwise. */
+.footerGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 28px;
+  padding-block: 48px;
+  font-size: 14px;
 }
 
-@media (min-width: 64em) {
-  .footerInner {
-    flex-direction: row;
-    justify-content: space-between;
-    gap: 80px;
+.footerGrid > :first-child {
+  grid-column: 1 / -1;
+}
+
+@media (min-width: 40.0625em) {
+  .footerGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 40px;
   }
 }
 
-.footerBrand {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  max-width: 320px;
-}
+@media (min-width: 64em) {
+  .footerGrid {
+    grid-template-columns: 2fr 1fr 1fr 1fr;
+  }
 
-.footerLogo {
-  font-size: 23px;
-  font-style: italic;
-  font-weight: 500;
-}
-
-.footerTagline {
-  font-family: var(--cn-font);
-  font-size: 14px;
-  line-height: 1.5;
-  color: var(--cn-muted);
+  .footerGrid > :first-child {
+    grid-column: auto;
+  }
 }
 
 .footerColumns {
-  display: flex;
-  gap: 48px;
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
 }
 
 @media (min-width: 64em) {
   .footerColumns {
-    gap: 80px;
+    grid-column: 2 / -1;
   }
 }
 
-.footerColumn {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.footerHeading {
-  font-family: var(--cn-font);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  color: var(--cn-muted);
-}
-
-.footerColumn a {
-  font-family: var(--cn-font);
-  font-size: 15px;
+.footerLogo {
+  font-family: var(--cn-font-serif);
+  font-size: 22px;
+  font-style: italic;
   color: var(--cn-ink);
   text-decoration: none;
 }
 
-.footerColumn a:hover {
-  text-decoration: underline;
+.tagline {
+  margin: 6px 0 0;
+  color: var(--cn-muted);
 }
 
-.footerColumn a:focus-visible {
+.footerHeading {
+  margin-bottom: 4px;
+  font-size: 11px;
+}
+
+.footerColumns ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  line-height: 2;
+}
+
+.footerColumns a {
+  color: var(--cn-ink);
+  text-decoration: none;
+}
+
+.footerColumns a:hover {
+  color: var(--cn-accent);
+}
+
+.footerLogo:focus-visible,
+.footerColumns a:focus-visible {
   outline: 2px solid var(--cn-ink);
   outline-offset: 2px;
 }

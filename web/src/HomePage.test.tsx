@@ -3,23 +3,13 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMemoryHistory, createRoute, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { ApiError } from './api'
 import { HomePage } from './HomePage'
-import { heroGame, heroPly } from './landing/heroGame'
 import { Layout } from './Layout'
 import type { Session, SessionState } from './session'
 import { SessionProvider } from './session'
 import { theme } from './theme'
-
-beforeEach(() => {
-  // react-chessboard measures a square to animate a move; jsdom has no layout.
-  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 40, 40))
-})
-
-afterEach(() => {
-  vi.restoreAllMocks()
-})
 
 function sessionIn(state: SessionState): Session {
   return {
@@ -90,19 +80,78 @@ describe('HomePage', () => {
     }
   })
 
-  it('opens one FAQ answer at a time', async () => {
+  it('opens one FAQ answer at a time, all closed at first', async () => {
     const user = userEvent.setup()
     renderAt({ status: 'guest' })
 
     const first = await screen.findByRole('button', { name: 'What is a note?' })
     const privacy = screen.getByRole('button', { name: 'Who can see my notes?' })
-    expect(first).toHaveAttribute('aria-expanded', 'true')
+    expect(first).toHaveAttribute('aria-expanded', 'false')
     expect(privacy).toHaveAttribute('aria-expanded', 'false')
 
+    await user.click(first)
     await user.click(privacy)
 
     expect(privacy).toHaveAttribute('aria-expanded', 'true')
     expect(first).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it('credits the hero photo, as its licence requires', async () => {
+    renderAt({ status: 'guest' })
+
+    await screen.findByRole('heading', { level: 1, ...landingTitle })
+    expect(screen.getByRole('img', { name: /Fischer and Mikhail Tal/ })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Bundesarchiv, Bild 183-76052-0335 / Kohls, Ulrich' })).toHaveAttribute(
+      'href',
+      expect.stringContaining('commons.wikimedia.org/wiki/File:Bundesarchiv_Bild_183-76052-0335'),
+    )
+    expect(screen.getByRole('link', { name: 'CC BY-SA 3.0 DE' })).toHaveAttribute(
+      'href',
+      'https://creativecommons.org/licenses/by-sa/3.0/de/deed.en',
+    )
+  })
+
+  it('has no Articles, Read or Play on the page', async () => {
+    renderAt({ status: 'guest' })
+
+    await screen.findByRole('heading', { level: 1, ...landingTitle })
+    expect(screen.queryByRole('link', { name: /Articles|Read one now/ })).not.toBeInTheDocument()
+    expect(screen.queryByText('Learn from people')).not.toBeInTheDocument()
+    expect(screen.queryByText('Open to everyone')).not.toBeInTheDocument()
+  })
+
+  it('opens the header menu with the section links and Log in, and closes it on a choice', async () => {
+    const user = userEvent.setup()
+    renderAt({ status: 'guest' })
+
+    const button = await screen.findByRole('button', { name: 'Menu' })
+    expect(button).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByRole('navigation', { name: 'Menu' })).not.toBeInTheDocument()
+
+    await user.click(button)
+
+    expect(button).toHaveAttribute('aria-expanded', 'true')
+    const menu = screen.getByRole('navigation', { name: 'Menu' })
+    expect(within(menu).getByRole('link', { name: 'How it works' })).toHaveAttribute('href', '/#how-it-works')
+    expect(within(menu).getByRole('link', { name: 'FAQ' })).toHaveAttribute('href', '/#faq')
+    expect(within(menu).getByRole('link', { name: 'Log in' })).toHaveAttribute('href', '/login')
+
+    await user.click(within(menu).getByRole('link', { name: 'FAQ' }))
+
+    expect(screen.queryByRole('navigation', { name: 'Menu' })).not.toBeInTheDocument()
+    expect(button).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it('closes the header menu on Escape, back on its button', async () => {
+    const user = userEvent.setup()
+    renderAt({ status: 'guest' })
+
+    const button = await screen.findByRole('button', { name: 'Menu' })
+    await user.click(button)
+    await user.keyboard('{Escape}')
+
+    expect(screen.queryByRole('navigation', { name: 'Menu' })).not.toBeInTheDocument()
+    expect(button).toHaveFocus()
   })
 
   it('sends someone logged in straight to their notes, not the landing page', async () => {
@@ -134,11 +183,5 @@ describe('HomePage', () => {
 
     expect(await screen.findByText('/try page')).toBeInTheDocument()
     expect(screen.queryByRole('navigation', { name: 'Main' })).not.toBeInTheDocument()
-  })
-})
-
-describe('the landing page’s game', () => {
-  it('plays out to the knight landing in front of the isolated pawn', () => {
-    expect(heroGame.plies[heroPly].san).toBe('Nxd4')
   })
 })

@@ -1,15 +1,14 @@
 import { Accordion } from '@mantine/core'
 import { Link } from '@tanstack/react-router'
-import { useState } from 'react'
-import { Board } from '../board'
-import { heroGame, heroPly } from './heroGame'
+import heroPhoto from './hero-fischer-tal-1960.jpg'
 import styles from './Landing.module.css'
-import noteScreen from './note-screen.webp'
 import { SECTIONS } from './sections'
+import studyView from './study-view.webp'
 
-// The landing page for Guests (#42), from design/screens/HomeLoggedOut*.dc.html
-// rewritten for v1 (docs/adr/0001): no Articles, Read or Play, and the
-// hero's board and cards show the page's own game, not sample data.
+// The landing page for Guests, from design/pages/home.html (DESIGN.md "Home
+// page") rewritten for v1 (docs/adr/0001): no Articles, Read or Play, so no
+// "Learn from people" or "Open to everyone" sections. The hero is dark in
+// every theme and the rest follows it (docs/adr/0012).
 export function LandingPage() {
   return (
     <div className={styles.page}>
@@ -23,57 +22,48 @@ export function LandingPage() {
   )
 }
 
+// The photo's licence (CC BY-SA 3.0 DE) requires the credit line, with its links.
+const PHOTO_FILE =
+  'https://commons.wikimedia.org/wiki/File:Bundesarchiv_Bild_183-76052-0335,_Schacholympiade,_Tal_(UdSSR)_gegen_Fischer_(USA).jpg'
+const PHOTO_LICENCE = 'https://creativecommons.org/licenses/by-sa/3.0/de/deed.en'
+
 function Hero() {
   return (
     <section className={styles.hero} aria-labelledby="landing-title">
-      <div className={`${styles.container} ${styles.heroGrid}`}>
+      <img
+        className={styles.heroPhoto}
+        src={heroPhoto}
+        width={768}
+        height={800}
+        fetchPriority="high"
+        alt="Bobby Fischer and Mikhail Tal at the 1960 Chess Olympiad in Leipzig"
+      />
+      <div className={styles.heroWash} aria-hidden="true" />
+      <div className={`${styles.container} ${styles.heroInner}`}>
         <div className={styles.heroCopy}>
-          <p className={styles.eyebrow}>Chess, written like a book</p>
+          <p className={styles.heroEyebrow}>Chess, written like a book</p>
           <h1 id="landing-title" className={styles.title}>
             Remember chess the way you remember a good story.
           </h1>
-          <p className={styles.lede}>
+          <p className={styles.heroLede}>
             LuChess links every game you study to the ideas behind it. Write about the moves that mattered, link
             each game to the openings and ideas it reminds you of, and build your own web of notes.
           </p>
-          <div className={styles.actions}>
-            <Link to="/signup" className={styles.primary}>
+          <div className={styles.heroActions}>
+            <Link to="/signup" className={`${styles.button} ${styles.tan}`}>
               Sign up free
             </Link>
-            <Link to="/try" className={styles.secondary}>
+            <Link to="/try" className={`${styles.button} ${styles.ghostNight}`}>
               Try as a Guest
             </Link>
           </div>
         </div>
-        <HeroNote />
       </div>
+      <p className={styles.credit}>
+        Fischer v. Tal, Leipzig 1960 · Photo: <a href={PHOTO_FILE}>Bundesarchiv, Bild 183-76052-0335 / Kohls, Ulrich</a>{' '}
+        · <a href={PHOTO_LICENCE}>CC BY-SA 3.0 DE</a> · cropped and toned
+      </p>
     </section>
-  )
-}
-
-// A Note on the shared Board, linked to two other Notes. The board can be
-// stepped through like any Note's.
-function HeroNote() {
-  const [ply, setPly] = useState(heroPly)
-  return (
-    <div className={styles.heroNote}>
-      <svg className={styles.threads} viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-        <path d="M50 50 C 30 40, 24 24, 22 8" />
-        <path d="M50 50 C 72 60, 80 76, 80 92" />
-      </svg>
-      <div className={`${styles.linkCard} ${styles.linkCardTop}`}>
-        <span className={styles.cardLabel}>Concept</span>
-        <span className={styles.linkName}>Isolated queen’s pawn</span>
-      </div>
-      <div className={styles.noteCard}>
-        <span className={styles.cardLabel}>Club night, round 3</span>
-        <Board mode="view" game={heroGame} ply={ply} onPlyChange={setPly} />
-      </div>
-      <div className={`${styles.linkCard} ${styles.linkCardBottom}`}>
-        <span className={styles.cardLabel}>Opening</span>
-        <span className={styles.linkName}>Tarrasch Defense</span>
-      </div>
-    </div>
   )
 }
 
@@ -94,17 +84,15 @@ const STEPS = [
 
 function HowItWorks() {
   return (
-    <section id={SECTIONS.howItWorks} className={`${styles.section} ${styles.sunk}`} aria-labelledby="how-title">
+    <section id={SECTIONS.howItWorks} className={`${styles.section} ${styles.band}`} aria-labelledby="how-title">
       <div className={styles.container}>
-        <div className={styles.sectionHead}>
-          <p className={styles.eyebrow}>How it works</p>
-          <h2 id="how-title" className={styles.heading}>
-            Write&nbsp;it. Link&nbsp;it. Find it&nbsp;again.
-          </h2>
-        </div>
+        <p className={styles.eyebrow}>How it works</p>
+        <h2 id="how-title" className={styles.heading}>
+          Write&nbsp;it. Link&nbsp;it. Find it&nbsp;again.
+        </h2>
         <ol className={styles.steps}>
           {STEPS.map((step, index) => (
-            <li key={step.title} className={styles.step}>
+            <li key={step.title}>
               <span className={styles.stepNumber} aria-hidden="true">
                 {index + 1}
               </span>
@@ -127,33 +115,31 @@ const POINTS = [
 function Method() {
   return (
     <section className={styles.section} aria-labelledby="method-title">
-      <div className={`${styles.container} ${styles.featureGrid}`}>
-        <div className={styles.featureCopy}>
+      <div className={`${styles.container} ${styles.feature}`}>
+        <div>
           <p className={styles.eyebrow}>Luhmann’s method</p>
           <h2 id="method-title" className={styles.heading}>
-            Ideas stick when they connect.
+            Ideas stick when <br className={styles.wideBreak} />
+            they connect.
           </h2>
-          <p className={styles.featureText}>
+          <p className={styles.lede}>
             Niklas Luhmann kept thousands of linked notes and said they did his thinking with him. LuChess brings
             that habit to your games.
           </p>
-          <ul className={styles.points}>
+          <ul className={styles.checklist}>
             {POINTS.map((point) => (
-              <li key={point}>
-                <CheckIcon />
-                <span>{point}</span>
-              </li>
+              <li key={point}>{point}</li>
             ))}
           </ul>
         </div>
-        <figure className={styles.picture}>
-          <div className={styles.pictureBar} aria-hidden="true">
+        <figure className={styles.browser}>
+          <div className={styles.browserBar} aria-hidden="true">
             <span />
             <span />
             <span />
           </div>
           <img
-            src={noteScreen}
+            src={studyView}
             width={1440}
             height={1080}
             loading="lazy"
@@ -162,14 +148,6 @@ function Method() {
         </figure>
       </div>
     </section>
-  )
-}
-
-function CheckIcon() {
-  return (
-    <svg className={styles.check} width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M5 12.5l4.5 4.5L19 7.5" />
-    </svg>
   )
 }
 
@@ -189,10 +167,6 @@ const QUESTIONS = [
     answer: 'Only you. Notes are private to your account.',
   },
   {
-    question: 'Do I need a Chess.com or Lichess account?',
-    answer: 'No. Paste a game as PGN, from any site or your own scoresheet, or play the moves on the board.',
-  },
-  {
     question: 'Why not just use an engine?',
     answer:
       'An engine tells you the best move. Your notes tell you why a move mattered to you, and which other games it reminds you of. That is what you remember at the board.',
@@ -201,20 +175,17 @@ const QUESTIONS = [
 
 function Faq() {
   return (
-    <section id={SECTIONS.faq} className={styles.section} aria-labelledby="faq-title">
+    <section id={SECTIONS.faq} className={styles.faqSection} aria-labelledby="faq-title">
       <div className={`${styles.container} ${styles.faqGrid}`}>
-        <div className={styles.sectionHead}>
-          <p className={styles.eyebrow}>FAQ</p>
-          <h2 id="faq-title" className={styles.heading}>
-            Questions, answered.
-          </h2>
-        </div>
+        <h2 id="faq-title" className={styles.faqTitle}>
+          Questions, <br className={styles.wideBreak} />
+          answered.
+        </h2>
         <Accordion
-          defaultValue={QUESTIONS[0].question}
+          order={3}
           chevron={null}
           disableChevronRotation
           classNames={{
-            root: styles.faq,
             item: styles.faqItem,
             control: styles.faqControl,
             label: styles.faqQuestion,
@@ -238,49 +209,64 @@ function Faq() {
 
 function SignUpBand() {
   return (
-    <section className={styles.band} aria-labelledby="band-title">
-      <div className={`${styles.container} ${styles.bandInner}`}>
-        <h2 id="band-title" className={styles.bandTitle}>
-          Start your first note.
-        </h2>
-        <p className={styles.bandText}>Make an account, link your first two games, and see how it feels.</p>
-        <div className={styles.bandActions}>
-          <Link to="/signup" className={styles.bandPrimary}>
-            Sign up free
-          </Link>
-          <Link to="/login" className={styles.bandSecondary}>
-            Log in
-          </Link>
-        </div>
+    <section className={styles.cta} aria-labelledby="cta-title">
+      <h2 id="cta-title" className={styles.ctaTitle}>
+        Start your first note.
+      </h2>
+      <p className={styles.ctaText}>Make an account, link your first two games, and see how it feels.</p>
+      <div className={styles.ctaActions}>
+        <Link to="/signup" className={`${styles.button} ${styles.light}`}>
+          Sign up free
+        </Link>
+        <Link to="/login" className={`${styles.button} ${styles.ghostBand}`}>
+          Log in
+        </Link>
       </div>
     </section>
   )
 }
 
-// Only links that exist (#42): no Articles, Creators, Topics, Contact or legal pages yet.
+// Only links that go somewhere: no Articles, Creators, Topics, Contact or
+// legal pages exist yet.
 function Footer() {
   return (
-    <footer className={styles.footer}>
-      <div className={`${styles.container} ${styles.footerInner}`}>
-        <div className={styles.footerBrand}>
-          <span className={styles.footerLogo}>LuChess</span>
-          <span className={styles.footerTagline}>Chess, learned through connections.</span>
+    <footer>
+      <div className={`${styles.container} ${styles.footerGrid}`}>
+        <div>
+          <Link to="/" className={styles.footerLogo}>
+            LuChess
+          </Link>
+          <p className={styles.tagline}>Chess, learned through connections.</p>
         </div>
         <nav className={styles.footerColumns} aria-label="Footer">
-          <div className={styles.footerColumn}>
-            <span className={styles.footerHeading}>LuChess</span>
-            <Link to="/" hash={SECTIONS.howItWorks}>
-              How it works
-            </Link>
-            <Link to="/" hash={SECTIONS.faq}>
-              FAQ
-            </Link>
-            <Link to="/try">Try as a Guest</Link>
+          <div>
+            <p className={styles.footerHeading}>LuChess</p>
+            <ul>
+              <li>
+                <Link to="/" hash={SECTIONS.howItWorks}>
+                  How it works
+                </Link>
+              </li>
+              <li>
+                <Link to="/" hash={SECTIONS.faq}>
+                  FAQ
+                </Link>
+              </li>
+              <li>
+                <Link to="/try">Try as a Guest</Link>
+              </li>
+            </ul>
           </div>
-          <div className={styles.footerColumn}>
-            <span className={styles.footerHeading}>Account</span>
-            <Link to="/signup">Sign up</Link>
-            <Link to="/login">Log in</Link>
+          <div>
+            <p className={styles.footerHeading}>Account</p>
+            <ul>
+              <li>
+                <Link to="/signup">Sign up</Link>
+              </li>
+              <li>
+                <Link to="/login">Log in</Link>
+              </li>
+            </ul>
           </div>
         </nav>
       </div>

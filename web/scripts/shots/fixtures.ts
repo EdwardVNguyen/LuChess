@@ -148,10 +148,11 @@ export const sampleWriting: Record<number, SampleWriting[]> = {
   ],
 }
 
-// The landing page's picture of the Note screen (LandingNotePicture in
-// entries.ts) is a screenshot of these, not of the samples above, so no
-// sample game or person ends up in product content (web/AGENTS.md). The
-// game is the landing page's hero game (src/landing/heroGame.ts).
+// The landing page's picture of the Note screen (LandingStudyView in
+// entries.ts, saved as src/landing/study-view.webp) is a screenshot of these,
+// not of the samples above, so no sample game or person ends up in product
+// content (web/AGENTS.md). The game is an invented club game: a Tarrasch
+// Defense in which Black takes on an isolated queen's pawn.
 export const landingUser: User = { id: 2, email: 'reader@example.com', name: 'Reader' }
 
 export const landingSession = { accessToken: 'shots-access-token', user: landingUser }
