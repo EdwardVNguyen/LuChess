@@ -26,11 +26,11 @@ export type Palette = {
   /** Links, and anything calling out a link or a destructive action. */
   accent: string
   avatar: string
-  /** Long-form copy on the landing page (HomeLoggedOut.dc.html), a shade softer than ink. */
+  /** Long-form copy on the landing page (design/pages/home.html), a shade softer than ink. */
   prose: string
-  /** The outline button's border on the ink sign-up band (HomeLoggedOut.dc.html). */
+  /** The outline button's border on the ink sign-up band (design/pages/home.html). */
   bandEdge: string
-  /** The three dots on the browser frame around a picture of the app (HomeLoggedOut.dc.html). */
+  /** The three dots on the browser frame around a picture of the app (design/pages/home.html). */
   windowDot: string
   /** What the overlay and the shadows are made from: ink on a light theme, black on a dark one. */
   shadowBase: string
@@ -140,9 +140,35 @@ export const boardTokens = {
   brushYellow: '#B8892A',
 } as const
 
+// The dark panels on the logged-out pages (docs/adr/0012): the Home hero and
+// the auth pages' form panel. They sit over or beside a black-and-white
+// photo, so like the board they look the same in every theme. Never use them
+// anywhere else. The values, and the design's names for them in comments,
+// come from design/pages/DESIGN.md.
+export const panelTokens = {
+  // --night: the panel itself.
+  background: '#1A1714',
+  // --night-field and --night-line: an input's fill and border.
+  field: '#26221E',
+  fieldEdge: '#4A4239',
+  // --on-night to --on-night-4, from brightest to dimmest: headings, body
+  // text, labels and secondary text, then hints and photo credits.
+  heading: '#FBF8F1',
+  text: '#E6DCCB',
+  label: '#CFC4B0',
+  hint: '#A89F8F',
+  // --tan: the primary button, links and the focus ring, and their hover.
+  tan: '#E3BD7C',
+  tanHover: '#F0D29C',
+  // An error message under a field, in the hint's place.
+  error: '#F08A80',
+} as const
+
 export const fontTokens = {
   // All text (docs/adr/0008).
   sans: "'Inter', system-ui, sans-serif",
+  // Headings on the logged-out pages only (docs/adr/0012).
+  serif: "'Source Serif 4', Georgia, serif",
 } as const
 
 export const radiusTokens = {
@@ -171,4 +197,15 @@ export const breakpointTokens = {
   md: '64em', // 1024px
   lg: '90em', // 1440px
   xl: '100em', // 1600px
+} as const
+
+// The logged-out pages' own breakpoint (design/pages/DESIGN.md): mobile up
+// to 640px, tablet from 641px. For desktop (the design's 1025px) they use the
+// app's `md` (64em, 1024px) from `breakpointTokens`, so the shared header and
+// the page body switch at the same width. These stay out of Mantine's
+// `theme.breakpoints`, whose `sm` stays 48em for the app. Media queries can't
+// read CSS variables, so CSS modules write the value out, mobile first:
+// `@media (min-width: 40.0625em)`.
+export const pageBreakpointTokens = {
+  tablet: '40.0625em', // 641px
 } as const

@@ -16,7 +16,7 @@ import {
 } from '@mantine/core'
 import { useDisclosure } from '@mantine/hooks'
 import styles from './DevTheme.module.css'
-import { palettes, type ThemeName } from './tokens'
+import { palettes, panelTokens, type ThemeName } from './tokens'
 
 // Each theme's colours (not its scheme or ramp ends), shown in that theme.
 const swatches = (name: ThemeName) =>
@@ -27,7 +27,8 @@ const swatches = (name: ThemeName) =>
 
 // Dev-only page that shows the theme's components in one place, so a change
 // to a token or a component override is easy to screenshot and compare with
-// the designs (NewFolder.dc.html, Note.dc.html, HomeLoggedOut.dc.html).
+// the designs (NewFolder.dc.html, Note.dc.html, and design/pages/ for the
+// logged-out pages).
 export function DevTheme() {
   const [modalOpened, modalHandlers] = useDisclosure(false)
   const [drawerOpened, drawerHandlers] = useDisclosure(false)
@@ -54,6 +55,38 @@ export function DevTheme() {
       </Stack>
 
       <Stack gap="sm">
+        <Title order={2}>Dark panels</Title>
+        <div className={styles.swatches}>
+          {Object.entries(panelTokens).map(([name, value]) => (
+            <div key={name} className={styles.swatch}>
+              <div className={styles.swatchColor} style={{ background: value }} />
+              <span className={styles.swatchName}>panel {name}</span>
+              <span className={styles.swatchValue}>{value}</span>
+            </div>
+          ))}
+        </div>
+        {/* The same panel inside each theme, to show it ignores the theme (docs/adr/0012). */}
+        <div className={styles.panels}>
+          {(Object.keys(palettes) as ThemeName[]).map((theme) => (
+            <div key={theme} data-cn-theme={theme} className={styles.panelPage}>
+              <span className={styles.swatchName}>In {theme}</span>
+              <div className={styles.panel}>
+                <h3 className={styles.panelHeading}>Log in</h3>
+                <p className={styles.panelText}>
+                  New here? <a href="#panel">Create an account</a>
+                </p>
+                <span className={styles.panelLabel}>Password</span>
+                <div className={styles.panelField} />
+                <span className={styles.panelHint}>10 to 128 characters.</span>
+                <span className={styles.panelError}>Wrong email or password.</span>
+                <span className={styles.panelButton}>Log in</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Stack>
+
+      <Stack gap="sm">
         <Title order={2}>Board squares</Title>
         <div className={styles.board}>
           <div className={styles.boardLight} />
@@ -74,6 +107,15 @@ export function DevTheme() {
           Inter italic: 17.Qxd6
         </Text>
         <Text fz={16}>Inter: FOLDER NAME, Sign up, Only you</Text>
+        <Text fz={28} className={styles.serif}>
+          Source Serif 4: Remember chess the way you remember a good story
+        </Text>
+        <Text fz={28} fs="italic" className={styles.serif}>
+          Source Serif 4 italic: LuChess
+        </Text>
+        <Text fz={28} fw={600} className={styles.serif}>
+          Source Serif 4 semibold: Read it. Connect it.
+        </Text>
       </Stack>
 
       <Stack gap="sm">
