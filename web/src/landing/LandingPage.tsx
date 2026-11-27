@@ -234,7 +234,7 @@ function SignUpBand() {
 // legal pages exist yet.
 function Footer() {
   return (
-    <footer className={styles.footer}>
+    <footer>
       <div className={`${styles.container} ${styles.footerGrid}`}>
         <div>
           <Link to="/" className={styles.footerLogo}>
