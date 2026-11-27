@@ -5,6 +5,10 @@ import { errorMessage } from './errors'
 import { Header } from './header/Header'
 import { useSession } from './session'
 
+// The auth pages have no site header: their logo links back to Home
+// (design/pages/DESIGN.md, "Log in and Sign up").
+const AUTH_PATHS = ['/login', '/signup', '/verify-email', '/forgot-password', '/reset-password']
+
 export function Layout() {
   const { state, restore, signOut } = useSession()
   const navigate = useNavigate()
@@ -12,6 +16,7 @@ export function Layout() {
   // A Guest at `/` sees the landing page, which has a taller header (HomeLoggedOut.dc.html).
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const landing = pathname === '/' && state.status === 'guest'
+  const withHeader = !AUTH_PATHS.includes(pathname)
 
   async function logOut() {
     setLogoutFailed(false)
@@ -28,16 +33,18 @@ export function Layout() {
 
   return (
     <AppShell
-      header={{ height: landing ? { base: 56, md: 64 } : 56 }}
+      header={withHeader ? { height: landing ? { base: 56, md: 64 } : 56 } : undefined}
       padding={0}
       styles={{
         header: { backgroundColor: 'var(--cn-ground)', borderBottom: '1px solid var(--cn-rule)' },
         main: { backgroundColor: 'var(--cn-paper)' },
       }}
     >
-      <AppShell.Header>
-        <Header state={state} landing={landing} onLogOut={() => void logOut()} />
-      </AppShell.Header>
+      {withHeader && (
+        <AppShell.Header>
+          <Header state={state} landing={landing} onLogOut={() => void logOut()} />
+        </AppShell.Header>
+      )}
       <AppShell.Main>
         {state.status === 'restore-failed' && (
           <Alert color="yellow" m="md" title="Could not check your session">

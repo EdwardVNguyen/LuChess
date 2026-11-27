@@ -1,5 +1,5 @@
 import { Loader } from '@mantine/core'
-import { AuthCard } from './AuthCard'
+import { AuthLayout } from './auth/AuthLayout'
 import styles from './Loading.module.css'
 
 // A screen that is still loading: its code (while a route's chunk is fetched)
@@ -12,11 +12,11 @@ export function PageLoading() {
   )
 }
 
-// The auth pages' loading state, as on Verify email: the card, with a loader in it.
+// The auth pages' loading state, as on Verify email: the layout, with a loader in the panel.
 export function AuthLoading() {
   return (
-    <AuthCard>
-      <Loader aria-label="Loading" mx="auto" />
-    </AuthCard>
+    <AuthLayout>
+      <Loader aria-label="Loading" color="var(--cn-panel-tan)" mx="auto" display="block" />
+    </AuthLayout>
   )
 }

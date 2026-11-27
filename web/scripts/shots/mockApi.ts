@@ -93,7 +93,18 @@ export async function installApiMocks(
     }
 
     if (pathname === '/api/auth/verify-email' && method === 'POST') return json(200, {})
-    if (pathname === '/api/auth/login' && method === 'POST') return json(200, loggedInSession)
+    // Logging in: "unverified@" hasn't verified its email yet, "wrong@" has the
+    // wrong password, anything else logs in.
+    if (pathname === '/api/auth/login' && method === 'POST') {
+      const body = request.postDataJSON() as { email: string }
+      if (body.email.startsWith('unverified@')) {
+        return json(403, {
+          error: 'Verify your email before logging in. Check your inbox for the link, or ask for a new one.',
+        })
+      }
+      if (body.email.startsWith('wrong@')) return json(401, { error: 'Invalid email or password' })
+      return json(200, loggedInSession)
+    }
     if (pathname === '/api/auth/logout' && method === 'POST') return json(200, {})
 
     if (pathname === '/api/notes/search' && method === 'GET') {

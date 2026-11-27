@@ -90,10 +90,105 @@ export const entries: ShotEntry[] = [
       await page.getByRole('button', { name: 'Nxd4!', exact: true }).click()
     },
   },
+  // The auth pages (#174), matching design/screenshots/Login*.png and
+  // SignUp*.png. No design matches the rest: their error, loading and
+  // follow-up states, and the other auth pages in the same layout. Night and
+  // Cool paper are with the other themes at the end.
   { name: 'Login', route: '/login', fixtures: 'guest' },
+  {
+    name: 'LoginEmpty',
+    route: '/login',
+    fixtures: 'guest',
+    setup: async (page) => {
+      await page.getByRole('button', { name: 'Log in' }).click()
+      await page.getByText('Enter your email').waitFor()
+    },
+  },
+  {
+    name: 'LoginWrongPassword',
+    route: '/login',
+    fixtures: 'guest',
+    setup: async (page) => {
+      await page.getByLabel('Email').fill('wrong@example.com')
+      await page.getByLabel('Password', { exact: true }).fill('not the password')
+      await page.getByRole('button', { name: 'Log in' }).click()
+      await page.getByText('Invalid email or password').waitFor()
+    },
+  },
+  {
+    name: 'LoginUnverified',
+    route: '/login',
+    fixtures: 'guest',
+    setup: async (page) => {
+      await page.getByLabel('Email').fill('unverified@example.com')
+      await page.getByLabel('Password', { exact: true }).fill('correct horse battery')
+      await page.getByRole('button', { name: 'Log in' }).click()
+      await page.getByRole('button', { name: 'Send a new link' }).waitFor()
+    },
+  },
+  {
+    name: 'LoginUnverifiedResent',
+    route: '/login',
+    fixtures: 'guest',
+    setup: async (page) => {
+      await page.getByLabel('Email').fill('unverified@example.com')
+      await page.getByLabel('Password', { exact: true }).fill('correct horse battery')
+      await page.getByRole('button', { name: 'Log in' }).click()
+      await page.getByRole('button', { name: 'Send a new link' }).click()
+      await page.getByText('A new link is on its way.').waitFor()
+    },
+  },
+  {
+    name: 'LoginPasswordShown',
+    route: '/login',
+    fixtures: 'guest',
+    setup: async (page) => {
+      await page.getByLabel('Password', { exact: true }).fill('correct horse battery')
+      await page.getByRole('button', { name: 'Show password' }).click()
+    },
+  },
+  {
+    name: 'LoginFocus',
+    route: '/login',
+    fixtures: 'guest',
+    setup: async (page) => {
+      await page.getByLabel('Email').focus()
+    },
+  },
   { name: 'SignUp', route: '/signup', fixtures: 'guest' },
+  {
+    name: 'SignUpInvalid',
+    route: '/signup',
+    fixtures: 'guest',
+    setup: async (page) => {
+      await page.getByLabel('Email').fill('not an email')
+      await page.getByLabel('Display name').fill('A')
+      await page.getByLabel('Password', { exact: true }).fill('short')
+      await page.getByLabel('Password', { exact: true }).blur()
+      await page.getByText('Password must be 10 to 128 characters').waitFor()
+    },
+  },
+  {
+    name: 'SignUpSent',
+    route: '/signup',
+    fixtures: 'guest',
+    setup: async (page) => {
+      await page.getByLabel('Email').fill('ada@example.com')
+      await page.getByLabel('Display name').fill('Ada')
+      await page.getByLabel('Password', { exact: true }).fill('correct horse battery')
+      await page.getByRole('button', { name: 'Sign up' }).click()
+      await page.getByRole('heading', { name: 'Check your email' }).waitFor()
+    },
+  },
   { name: 'VerifyEmail', route: '/verify-email', fixtures: 'guest' },
-  // No matching design screens: password reset (#5) uses the auth card style.
+  {
+    name: 'VerifyEmailDone',
+    route: '/verify-email?token=valid',
+    fixtures: 'guest',
+    setup: async (page) => {
+      await page.getByRole('heading', { name: 'Email verified' }).waitFor()
+    },
+  },
   { name: 'ForgotPassword', route: '/forgot-password', fixtures: 'guest' },
   {
     name: 'ForgotPasswordError',
@@ -1265,8 +1360,8 @@ export const entries: ShotEntry[] = [
     },
   },
   // The site in its other themes (docs/adr/0008); every other entry shows
-  // Warm paper, the default. The Note screen, the landing page and Settings
-  // in Night and Cool paper.
+  // Warm paper, the default. The Note screen, the landing page, Settings and
+  // the auth pages (whose form panel stays dark) in Night and Cool paper.
   ...(['night', 'cool'] as const).flatMap((theme): ShotEntry[] => {
     const suffix = theme === 'night' ? 'Night' : 'CoolPaper'
     return [
@@ -1281,6 +1376,8 @@ export const entries: ShotEntry[] = [
       },
       { name: `HomeLoggedOut-${suffix}`, route: '/', fixtures: 'guest', theme },
       { name: `Settings-${suffix}`, route: '/settings', fixtures: 'session', theme },
+      { name: `Login-${suffix}`, route: '/login', fixtures: 'guest', theme },
+      { name: `SignUp-${suffix}`, route: '/signup', fixtures: 'guest', theme },
     ]
   }),
 ]
